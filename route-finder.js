@@ -418,48 +418,64 @@ const PeakflowRouteFinder = {
     document.getElementById('routeFinderPanel')?.classList.add('hidden');
     document.getElementById('routeFinderToggle')?.classList.remove('active');
 
-    // Load route directly into the route planner
-    PeakflowRoutes.clearRoute();
+    // IMPORTANT: Clear old route, then DISABLE planning so addWaypoint doesn't trigger BRouter
+    var R = PeakflowRoutes;
+    R.clearRoute();
+    R.isPlanning = false; // Prevent updateRoute from being called
 
-    // Set the route coordinates directly (skip BRouter - we already have the route!)
-    PeakflowRoutes.routeCoords = route.coords;
-    PeakflowRoutes.elevations = route.elevations;
+    // Set the pre-calculated ORS route data directly
+    R.routeCoords = route.coords;
+    R.elevations = route.elevations;
 
-    // Add start as waypoint
-    const startCoord = route.coords[0];
-    PeakflowRoutes.addWaypoint({ lng: startCoord[0], lat: startCoord[1], name: 'Start' });
+    // Add waypoint markers manually (without triggering updateRoute)
+    var startCoord = route.coords[0];
+    var startMarker = new maplibregl.Marker({ color: '#22c55e' })
+      .setLngLat([startCoord[0], startCoord[1]])
+      .addTo(R.map);
+    R.markers.push(startMarker);
+    R.waypoints.push({ lng: startCoord[0], lat: startCoord[1], name: 'Start' });
 
-    // Add furthest point as waypoint (for display)
-    let maxDist = 0, furthestIdx = 0;
-    for (let i = 0; i < route.coords.length; i++) {
-      const d = Math.pow(route.coords[i][0] - startCoord[0], 2) + Math.pow(route.coords[i][1] - startCoord[1], 2);
+    // Find furthest point for turnaround marker
+    var maxDist = 0, furthestIdx = 0;
+    for (var i = 0; i < route.coords.length; i++) {
+      var d = Math.pow(route.coords[i][0] - startCoord[0], 2) + Math.pow(route.coords[i][1] - startCoord[1], 2);
       if (d > maxDist) { maxDist = d; furthestIdx = i; }
     }
-    const furthest = route.coords[furthestIdx];
-    PeakflowRoutes.addWaypoint({ lng: furthest[0], lat: furthest[1], name: route.name });
+    var furthest = route.coords[furthestIdx];
+    var turnMarker = new maplibregl.Marker({ color: '#e63946' })
+      .setLngLat([furthest[0], furthest[1]])
+      .addTo(R.map);
+    R.markers.push(turnMarker);
+    R.waypoints.push({ lng: furthest[0], lat: furthest[1], name: route.name });
 
-    // Draw the route line
-    PeakflowRoutes.drawRouteLine(route.coords);
-    PeakflowRoutes.updateStats();
+    // Update display
+    R.updateWaypointList();
+    R.drawRouteLine(route.coords);
+    R.updateStats();
 
-    // Show elevation profile
-    document.getElementById('elevationProfile')?.classList.remove('hidden');
-    setTimeout(() => PeakflowRoutes.drawElevationProfile(), 100);
+    // Elevation profile
+    var elevEl = document.getElementById('elevationProfile');
+    if (elevEl) elevEl.classList.remove('hidden');
+    setTimeout(function() { R.drawElevationProfile(); }, 150);
 
-    // Load additional data (SAC, weather, etc.)
-    PeakflowRoutes.loadSACDataForRoute(route.coords).catch(() => {});
-    PeakflowRoutes.analyzeSnowOnRoute().catch(() => {});
-    PeakflowRoutes.loadRouteWeather(route.coords).catch(() => {});
-    PeakflowRoutes.loadWaterSources(route.coords).catch(() => {});
-    PeakflowRoutes.loadSunAnalysis(route.coords, route.elevations);
+    // Re-enable planning for further edits
+    R.isPlanning = true;
+    if (R.map) R.map.getCanvas().style.cursor = 'crosshair';
+
+    // Load additional data in background
+    R.loadSACDataForRoute(route.coords).catch(function() {});
+    R.analyzeSnowOnRoute().catch(function() {});
+    R.loadRouteWeather(route.coords).catch(function() {});
+    R.loadWaterSources(route.coords).catch(function() {});
+    R.loadSunAnalysis(route.coords, route.elevations);
 
     // Collapse sidebar on mobile
-    const sidebar = document.querySelector('.sidebar');
+    var sidebar = document.querySelector('.sidebar');
     if (sidebar && window.innerWidth < 768) {
       sidebar.classList.remove('expanded', 'fully-expanded');
       sidebar.classList.add('collapsed');
     }
 
-    console.log('[RouteFinder] Route selected: ' + route.name + ' (' + route.distance.toFixed(1) + 'km, ' + Math.round(route.ascent) + 'Hm)');
+    console.log('[RouteFinder] Route loaded: ' + route.name + ' (' + route.distance.toFixed(1) + 'km, ' + Math.round(route.ascent) + 'Hm, ' + route.coords.length + ' pts)');
   }
 };
