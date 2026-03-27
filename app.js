@@ -1813,7 +1813,8 @@ const Peakflow = {
     // 2. Supabase peaks search (fast, reliable)
     if (query.length >= 2) {
       try {
-        const peakResp = await fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.' + encodeURIComponent('*' + query + '*') + '&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
+        var searchUrl = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + query.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '') + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5';
+        const peakResp = await fetch(searchUrl, {
           headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
         });
         if (peakResp.ok) {
