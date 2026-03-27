@@ -1695,7 +1695,10 @@ a:hover { text-decoration: underline; }
   }
 
   .profile-select {
-    display: none; /* Hide on mobile - too wide */
+    padding: 4px 6px;
+    font-size: 11px;
+    min-width: 0;
+    max-width: 80px;
   }
 
   .sidebar {
