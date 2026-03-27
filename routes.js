@@ -446,23 +446,40 @@ const PeakflowRoutes = {
       const lonlats = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join('|');
       const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
 
-      for (const profile of profiles) {
-        if (coords.length > 0) break;
-        try {
-          const url = `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
-          const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          const data = await resp.json();
+      // Race all profiles in PARALLEL - first valid response wins
+      try {
+        const results = await Promise.allSettled(
+          profiles.map(profile =>
+            fetch(`${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
+              { signal: AbortSignal.timeout(8000) })
+              .then(r => r.json())
+              .then(data => {
+                if (data.features && data.features[0] && data.features[0].geometry.coordinates.length > 0) {
+                  return { profile, data };
+                }
+                throw new Error('No route');
+              })
+          )
+        );
 
-          if (data.features && data.features[0]) {
+        // Pick first successful result (in profile priority order)
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            const { profile, data } = result.value;
             coords = data.features[0].geometry.coordinates;
             elevations = coords.map(c => c[2] || 0);
             const routeDist = PeakflowUtils.routeDistance(coords);
             console.log(`[Peakflow] BRouter ${profile}: ${coords.length}pts, ${routeDist.toFixed(1)}km`);
             this._analyzeRouteDanger(coords, elevations, routeDist);
+            break;
           }
-        } catch (e) {
-          console.warn(`[Peakflow] BRouter ${profile} failed:`, e.message || e);
         }
+
+        if (coords.length === 0) {
+          console.warn('[Peakflow] All BRouter profiles failed');
+        }
+      } catch (e) {
+        console.warn('[Peakflow] BRouter routing error:', e.message || e);
       }
     }
 
@@ -471,7 +488,7 @@ const PeakflowRoutes = {
       try {
         const coordStr = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
         const url = `${this.OSRM_URL}/${coordStr}?overview=full&geometries=geojson&steps=false`;
-        const resp = await fetch(url);
+        const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
         const data = await resp.json();
 
         if (data.code === 'Ok' && data.routes && data.routes[0]) {
@@ -506,30 +523,22 @@ const PeakflowRoutes = {
     this.routeCoords = coords;
     this.elevations = elevations;
 
-    // Draw route on map
+    // PRIORITY 1: Draw route immediately (no API call)
     this.drawRouteLine(coords);
-
-    // Update stats and elevation profile
     this.updateStats();
+
+    // PRIORITY 2: Elevation profile (no API call, instant)
+    document.getElementById('elevationProfile').classList.remove('hidden');
     this.drawElevationProfile();
 
-    // Show elevation profile panel
-    document.getElementById('elevationProfile').classList.remove('hidden');
-
-    // Load SAC danger data from OSM and mark dangerous sections
-    this.loadSACDataForRoute(coords);
-
-    // Analyze snow
-    this.analyzeSnowOnRoute();
-
-    // Load weather for route area
-    this.loadRouteWeather(coords);
-
-    // Load water sources near route
-    this.loadWaterSources(coords);
-
-    // Sun position analysis
-    this.loadSunAnalysis(coords, elevations);
+    // PRIORITY 3: All API-dependent features load IN PARALLEL
+    Promise.all([
+      this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC load error:', e)),
+      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow error:', e)),
+      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather error:', e)),
+      this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water error:', e)),
+      this.loadSunAnalysis(coords, elevations)
+    ]).then(() => console.log('[Peakflow] All route data loaded'));
   },
 
   /**
