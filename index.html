@@ -6,6 +6,15 @@
   <title>Peakflow - Dein Berg. Dein Flow.</title>
   <meta name="description" content="Kostenlose Outdoor-App mit 3D-Karte, Routenplanung auf echten Wanderwegen, Schneelage und Wetter-Forecast.">
 
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Peakflow">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <!-- MapLibre GL JS -->
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -658,5 +667,62 @@
   <script src="routes.js"></script>
   <script src="walkthrough.js"></script>
   <script src="app.js"></script>
+
+  <!-- PWA Install Banner -->
+  <div id="pwaInstall" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#f0ece2;padding:12px 16px;z-index:900;box-shadow:0 -2px 12px rgba(0,0,0,0.4);font-family:Inter,sans-serif;">
+    <div style="display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto;">
+      <svg width="36" height="36" viewBox="0 0 512 512"><rect width="512" height="512" rx="92" fill="#c9a84c"/><polygon points="256,92 420,370 92,370" fill="#1a1a1a"/><polygon points="256,92 295,152 275,148 237,148 217,152" fill="#fff"/></svg>
+      <div style="flex:1;">
+        <strong style="font-size:14px;">Peakflow installieren</strong>
+        <p style="font-size:11px;color:#a8a29e;margin:2px 0 0;">Als App auf dem Homescreen - schneller, offline-fähig</p>
+      </div>
+      <button id="pwaInstallBtn" style="background:#c9a84c;color:#1a1a1a;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Installieren</button>
+      <button id="pwaInstallClose" style="background:none;border:none;color:#78716c;font-size:20px;cursor:pointer;padding:4px;">&times;</button>
+    </div>
+  </div>
+
+  <!-- Service Worker + PWA Install -->
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[Peakflow] SW registered:', reg.scope))
+          .catch(err => console.warn('[Peakflow] SW failed:', err));
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show install banner if not already installed and not dismissed
+      if (!localStorage.getItem('pwa-dismissed')) {
+        document.getElementById('pwaInstall').style.display = 'block';
+      }
+    });
+
+    document.getElementById('pwaInstallBtn')?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        console.log('[Peakflow] Install:', result.outcome);
+        deferredPrompt = null;
+        document.getElementById('pwaInstall').style.display = 'none';
+      }
+    });
+
+    document.getElementById('pwaInstallClose')?.addEventListener('click', () => {
+      document.getElementById('pwaInstall').style.display = 'none';
+      localStorage.setItem('pwa-dismissed', '1');
+    });
+
+    // Detect if already installed
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('pwaInstall').style.display = 'none';
+      console.log('[Peakflow] App installed!');
+    });
+  </script>
 </body>
 </html>

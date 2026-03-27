@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Icons</title></head>
+<body>
+<canvas id="c"></canvas>
+<div id="output"></div>
+<script>
+const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+const output = document.getElementById('output');
+
+sizes.forEach(size => {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Background - dark rounded square
+  const r = size * 0.18;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+
+  // Mountain triangle - gold
+  const cx = size / 2;
+  const mTop = size * 0.18;
+  const mBottom = size * 0.72;
+  const mWidth = size * 0.32;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, mTop);
+  ctx.lineTo(cx + mWidth, mBottom);
+  ctx.lineTo(cx - mWidth, mBottom);
+  ctx.closePath();
+  ctx.fillStyle = '#c9a84c';
+  ctx.fill();
+
+  // Snow cap - white
+  const snowH = size * 0.12;
+  ctx.beginPath();
+  ctx.moveTo(cx, mTop);
+  ctx.lineTo(cx + snowH * 0.8, mTop + snowH);
+  ctx.lineTo(cx + snowH * 0.3, mTop + snowH * 0.85);
+  ctx.lineTo(cx - snowH * 0.3, mTop + snowH * 0.85);
+  ctx.lineTo(cx - snowH * 0.8, mTop + snowH);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Text "Peakflow" below mountain
+  if (size >= 128) {
+    ctx.fillStyle = '#f0ece2';
+    ctx.font = `bold ${size * 0.1}px -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Peakflow', cx, size * 0.88);
+  }
+
+  // Output as downloadable link
+  const link = document.createElement('a');
+  link.download = `icon-${size}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.textContent = `Download icon-${size}.png`;
+  link.style.display = 'block';
+  link.style.margin = '8px';
+  output.appendChild(link);
+
+  // Also show preview
+  canvas.style.margin = '4px';
+  canvas.style.border = '1px solid #ccc';
+  canvas.style.width = Math.min(size, 128) + 'px';
+  document.body.appendChild(canvas);
+});
+</script>
+</body>
+</html>

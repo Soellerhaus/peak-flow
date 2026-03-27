@@ -1,0 +1,40 @@
+{
+  "name": "Peakflow - Dein Berg, Dein Weg",
+  "short_name": "Peakflow",
+  "description": "Kostenlose Outdoor-Routenplanung mit Gefahrenwarnungen, Schneelage und Wetter",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "de",
+  "categories": ["navigation", "sports", "travel"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Route planen",
+      "url": "/#routen",
+      "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}]
+    },
+    {
+      "name": "Gespeicherte Routen",
+      "url": "/#gespeichert",
+      "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}]
+    }
+  ]
+}

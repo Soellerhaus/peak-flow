@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" fill="#1a1a1a"/>
+  <polygon points="256,92 420,370 92,370" fill="#c9a84c"/>
+  <polygon points="256,92 295,152 275,148 237,148 217,152" fill="#ffffff"/>
+  <text x="256" y="450" text-anchor="middle" fill="#f0ece2" font-family="Arial,sans-serif" font-weight="bold" font-size="52">Peakflow</text>
+</svg>
