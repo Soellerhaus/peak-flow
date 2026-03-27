@@ -94,22 +94,48 @@ const PeakflowExport = {
     const gpxContent = this.generateGPX(route);
     const routeName = (route.name || 'peakflow-route').replace(/[^a-zA-Z0-9-_]/g, '_');
 
-    // Try Web Share API
-    if (navigator.share && navigator.canShare) {
-      try {
-        const file = new File([gpxContent], routeName + '.gpx', { type: 'application/xml' });
-        if (navigator.canShare({ files: [file] })) {
+    // Mobile detection
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.share) {
+      // Try multiple file types - some browsers reject xml but accept octet-stream
+      const attempts = [
+        { name: routeName + '.gpx', type: 'application/octet-stream' },
+        { name: routeName + '.gpx', type: 'application/gpx+xml' },
+        { name: routeName + '.gpx', type: 'application/xml' },
+        { name: routeName + '.gpx', type: 'text/xml' }
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const file = new File([gpxContent], attempt.name, { type: attempt.type });
+          // Skip canShare check - just try to share directly
           await navigator.share({ title: 'Peakflow: ' + (route.name || 'Route'), files: [file] });
           return { success: true, method: 'share' };
+        } catch (e) {
+          if (e.name === 'AbortError') return { success: false, method: 'cancelled' };
+          // Try next mime type
+          continue;
         }
+      }
+
+      // Last resort on mobile: share as text with GPX content
+      try {
+        await navigator.share({
+          title: 'Peakflow: ' + (route.name || 'Route'),
+          text: gpxContent
+        });
+        return { success: true, method: 'share-text' };
       } catch (e) {
-        if (e.name === 'AbortError') return { success: false, method: 'cancelled' };
+        // Fall through to download
       }
     }
 
-    // Download GPX + show instructions how to get it on the watch
+    // Desktop or all share attempts failed: download + instructions
     this.downloadGPX(route);
-    this._showWatchInstructions(routeName);
+    if (isMobile) {
+      this._showWatchInstructions(routeName);
+    }
     return { success: true, method: 'download' };
   },
 
