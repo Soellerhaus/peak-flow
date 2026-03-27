@@ -1268,16 +1268,30 @@ const Peakflow = {
     });
 
     // Dark mode toggle
-    document.getElementById('darkModeToggle').addEventListener('click', () => {
-      const html = document.documentElement;
-      const current = html.getAttribute('data-theme');
-      html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-    });
+    // Dark mode toggle (now in settings)
+    var darkBtn = document.getElementById('darkModeToggle');
+    if (darkBtn) {
+      darkBtn.addEventListener('click', () => {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+      });
+    }
+    var settingsDark = document.getElementById('settingsDarkMode');
+    if (settingsDark) {
+      settingsDark.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+      settingsDark.addEventListener('change', () => {
+        document.documentElement.setAttribute('data-theme', settingsDark.checked ? 'dark' : 'light');
+      });
+    }
 
-    // Emergency modal
-    document.getElementById('emergencyBtn').addEventListener('click', () => {
-      document.getElementById('emergencyModal').classList.remove('hidden');
-    });
+    // Emergency modal (now in settings, but keep modal handler if button exists)
+    var emergBtn = document.getElementById('emergencyBtn');
+    if (emergBtn) {
+      emergBtn.addEventListener('click', () => {
+        document.getElementById('emergencyModal').classList.remove('hidden');
+      });
+    }
     document.getElementById('closeEmergencyModal').addEventListener('click', () => {
       document.getElementById('emergencyModal').classList.add('hidden');
     });

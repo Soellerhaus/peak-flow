@@ -291,40 +291,31 @@ a:hover { text-decoration: underline; }
 }
 
 /* Login Button */
-.header__btn-login {
+/* User icon button - orange (not logged in) / green (logged in) */
+.header__user-icon {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 10px;
-  background: #0d0d0d;
-  border: 1px solid rgba(201,168,76,0.25);
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(234,88,12,0.15);
+  border: 2px solid #ea580c;
+  color: #ea580c;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   flex-shrink: 0;
-  color: #fff;
 }
-.header__btn-login:hover {
-  border-color: rgba(201,168,76,0.5);
-  box-shadow: 0 0 12px rgba(201,168,76,0.12);
+.header__user-icon:hover { transform: scale(1.1); }
+.header__user-icon--active {
+  background: rgba(34,197,94,0.15);
+  border-color: #22c55e;
+  color: #22c55e;
 }
-.header__login-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-.header__login-main {
-  color: #c9a84c;
-  font-family: 'Georgia', serif;
-  font-weight: 900;
-  font-size: 13px;
-}
-.header__login-sub {
-  color: #666;
-  font-size: 7px;
-  font-weight: 500;
-  letter-spacing: 0.8px;
-}
+/* Keep old login styles for compatibility */
+.header__btn-login { display: none; }
+.header__login-text { display: none; }
+.header__login-main { display: none; }
+.header__login-sub { display: none; }
 
 /* User Menu Dropdown */
 .user-menu { position: relative; }
