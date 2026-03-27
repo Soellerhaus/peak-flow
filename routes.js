@@ -98,6 +98,14 @@ const PeakflowRoutes = {
         const idx = parseInt(btn.dataset.index);
         const loc = locs[idx];
         self.addWaypoint({ lng: loc.lng, lat: loc.lat, name: loc.name });
+        // Collapse sidebar on mobile so user can pick next waypoint on map
+        var sidebar = document.querySelector('.sidebar');
+        if (sidebar && window.innerWidth < 768) {
+          sidebar.classList.remove('expanded', 'fully-expanded');
+          sidebar.classList.add('collapsed');
+        }
+        // Fly to location
+        if (self.map) self.map.flyTo({ center: [loc.lng, loc.lat], zoom: 14, duration: 800 });
       });
     });
 
@@ -124,6 +132,13 @@ const PeakflowRoutes = {
               item.addEventListener('click', function() {
                 self.addWaypoint({ lng: parseFloat(item.dataset.lng), lat: parseFloat(item.dataset.lat), name: item.dataset.name });
                 searchResults.classList.add('hidden');
+                // Collapse sidebar on mobile
+                var sidebar = document.querySelector('.sidebar');
+                if (sidebar && window.innerWidth < 768) {
+                  sidebar.classList.remove('expanded', 'fully-expanded');
+                  sidebar.classList.add('collapsed');
+                }
+                if (self.map) self.map.flyTo({ center: [parseFloat(item.dataset.lng), parseFloat(item.dataset.lat)], zoom: 14, duration: 800 });
               });
               item.addEventListener('mouseover', function() { item.style.background = 'var(--bg-tertiary)'; });
               item.addEventListener('mouseout', function() { item.style.background = ''; });

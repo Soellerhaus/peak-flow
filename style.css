@@ -728,6 +728,34 @@ a:hover { text-decoration: underline; }
   padding: 32px 0;
 }
 
+.start-picker { padding: 8px 0; }
+.start-picker__locations { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.start-picker__loc-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--border-color);
+  border-radius: 8px; background: var(--bg-glass); cursor: pointer;
+  font-size: 14px; color: var(--text-primary); width: 100%;
+  transition: all 0.2s;
+}
+.start-picker__loc-btn:first-child {
+  border-color: var(--color-primary);
+  background: rgba(201,168,76,0.1);
+}
+.start-picker__loc-btn:hover { border-color: var(--color-primary); transform: scale(1.01); }
+.start-picker__loc-btn .loc-icon { font-size: 18px; }
+.start-picker__loc-btn .loc-name { flex: 1; font-weight: 500; }
+.start-picker__loc-btn .loc-active {
+  font-size: 10px; color: var(--color-primary); font-weight: 600;
+  background: rgba(201,168,76,0.15); padding: 2px 6px; border-radius: 4px;
+}
+.start-picker__map-btn {
+  width: 100%; padding: 10px; border: 2px dashed var(--border-color);
+  border-radius: 8px; background: transparent; cursor: pointer;
+  font-size: 13px; color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.start-picker__map-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
 /* Route Stats */
 .route-stats__grid {
   display: grid;

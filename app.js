@@ -84,6 +84,9 @@ const Peakflow = {
     // If logged in user has home location, use that
     this.loadUserHomeLocation();
 
+    // Show start picker with saved locations on initial load
+    PeakflowRoutes._showStartPointPicker();
+
     // Ensure sidebar has content on first load
     this.map.once('idle', () => {
       this.updateDiscoverList();
@@ -1374,6 +1377,7 @@ const Peakflow = {
     // Clear route
     document.getElementById('clearRouteBtn').addEventListener('click', () => {
       PeakflowRoutes.clearRoute();
+      this.populateStartPicker();
     });
 
     // Save route - require login
@@ -2208,6 +2212,7 @@ const Peakflow = {
     // Save locations list and fly to top one as active start point
     if (profile.locations && profile.locations.length > 0) {
       this._settingsLocations = profile.locations;
+      PeakflowRoutes._showStartPointPicker();
       var topLoc = profile.locations[0];
       this._userLocation = { lat: topLoc.lat, lng: topLoc.lng };
       localStorage.setItem('peakflow_location', JSON.stringify(this._userLocation));
