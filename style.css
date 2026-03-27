@@ -291,26 +291,27 @@ a:hover { text-decoration: underline; }
 }
 
 /* Login Button */
-/* User icon button - orange (not logged in) / green (logged in) */
+/* User icon: white = not logged in (like "Peak"), gold = logged in (like "flow") */
 .header__user-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: rgba(234,88,12,0.15);
-  border: 2px solid #ea580c;
-  color: #ea580c;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.8);
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
 }
-.header__user-icon:hover { transform: scale(1.1); }
+.header__user-icon:hover { transform: scale(1.1); border-color: #fff; color: #fff; }
 .header__user-icon--active {
-  background: rgba(34,197,94,0.15);
-  border-color: #22c55e;
-  color: #22c55e;
+  background: rgba(201,168,76,0.15);
+  border-color: #c9a84c;
+  color: #c9a84c;
 }
+.header__user-icon--active:hover { border-color: #d4b65e; color: #d4b65e; }
 /* Keep old login styles for compatibility */
 .header__btn-login { display: none; }
 .header__login-text { display: none; }

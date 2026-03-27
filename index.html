@@ -56,7 +56,13 @@
     </div>
 
     <div class="header__actions">
-      <!-- Activity Profile (always visible) -->
+      <!-- Bergkönig Link (hidden on mobile) -->
+      <a href="https://bergkoenig.app" target="_blank" rel="noopener" class="header__link-bk" title="Bergkönig">
+        <span class="header__link-bk-name"><span class="bk-gold">Berg</span><span class="bk-light">könig</span></span>
+        <span class="header__link-bk-sub">VERTEIDIGE DEIN REVIER</span>
+      </a>
+
+      <!-- Activity Profile (always visible, right side) -->
       <select class="profile-select" id="profileSelect" title="Aktivitätsprofil">
         <option value="hiker_slow">🚶 Gemütlich</option>
         <option value="hiker" selected>🥾 Normal</option>
@@ -65,23 +71,15 @@
         <option value="runner_fast">🏃 Profi</option>
       </select>
 
-      <!-- Bergkönig Link -->
-      <a href="https://bergkoenig.app" target="_blank" rel="noopener" class="header__link-bk" title="Bergkönig">
-        <span class="header__link-bk-name"><span class="bk-gold">Berg</span><span class="bk-light">könig</span></span>
-        <span class="header__link-bk-sub">VERTEIDIGE DEIN REVIER</span>
-      </a>
-
-      <!-- Login: Orange = nicht eingeloggt, Grün = eingeloggt -->
+      <!-- User Icon: Weiss = nicht eingeloggt (wie "Peak"), Gold = eingeloggt (wie "flow") -->
       <button class="header__user-icon" id="loginBtn" title="Anmelden">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2.5">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor"/><circle cx="12" cy="7" r="4" stroke="currentColor"/>
         </svg>
       </button>
-
-      <!-- User icon when logged in (green) -->
       <div class="hidden" id="userMenu">
         <button class="header__user-icon header__user-icon--active" id="userMenuBtn" title="Einstellungen">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2.5">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor"/><circle cx="12" cy="7" r="4" stroke="currentColor"/>
           </svg>
         </button>
