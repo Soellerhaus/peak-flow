@@ -53,6 +53,7 @@ const Peakflow = {
   currentStyle: 'topo',
   terrainEnabled: false,
   _peaksVisible: true,
+  _waterVisible: true,
 
   /**
    * Initialize the app
@@ -1235,6 +1236,18 @@ const Peakflow = {
       });
     });
 
+    // Water toggle
+    document.getElementById('waterToggleBtn').addEventListener('click', () => {
+      this._waterVisible = !this._waterVisible;
+      document.getElementById('waterToggleBtn').classList.toggle('active', this._waterVisible);
+      // Show/hide water markers from routes
+      if (PeakflowRoutes._waterMarkers) {
+        PeakflowRoutes._waterMarkers.forEach(m => {
+          m.getElement().style.display = this._waterVisible ? '' : 'none';
+        });
+      }
+    });
+
     // Zoom buttons
     document.getElementById('zoomInBtn').addEventListener('click', () => {
       this.map.zoomIn();
@@ -1892,6 +1905,7 @@ const Peakflow = {
       document.getElementById('settingsProfile').value = profile.activity_profile || 'hiker';
       document.getElementById('settingsMapStyle').value = profile.map_style || 'topo';
       document.getElementById('settingsShowPeaks').checked = profile.show_peaks !== false;
+      document.getElementById('settingsShowWater').checked = profile.show_water !== false;
       document.getElementById('settingsShowElevation').checked = profile.show_elevation !== false;
       document.getElementById('settingsWatch').value = profile.watch_brand || 'none';
 
@@ -1913,6 +1927,7 @@ const Peakflow = {
       document.getElementById('settingsProfile').value = 'hiker';
       document.getElementById('settingsMapStyle').value = 'topo';
       document.getElementById('settingsShowPeaks').checked = true;
+      document.getElementById('settingsShowWater').checked = true;
       document.getElementById('settingsWatch').value = 'none';
       document.querySelectorAll('.avatar-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.dataset.avatar === 'hiker');
@@ -2099,6 +2114,7 @@ const Peakflow = {
         route_color: activeColor ? activeColor.dataset.color : '#39ff14',
         map_style: document.getElementById('settingsMapStyle').value,
         show_peaks: document.getElementById('settingsShowPeaks').checked,
+        show_water: document.getElementById('settingsShowWater').checked,
         show_elevation: document.getElementById('settingsShowElevation').checked,
         locations: self._settingsLocations || [],
         watch_brand: document.getElementById('settingsWatch').value
@@ -2189,6 +2205,17 @@ const Peakflow = {
       });
       if (profile.show_peaks) {
         this.updateMarkerVisibility();
+      }
+    }
+
+    // Water sources visibility
+    if (typeof profile.show_water === 'boolean') {
+      this._waterVisible = profile.show_water;
+      document.getElementById('waterToggleBtn').classList.toggle('active', profile.show_water);
+      if (PeakflowRoutes._waterMarkers) {
+        PeakflowRoutes._waterMarkers.forEach(function(m) {
+          m.getElement().style.display = profile.show_water ? '' : 'none';
+        });
       }
     }
 

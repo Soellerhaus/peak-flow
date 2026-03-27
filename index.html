@@ -216,6 +216,12 @@
       <input type="checkbox" id="settingsShowPeaks" checked style="width:20px;height:20px;cursor:pointer;">
     </div>
 
+    <!-- Show Water Sources Toggle -->
+    <div class="settings-section" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <label style="font-size:14px;font-weight:600;">💧 Wasserquellen anzeigen</label>
+      <input type="checkbox" id="settingsShowWater" checked style="width:20px;height:20px;cursor:pointer;">
+    </div>
+
     <!-- Show Elevation Profile Toggle -->
     <div class="settings-section" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
       <label style="font-size:14px;font-weight:600;">H&ouml;henprofil anzeigen</label>
@@ -556,6 +562,11 @@
         <button class="map-toolbar__btn active" id="peaksToggleBtn" title="Gipfel an/aus">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3L2 20h20L12 3z"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn active" id="waterToggleBtn" title="Wasserquellen an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2C8 8 4 12 4 16a8 8 0 0016 0c0-4-4-8-8-14z"/>
           </svg>
         </button>
         <button class="map-toolbar__btn" id="locateBtn" title="Mein Standort">
