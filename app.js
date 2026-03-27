@@ -128,6 +128,7 @@ const Peakflow = {
     // Pass map reference immediately
     PeakflowRoutes.init(this.map);
     PeakflowRouteFinder.init(this.map);
+    PeakflowNavigation.init(this.map);
     PeakflowWalkthrough.init(this.map);
 
     // When map loads
@@ -1657,6 +1658,15 @@ const Peakflow = {
         btn.disabled = false;
         btn.innerHTML = 'Offline nicht verfügbar (nur HTTPS)';
       }
+    });
+
+    // Voice navigation
+    document.getElementById('navStartBtn').addEventListener('click', () => {
+      PeakflowNavigation.start(
+        PeakflowRoutes.routeCoords,
+        PeakflowRoutes.elevations,
+        this.allPOIs
+      );
     });
 
     // Walkthrough controls

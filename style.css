@@ -1138,6 +1138,10 @@ a:hover { text-decoration: underline; }
   0%, 100% { opacity: 1; box-shadow: 0 0 8px currentColor; }
   50% { opacity: 0.2; box-shadow: 0 0 16px currentColor; }
 }
+@keyframes navPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); transform: scale(1); }
+  50% { box-shadow: 0 0 20px rgba(59,130,246,0.8); transform: scale(1.15); }
+}
 
 /* ============================================
    Route Accordions (SAC, Snow, Packlist)
