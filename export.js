@@ -92,23 +92,26 @@ const PeakflowExport = {
    */
   async shareToWatch(route) {
     const gpxContent = this.generateGPX(route);
-    const fileName = `${(route.name || 'peakflow-route').replace(/[^a-zA-Z0-9-_]/g, '_')}.gpx`;
-    const file = new File([gpxContent], fileName, { type: 'application/gpx+xml' });
+    const routeName = (route.name || 'peakflow-route').replace(/[^a-zA-Z0-9-_]/g, '_');
 
-    // Check if Web Share API with files is supported
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          title: `Peakflow: ${route.name || 'Route'}`,
-          text: 'Route an deine Uhr senden - öffne mit Garmin Connect, Suunto oder Polar App',
-          files: [file]
-        });
-        return { success: true, method: 'share' };
-      } catch (e) {
-        if (e.name === 'AbortError') {
-          return { success: false, method: 'cancelled' };
+    // Try Web Share API with multiple MIME types
+    if (navigator.share && navigator.canShare) {
+      // Try application/xml first (wider support), then gpx+xml
+      const mimeTypes = ['application/xml', 'application/gpx+xml', 'text/xml'];
+      for (const mime of mimeTypes) {
+        try {
+          const file = new File([gpxContent], `${routeName}.gpx`, { type: mime });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `Peakflow: ${route.name || 'Route'}`,
+              files: [file]
+            });
+            return { success: true, method: 'share' };
+          }
+        } catch (e) {
+          if (e.name === 'AbortError') return { success: false, method: 'cancelled' };
+          console.warn('[Peakflow] Share with ' + mime + ' failed:', e.message);
         }
-        console.warn('[Peakflow] Web Share failed, falling back to download', e);
       }
     }
 
