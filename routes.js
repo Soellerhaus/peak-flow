@@ -98,6 +98,11 @@ const PeakflowRoutes = {
         const idx = parseInt(btn.dataset.index);
         const loc = locs[idx];
         self.addWaypoint({ lng: loc.lng, lat: loc.lat, name: loc.name });
+        // Ensure planning mode is active for next waypoint
+        self.isPlanning = true;
+        if (self.map) self.map.getCanvas().style.cursor = 'crosshair';
+        var planBtn = document.getElementById('routePlanBtn');
+        if (planBtn) planBtn.classList.add('active');
         // Collapse sidebar on mobile so user can pick next waypoint on map
         var sidebar = document.querySelector('.sidebar');
         if (sidebar && window.innerWidth < 768) {
@@ -477,17 +482,25 @@ const PeakflowRoutes = {
           )
         );
 
-        // Pick first successful result (in profile priority order)
+        // Compare all successful results - pick SHORTEST route
+        var validRoutes = [];
         for (const result of results) {
           if (result.status === 'fulfilled') {
             const { profile, data } = result.value;
-            coords = data.features[0].geometry.coordinates;
-            elevations = coords.map(c => c[2] || 0);
-            const routeDist = PeakflowUtils.routeDistance(coords);
-            console.log(`[Peakflow] BRouter ${profile}: ${coords.length}pts, ${routeDist.toFixed(1)}km`);
-            this._analyzeRouteDanger(coords, elevations, routeDist);
-            break;
+            const rc = data.features[0].geometry.coordinates;
+            const dist = PeakflowUtils.routeDistance(rc);
+            validRoutes.push({ profile, coords: rc, dist });
+            console.log('[Peakflow] BRouter ' + profile + ': ' + rc.length + 'pts, ' + dist.toFixed(1) + 'km');
           }
+        }
+        // Sort by distance - shortest first
+        validRoutes.sort(function(a, b) { return a.dist - b.dist; });
+        if (validRoutes.length > 0) {
+          var best = validRoutes[0];
+          coords = best.coords;
+          elevations = coords.map(function(c) { return c[2] || 0; });
+          console.log('[Peakflow] Best route: ' + best.profile + ' (' + best.dist.toFixed(1) + 'km)');
+          this._analyzeRouteDanger(coords, elevations, best.dist);
         }
 
         if (coords.length === 0) {
