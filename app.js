@@ -1810,29 +1810,62 @@ const Peakflow = {
       });
     });
 
-    // 2. Nominatim results (if query long enough)
-    if (query.length >= 3) {
+    // 2. Supabase peaks search (fast, reliable)
+    if (query.length >= 2) {
+      try {
+        const peakResp = await fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(query) + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
+          headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+        });
+        if (peakResp.ok) {
+          const peaks = await peakResp.json();
+          peaks.forEach(p => {
+            if (!p.name || results.some(r => r.name === p.name)) return;
+            results.push({
+              type: 'poi',
+              icon: '⛰️',
+              name: p.name,
+              detail: Math.round(p.elevation) + 'm',
+              data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
+            });
+          });
+        }
+      } catch(e) {}
+    }
+
+    // 3. Nominatim results (places, villages, towns)
+    if (query.length >= 2) {
       try {
         const params = new URLSearchParams({
-          q: query, format: 'json', limit: 5, addressdetails: 1,
-          viewbox: '5.8,47.8,17.2,46.3', bounded: 0
+          q: query, format: 'json', limit: 8, addressdetails: 1,
+          viewbox: '5.5,44.0,17.0,48.5', bounded: 0,
+          'accept-language': 'de'
         });
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-          headers: { 'Accept-Language': 'de' }
-        });
+        const resp = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString());
         const places = await resp.json();
 
         places.forEach(place => {
-          // Skip administrative/boundary results
-          if (['administrative', 'boundary', 'political'].includes(place.type)) return;
-          if (place.class === 'boundary') return;
-          // Skip if already in local results
-          if (results.some(r => r.name === place.display_name.split(',')[0])) return;
+          // Skip boundaries but keep everything else
+          if (place.class === 'boundary' && place.type === 'administrative') return;
+          // Skip if already in results
+          var placeName = place.display_name.split(',')[0].trim();
+          if (results.some(r => r.name.startsWith(placeName))) return;
+
+          // Better type labels
+          var typeLabels = {
+            'village': 'Dorf', 'town': 'Stadt', 'city': 'Stadt', 'hamlet': 'Weiler',
+            'peak': 'Gipfel', 'saddle': 'Pass', 'hotel': 'Hotel', 'hostel': 'Hostel',
+            'alpine_hut': 'Hütte', 'restaurant': 'Restaurant', 'station': 'Bahnhof',
+            'bus_stop': 'Bushaltestelle', 'parking': 'Parkplatz', 'waterfall': 'Wasserfall'
+          };
+          var detail = typeLabels[place.type] || place.type || '';
+          var region = place.address ? (place.address.county || place.address.state || '') : '';
+          if (region) detail += ' • ' + region;
+
           results.push({
             type: 'place',
-            icon: '📍',
+            icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
             name: place.display_name.split(',').slice(0, 2).join(', '),
-            detail: place.type === 'village' ? 'Ort' : place.type === 'town' ? 'Stadt' : place.type === 'peak' ? 'Gipfel' : place.type || '',
+            detail: detail,
             data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
           });
         });
