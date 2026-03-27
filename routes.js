@@ -1297,191 +1297,175 @@ out body;`;
     if (!coords || coords.length < 2) return;
     if (!this.map) return;
 
-    // Remove old danger markers
     this._clearDangerMarkers();
 
-    // Calculate bounding box of route (with padding)
     const lngs = coords.map(c => c[0]);
     const lats = coords.map(c => c[1]);
-    const pad = 0.005; // ~500m padding
+    const pad = 0.003;
     const south = Math.min(...lats) - pad;
     const west = Math.min(...lngs) - pad;
     const north = Math.max(...lats) + pad;
     const east = Math.max(...lngs) + pad;
 
-    // Query Overpass API for paths with sac_scale T3+
-    // T3 = detected but NOT blinking, T4+ = BLINKS on map!
-    const query = `[out:json][timeout:15];
-(
-  way["sac_scale"="demanding_mountain_hiking"](${south},${west},${north},${east});
-  way["sac_scale"="alpine_hiking"](${south},${west},${north},${east});
-  way["sac_scale"="demanding_alpine_hiking"](${south},${west},${north},${east});
-  way["sac_scale"="difficult_alpine_hiking"](${south},${west},${north},${east});
-);
-out geom;`;
+    const sacMap = {
+      'hiking': { level: 'T1', label: 'Wandern', color: null, blink: false },
+      'mountain_hiking': { level: 'T2', label: 'Bergwandern', color: null, blink: false },
+      'demanding_mountain_hiking': { level: 'T3', label: 'Anspruchsvoll', color: null, blink: false },
+      'alpine_hiking': { level: 'T4', label: 'Alpinwandern', color: '#e67e22', blink: true },
+      'demanding_alpine_hiking': { level: 'T5', label: 'Alpinklettern', color: '#e74c3c', blink: true },
+      'difficult_alpine_hiking': { level: 'T6', label: 'Schwieriges Alpinklettern', color: '#8b0000', blink: true }
+    };
 
+    let trails = [];
+
+    // METHOD 1: Try Supabase sac_trails table (instant, reliable)
     try {
-      console.log('[Peakflow] Loading SAC danger data from Overpass...');
-      const resp = await fetch(this.OVERPASS_URL, {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
+      console.log('[Peakflow] Loading SAC data from Supabase...');
+      const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/sac_trails' +
+        '?bbox_max_lat=gte.' + south +
+        '&bbox_min_lat=lte.' + north +
+        '&bbox_max_lng=gte.' + west +
+        '&bbox_min_lng=lte.' + east +
+        '&sac_scale=in.(demanding_mountain_hiking,alpine_hiking,demanding_alpine_hiking,difficult_alpine_hiking)' +
+        '&select=osm_id,name,sac_scale,geometry' +
+        '&limit=500';
+      const resp = await fetch(url, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indicndrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcyODU0OTUsImV4cCI6MjA1Mjg2MTQ5NX0.4X0VhYAiKmoBhAp2FVj4E8H8puSCjhigKl3GiP8UoXo'
+        }
       });
-      if (!resp.ok) {
-        console.warn('[Peakflow] Overpass API error:', resp.status);
-        return;
-      }
-      const data = await resp.json();
-
-      if (!data.elements || data.elements.length === 0) {
-        console.log('[Peakflow] No SAC T3+ trails found near route');
-        return;
-      }
-
-      console.log(`[Peakflow] Found ${data.elements.length} SAC T3+ trail segments near route`);
-
-      // SAC scale mapping
-      // T3 = detected for sidebar warning but does NOT blink
-      // T4+ = blinks on map with color!
-      const sacMap = {
-        'demanding_mountain_hiking': { level: 'T3', label: 'Anspruchsvoll', color: null, blink: false },
-        'alpine_hiking': { level: 'T4', label: 'Alpinwandern', color: '#e67e22', blink: true },
-        'demanding_alpine_hiking': { level: 'T5', label: 'Alpinklettern', color: '#e74c3c', blink: true },
-        'difficult_alpine_hiking': { level: 'T6', label: 'Schwieriges Alpinklettern', color: '#8b0000', blink: true }
-      };
-
-      // Build GeoJSON features for dangerous trail sections that overlap with route
-      const dangerFeatures = [];
-      let maxSac = null;
-      let dangerCount = 0;
-
-      for (const way of data.elements) {
-        if (!way.geometry || way.geometry.length < 2) continue;
-        const sacScale = way.tags?.sac_scale;
-        const sacInfo = sacMap[sacScale];
-        if (!sacInfo) continue;
-
-        // Check if ANY node of this OSM way is near our route (within ~200m)
-        const threshold = 0.002; // ~200m - generous to catch trails near route
-        const thresholdSq = threshold * threshold;
-        let hasNearNode = false;
-        let nearestCoord = null;
-
-        for (const node of way.geometry) {
-          for (let ci = 0; ci < coords.length; ci++) {
-            const dLat = coords[ci][1] - node.lat;
-            const dLng = coords[ci][0] - node.lon;
-            if (dLat * dLat + dLng * dLng < thresholdSq) {
-              hasNearNode = true;
-              nearestCoord = [node.lon, node.lat];
-              break;
-            }
-          }
-          if (hasNearNode) break;
-        }
-
-        if (hasNearNode) {
-          // Track max SAC level (including T3)
-          if (!maxSac || sacInfo.level > maxSac.level) {
-            maxSac = sacInfo;
-          }
-
-          // Only add blinking markers for T4+ (sacInfo.blink === true)
-          if (sacInfo.blink && sacInfo.color) {
-            // Collect all near-route nodes for this way
-            const nearNodes = [];
-            for (const node of way.geometry) {
-              for (let ci = 0; ci < coords.length; ci += 2) {
-                const dLat = coords[ci][1] - node.lat;
-                const dLng = coords[ci][0] - node.lon;
-                if (dLat * dLat + dLng * dLng < thresholdSq) {
-                  nearNodes.push([node.lon, node.lat]);
-                  break;
-                }
-              }
-            }
-            if (nearNodes.length > 0) {
-              dangerFeatures.push({
-                type: 'Feature',
-                properties: {
-                  color: sacInfo.color,
-                  level: sacInfo.level,
-                  label: sacInfo.label,
-                  name: way.tags?.name || ''
-                },
-                geometry: {
-                  type: 'LineString',
-                  coordinates: nearNodes
-                }
-              });
-            }
-            dangerCount++;
-          }
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.length > 0) {
+          console.log('[Peakflow] Supabase: ' + data.length + ' SAC trails found');
+          trails = data.map(t => ({
+            geometry: t.geometry,
+            sac_scale: t.sac_scale,
+            name: t.name,
+            osm_id: t.osm_id
+          }));
         }
       }
+    } catch(e) {
+      console.warn('[Peakflow] Supabase SAC query failed:', e);
+    }
 
-      console.log('[Peakflow] SAC results: ' + dangerFeatures.length + ' T4+ features, maxSac=' + (maxSac ? maxSac.level : 'none') + ', dangerCount=' + dangerCount);
-
-      // Place blinking HTML markers at danger points along the route
-      if (dangerFeatures.length > 0) {
-        console.log('[Peakflow] Placing ' + dangerFeatures.length + ' blinking danger markers on route');
-
-        // For each danger feature, place blinking circle markers at start and every 200m
-        dangerFeatures.forEach(feat => {
-          const color = feat.properties.color;
-          const level = feat.properties.level;
-          const label = feat.properties.label;
-          const name = feat.properties.name;
-          const nearCoords = feat.geometry.coordinates;
-
-          // Place markers along the dangerous section
-          for (let i = 0; i < nearCoords.length; i += Math.max(1, Math.floor(nearCoords.length / 5))) {
-            const coord = nearCoords[i];
-            const el = document.createElement('div');
-            el.className = 'danger-blink-marker';
-            el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + color + ';border:2px solid white;box-shadow:0 0 12px ' + color + ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;';
-            el.title = level + ' ' + label + (name ? ' - ' + name : '');
-
-            const marker = new maplibregl.Marker({ element: el })
-              .setLngLat(coord)
-              .addTo(this.map);
-
-            // Click shows popup
-            el.addEventListener('click', () => {
-              new maplibregl.Popup({ offset: 10 })
-                .setLngLat(coord)
-                .setHTML('<div style="padding:4px;"><strong style="color:' + color + ';">\u26A0\uFE0F SAC ' + level + ' - ' + label + '</strong>' +
-                  (name ? '<div style="font-size:12px;margin-top:2px;">' + name + '</div>' : '') +
-                  '</div>')
-                .addTo(this.map);
-            });
-
-            if (!this._dangerMarkers) this._dangerMarkers = [];
-            this._dangerMarkers.push(marker);
-          }
+    // METHOD 2: Fallback to Overpass API if Supabase empty
+    if (trails.length === 0) {
+      try {
+        console.log('[Peakflow] Fallback: Loading SAC from Overpass...');
+        const query = '[out:json][timeout:15];(way["sac_scale"~"demanding_mountain_hiking|alpine_hiking|demanding_alpine_hiking|difficult_alpine_hiking"](' + south + ',' + west + ',' + north + ',' + east + '););out geom;';
+        const resp = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: 'data=' + encodeURIComponent(query)
         });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.elements) {
+            trails = data.elements.filter(e => e.geometry).map(e => ({
+              geometry: e.geometry.map(n => [n.lon, n.lat]),
+              sac_scale: e.tags?.sac_scale,
+              name: e.tags?.name,
+              osm_id: e.id
+            }));
+            console.log('[Peakflow] Overpass: ' + trails.length + ' SAC trails found');
+          }
+        }
+      } catch(e) {
+        console.warn('[Peakflow] Overpass fallback failed:', e);
       }
+    }
 
-      // Append OSM SAC data to the existing SAC accordion (instead of separate box)
-      if (maxSac && dangerCount > 0) {
-        const sacBody = document.getElementById('sacAccordionBody');
-        const sacTitle = document.getElementById('sacAccordionTitle');
-        const sacAccordion = document.getElementById('sacAccordion');
-        if (sacBody && sacTitle && sacAccordion) {
-          const levelEmoji = maxSac.level === 'T6' ? '\u26D4' : maxSac.level === 'T5' ? '\uD83D\uDD34' : '\uD83D\uDFE0';
-          // Update title to show OSM-confirmed SAC level
-          var diffLabel = this._currentDifficulty ? this._currentDifficulty.label : '';
-          sacTitle.innerHTML = '<span style="color:' + maxSac.color + ';">\u26A0 ' + diffLabel + ' \u2022 SAC ' + maxSac.level + ' ' + maxSac.label + ' \u2022 ' + dangerCount + ' Gefahrenstellen</span>';
-          // Append OSM data to body
-          sacBody.innerHTML += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);font-size:12px;">' +
-            levelEmoji + ' <strong>' + dangerCount + '</strong> gef\u00e4hrliche Abschnitte erkannt (OSM SAC-Daten).<br>' +
-            '<span style="color:' + maxSac.color + ';">' + levelEmoji + ' Blinkende Marker auf der Karte zeigen die Gefahrenstellen.</span></div>';
-          sacAccordion.classList.remove('hidden');
-          sacAccordion.querySelector('.route-accordion__header').style.borderColor = maxSac.color + '40';
+    // METHOD 3: Always add steep-section markers from elevation data
+    this._placeSteepMarkers(coords);
+
+    if (trails.length === 0) {
+      console.log('[Peakflow] No SAC trail data available');
+      return;
+    }
+
+    // Process trails - find which ones are near the route
+    const threshold = 0.002;
+    const thresholdSq = threshold * threshold;
+    let maxSac = null;
+    let dangerCount = 0;
+
+    for (const trail of trails) {
+      const geom = trail.geometry;
+      if (!geom || geom.length < 2) continue;
+
+      const sacInfo = sacMap[trail.sac_scale];
+      if (!sacInfo) continue;
+
+      // Check if trail is near route
+      let hasNearNode = false;
+      const nearNodes = [];
+
+      for (const node of geom) {
+        const nLng = Array.isArray(node) ? node[0] : node.lon;
+        const nLat = Array.isArray(node) ? node[1] : node.lat;
+        for (let ci = 0; ci < coords.length; ci += 2) {
+          const dLat = coords[ci][1] - nLat;
+          const dLng = coords[ci][0] - nLng;
+          if (dLat * dLat + dLng * dLng < thresholdSq) {
+            hasNearNode = true;
+            nearNodes.push([nLng, nLat]);
+            break;
+          }
         }
       }
 
-    } catch (e) {
-      console.warn('[Peakflow] Overpass SAC query failed', e);
+      if (!hasNearNode) continue;
+
+      if (!maxSac || sacInfo.level > (maxSac.level || '')) {
+        maxSac = sacInfo;
+      }
+
+      if (sacInfo.blink && sacInfo.color && nearNodes.length > 0) {
+        dangerCount++;
+        // Place blinking markers every few nodes
+        const step = Math.max(1, Math.floor(nearNodes.length / 4));
+        for (let i = 0; i < nearNodes.length; i += step) {
+          const coord = nearNodes[i];
+          const el = document.createElement('div');
+          el.className = 'danger-blink-marker';
+          el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + sacInfo.color + ';border:2px solid white;box-shadow:0 0 12px ' + sacInfo.color + ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;';
+          el.title = sacInfo.level + ' ' + sacInfo.label + (trail.name ? ' - ' + trail.name : '');
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat(coord)
+            .addTo(this.map);
+
+          el.addEventListener('click', () => {
+            new maplibregl.Popup({ offset: 10 })
+              .setLngLat(coord)
+              .setHTML('<div style="padding:4px;"><strong style="color:' + sacInfo.color + ';">⚠️ SAC ' + sacInfo.level + ' - ' + sacInfo.label + '</strong>' +
+                (trail.name ? '<div style="font-size:12px;margin-top:2px;">' + trail.name + '</div>' : '') + '</div>')
+              .addTo(this.map);
+          });
+
+          if (!this._dangerMarkers) this._dangerMarkers = [];
+          this._dangerMarkers.push(marker);
+        }
+      }
+    }
+
+    console.log('[Peakflow] SAC results: maxSac=' + (maxSac ? maxSac.level : 'none') + ', dangerCount=' + dangerCount);
+
+    // Update SAC accordion
+    if (maxSac && dangerCount > 0) {
+      const sacBody = document.getElementById('sacAccordionBody');
+      const sacTitle = document.getElementById('sacAccordionTitle');
+      const sacAccordion = document.getElementById('sacAccordion');
+      if (sacBody && sacTitle && sacAccordion) {
+        const levelEmoji = maxSac.level === 'T6' ? '⛔' : maxSac.level === 'T5' ? '🔴' : '🟠';
+        var diffLabel = this._currentDifficulty ? this._currentDifficulty.label : '';
+        sacTitle.innerHTML = '<span style="color:' + (maxSac.color || '#e67e22') + ';">⚠ ' + diffLabel + ' • SAC ' + maxSac.level + ' ' + maxSac.label + ' • ' + dangerCount + ' Gefahrenstellen</span>';
+        sacBody.innerHTML += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);font-size:12px;">' +
+          levelEmoji + ' <strong>' + dangerCount + '</strong> gefährliche Abschnitte erkannt.<br>' +
+          '<span style="color:' + (maxSac.color || '#e67e22') + ';">' + levelEmoji + ' Blinkende Marker zeigen Gefahrenstellen.</span></div>';
+        sacAccordion.classList.remove('hidden');
+      }
     }
   },
 
