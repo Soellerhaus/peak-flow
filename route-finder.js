@@ -175,10 +175,19 @@ const PeakflowRouteFinder = {
         list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-secondary);font-size:13px;">' +
           'Keine Rundwege gefunden. Versuche andere Einstellungen.</div>';
       } else {
-        // Assign colors and names
+        // Find peaks near each route from Supabase
+        await this._findPeaksAlongRoutes(routes);
+
+        // Assign colors and names (use peak name if found)
         routes.forEach((route, i) => {
           route.color = this.ROUTE_COLORS[i];
-          route.name = this._getDirection(route.coords);
+          if (route.peaks && route.peaks.length > 0) {
+            // Name after the highest peak on the route
+            const topPeak = route.peaks.reduce((a, b) => a.elevation > b.elevation ? a : b);
+            route.name = 'über ' + topPeak.name + ' (' + Math.round(topPeak.elevation) + 'm)';
+          } else {
+            route.name = this._getDirection(route.coords);
+          }
           // Avoid duplicate names
           if (i > 0 && route.name === routes[i-1].name) {
             route.name += ' ' + (i + 1);
@@ -197,6 +206,10 @@ const PeakflowRouteFinder = {
             '<div class="rf-result__color" style="background:' + route.color + ';"></div>' +
             '<span class="rf-result__name">' + route.name + '</span>' +
             '</div>' +
+            (route.peaks && route.peaks.length > 0 ?
+              '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">⛰ ' +
+              route.peaks.map(function(p) { return p.name + ' (' + Math.round(p.elevation) + 'm)'; }).join(', ') +
+              '</div>' : '') +
             '<div class="rf-result__stats">' +
             '<span>📏 ' + route.distance.toFixed(1) + ' km</span>' +
             '<span>⬆ ' + Math.round(route.ascent) + ' Hm</span>' +
@@ -310,6 +323,62 @@ const PeakflowRouteFinder = {
       duration: durationMin,
       seed: seed
     };
+  },
+
+  async _findPeaksAlongRoutes(routes) {
+    if (!routes || routes.length === 0) return;
+
+    // Get bounding box of all routes
+    const allCoords = routes.flatMap(r => r.coords);
+    const lngs = allCoords.map(c => c[0]);
+    const lats = allCoords.map(c => c[1]);
+    const pad = 0.005;
+
+    try {
+      const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks' +
+        '?latitude=gte.' + (Math.min(...lats) - pad) +
+        '&latitude=lte.' + (Math.max(...lats) + pad) +
+        '&longitude=gte.' + (Math.min(...lngs) - pad) +
+        '&longitude=lte.' + (Math.max(...lngs) + pad) +
+        '&elevation=gte.1000' +
+        '&select=name,latitude,longitude,elevation' +
+        '&order=elevation.desc' +
+        '&limit=50';
+
+      const resp = await fetch(url, {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      });
+      if (!resp.ok) return;
+      const peaks = await resp.json();
+      if (!Array.isArray(peaks) || peaks.length === 0) return;
+
+      // For each route, find peaks within ~300m of the route
+      const threshold = 0.003; // ~300m
+      const thresholdSq = threshold * threshold;
+
+      for (const route of routes) {
+        route.peaks = [];
+        for (const peak of peaks) {
+          if (!peak.name) continue;
+          // Check if peak is near any route coordinate
+          for (let ci = 0; ci < route.coords.length; ci += 5) {
+            const dLat = route.coords[ci][1] - peak.latitude;
+            const dLng = route.coords[ci][0] - peak.longitude;
+            if (dLat * dLat + dLng * dLng < thresholdSq) {
+              route.peaks.push(peak);
+              break;
+            }
+          }
+        }
+        // Max 3 peaks per route, sorted by elevation
+        route.peaks.sort((a, b) => b.elevation - a.elevation);
+        route.peaks = route.peaks.slice(0, 3);
+      }
+
+      console.log('[RouteFinder] Peaks found: ' + routes.map(r => r.peaks.length).join(', '));
+    } catch(e) {
+      console.warn('[RouteFinder] Peak search failed:', e);
+    }
   },
 
   drawPreviewRoute(route, index) {
