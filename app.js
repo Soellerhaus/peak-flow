@@ -1378,7 +1378,18 @@ const Peakflow = {
     // Clear route
     document.getElementById('clearRouteBtn').addEventListener('click', () => {
       PeakflowRoutes.clearRoute();
-      this.populateStartPicker();
+      PeakflowRouteFinder.clearPreviews();
+      // Reset finder panel
+      var rfPanel = document.getElementById('routeFinderPanel');
+      var rfToggle = document.getElementById('routeFinderToggle');
+      var rfResults = document.getElementById('rfResults');
+      var rfList = document.getElementById('rfResultsList');
+      if (rfPanel) rfPanel.classList.add('hidden');
+      if (rfToggle) rfToggle.classList.remove('active');
+      if (rfResults) rfResults.classList.add('hidden');
+      if (rfList) rfList.innerHTML = '';
+      // Show start picker again
+      PeakflowRoutes._showStartPointPicker();
     });
 
     // Save route - require login
