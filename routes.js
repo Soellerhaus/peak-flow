@@ -1570,22 +1570,31 @@ out geom;`;
    * Works independently of Overpass - uses elevation data we already have
    */
   _placeSteepMarkers(coords, elevations) {
-    if (!this.map || !coords || coords.length < 20 || !elevations || elevations.length < 20) return;
+    if (!this.map || !coords || coords.length < 10 || !elevations || elevations.length < 10) return;
     if (!this._dangerMarkers) this._dangerMarkers = [];
 
-    const step = 15; // Check every 15 points (~every 200-300m)
-    const steepPoints = [];
+    const step = 8; // Check every 8 points (~100-150m) - more sensitive
+    const allSlopes = [];
 
     for (let i = step; i < coords.length - step; i += step) {
       const dist = PeakflowUtils.haversineDistance(
         coords[i - step][1], coords[i - step][0], coords[i][1], coords[i][0]
       );
-      if (dist < 0.005) continue; // skip very short segments
+      if (dist < 0.003) continue;
       const elevDiff = Math.abs(elevations[i] - elevations[i - step]);
       const slope = Math.atan2(elevDiff, dist * 1000) * 180 / Math.PI;
+      allSlopes.push({ coord: [coords[i][0], coords[i][1]], slope, idx: i });
+    }
 
-      if (slope > 25) {
-        steepPoints.push({ coord: [coords[i][0], coords[i][1]], slope: slope });
+    // Filter steep sections (>20° instead of >25°)
+    let steepPoints = allSlopes.filter(pt => pt.slope > 20);
+
+    // If SAC says T4+ but no steep points found, take the top 5 steepest sections anyway
+    if (steepPoints.length === 0 && allSlopes.length > 0) {
+      allSlopes.sort((a, b) => b.slope - a.slope);
+      steepPoints = allSlopes.slice(0, Math.min(5, allSlopes.length)).filter(pt => pt.slope > 12);
+      if (steepPoints.length > 0) {
+        console.log('[Peakflow] Using top steepest sections as danger markers');
       }
     }
 
@@ -1594,18 +1603,28 @@ out geom;`;
       return;
     }
 
+    // Don't place too many markers - max 15, spread evenly
+    if (steepPoints.length > 15) {
+      steepPoints.sort((a, b) => a.idx - b.idx);
+      const step2 = Math.ceil(steepPoints.length / 15);
+      steepPoints = steepPoints.filter((_, i) => i % step2 === 0);
+    }
+
     console.log('[Peakflow] Placing ' + steepPoints.length + ' steep-section markers');
 
     steepPoints.forEach(pt => {
-      const color = pt.slope > 40 ? '#8b0000' : pt.slope > 35 ? '#e74c3c' : '#e67e22';
+      const color = pt.slope > 40 ? '#8b0000' : pt.slope > 30 ? '#e74c3c' : pt.slope > 20 ? '#e67e22' : '#d97706';
       const label = pt.slope > 40 ? 'Sehr steil (' + Math.round(pt.slope) + '\u00b0)' :
-                    pt.slope > 35 ? 'Steil (' + Math.round(pt.slope) + '\u00b0)' :
-                    'Anspruchsvoll (' + Math.round(pt.slope) + '\u00b0)';
+                    pt.slope > 30 ? 'Steil (' + Math.round(pt.slope) + '\u00b0)' :
+                    pt.slope > 20 ? 'Anspruchsvoll (' + Math.round(pt.slope) + '\u00b0)' :
+                    'Steilere Passage (' + Math.round(pt.slope) + '\u00b0)';
 
       const el = document.createElement('div');
-      el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + color +
-        ';border:2px solid white;box-shadow:0 0 12px ' + color +
-        ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;';
+      el.innerHTML = '\u26A0';
+      el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + color +
+        ';border:2px solid white;box-shadow:0 0 16px ' + color + ',0 0 8px rgba(0,0,0,0.5)' +
+        ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;' +
+        'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
       el.title = label;
 
       const marker = new maplibregl.Marker({ element: el })
