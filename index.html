@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peakflow - Dein Berg. Dein Flow.</title>
+  <meta name="description" content="Kostenlose Outdoor-App mit 3D-Karte, Routenplanung auf echten Wanderwegen, Schneelage und Wetter-Forecast.">
+
+  <!-- MapLibre GL JS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- SunCalc - sun position calculations (3KB) -->
+  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
+
+  <!-- App -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header__brand">
+      <svg class="header__logo" viewBox="0 0 32 32" width="32" height="32">
+        <path d="M16 2 L28 28 H4 Z" fill="#c9a84c"/>
+        <path d="M16 2 L21 12 H11 Z" fill="#ffffff"/>
+      </svg>
+      <span class="header__title"><span style="color:#ffffff">Peak</span><span style="color:#c9a84c">flow</span></span>
+    </div>
+
+    <div class="header__search">
+      <svg class="header__search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" class="header__search-input" id="searchInput" placeholder="Gipfel, Hütte oder Ort suchen...">
+    </div>
+
+    <div class="header__actions">
+      <!-- Activity Profile -->
+      <select class="profile-select" id="profileSelect" title="Aktivitätsprofil">
+        <option value="hiker_slow">🚶 Gemütlich</option>
+        <option value="hiker" selected>🥾 Normal</option>
+        <option value="hiker_fast">🥾 Zügig</option>
+        <option value="runner">🏃 Trail</option>
+        <option value="runner_fast">🏃 Profi</option>
+      </select>
+
+      <button class="header__btn" id="darkModeToggle" title="Dark Mode">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+
+      <button class="header__btn header__btn--emergency" id="emergencyBtn" title="Notruf">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+      </button>
+
+      <!-- Bergkönig Link -->
+      <a href="https://bergkoenig.app" target="_blank" rel="noopener" class="header__link-bk" title="Bergkönig">
+        <span class="header__link-bk-name"><span class="bk-gold">Berg</span><span class="bk-light">könig</span></span>
+        <span class="header__link-bk-sub">VERTEIDIGE DEIN REVIER</span>
+      </a>
+
+      <!-- Login Button -->
+      <button class="header__btn-login" id="loginBtn" title="Kostenlos anmelden">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#c9a84c" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span id="loginBtnText" class="header__login-text">
+          <span class="header__login-main">Anmelden</span>
+          <span class="header__login-sub">100% KOSTENLOS</span>
+        </span>
+      </button>
+
+      <!-- User Menu (shown when logged in) -->
+      <div class="user-menu hidden" id="userMenu">
+        <button class="header__btn-login" id="userMenuBtn" title="Einstellungen">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#c9a84c" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span id="userName" class="header__login-main"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal hidden" id="authModal">
+    <div class="auth-modal__backdrop"></div>
+    <div class="auth-modal__content">
+      <button class="auth-modal__close" id="closeAuthModal">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <div class="auth-modal__logo">
+        <svg viewBox="0 0 40 40" width="48" height="48">
+          <path d="M20 4L4 36h32L20 4z" fill="#1a1a1a"/>
+          <path d="M20 14L12 36h16L20 14z" fill="#c9a84c" opacity="0.7"/>
+        </svg>
+      </div>
+      <h2 class="auth-modal__title" id="authTitle">Anmelden</h2>
+      <p class="auth-modal__subtitle">Speichere deine Routen und greife von überall darauf zu</p>
+
+      <div class="auth-modal__error hidden" id="authError"></div>
+
+      <form class="auth-form" id="authForm">
+        <div class="auth-form__field">
+          <label for="authEmail">E-Mail</label>
+          <input type="email" id="authEmail" placeholder="deine@email.de" required>
+        </div>
+        <div class="auth-form__field">
+          <label for="authPassword">Passwort</label>
+          <input type="password" id="authPassword" placeholder="Mindestens 6 Zeichen" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn--primary btn--full" id="authSubmit">Anmelden</button>
+      </form>
+
+      <div class="auth-modal__switch">
+        <span id="authSwitchText">Noch kein Konto?</span>
+        <button class="auth-modal__switch-btn" id="authSwitchBtn">Registrieren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="settings-modal hidden" id="settingsModal">
+    <!-- Close button -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:20px;font-weight:800;">&#9881;&#65039; Einstellungen</h2>
+      <button id="closeSettings" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-primary);">&#10005;</button>
+    </div>
+
+    <!-- Welcome message (hidden by default, shown during onboarding) -->
+    <div id="settingsWelcome" class="hidden" style="margin-bottom:16px;padding:12px;background:rgba(201,168,76,0.1);border-radius:10px;font-size:14px;font-weight:600;color:var(--primary,#c9a84c);text-align:center;">
+      Willkommen! Richte dein Profil ein.
+    </div>
+
+    <!-- Display Name -->
+    <div class="settings-section">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Name</label>
+      <input type="text" id="settingsName" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
+    </div>
+
+    <!-- Avatar Selection -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Avatar</label>
+      <div style="display:flex;gap:10px;margin-top:8px;" id="avatarPicker">
+        <button class="avatar-btn" data-avatar="hiker" style="font-size:28px;padding:8px;border:2px solid transparent;border-radius:12px;background:var(--bg-tertiary);cursor:pointer;">&#129458;</button>
+        <button class="avatar-btn" data-avatar="runner" style="font-size:28px;padding:8px;border:2px solid transparent;border-radius:12px;background:var(--bg-tertiary);cursor:pointer;">&#127939;</button>
+        <button class="avatar-btn" data-avatar="climber" style="font-size:28px;padding:8px;border:2px solid transparent;border-radius:12px;background:var(--bg-tertiary);cursor:pointer;">&#129495;</button>
+        <button class="avatar-btn" data-avatar="explorer" style="font-size:28px;padding:8px;border:2px solid transparent;border-radius:12px;background:var(--bg-tertiary);cursor:pointer;">&#129517;</button>
+        <button class="avatar-btn" data-avatar="mountain" style="font-size:28px;padding:8px;border:2px solid transparent;border-radius:12px;background:var(--bg-tertiary);cursor:pointer;">&#9968;&#65039;</button>
+      </div>
+    </div>
+
+    <!-- Activity Profile -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Tempo</label>
+      <select id="settingsProfile" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
+        <option value="hiker_slow">&#128694; Gem&uuml;tlich (3 km/h)</option>
+        <option value="hiker">&#129458; Normal (4 km/h)</option>
+        <option value="hiker_fast">&#129458; Z&uuml;gig (5 km/h)</option>
+        <option value="runner">&#127939; Trailrunner (8 km/h)</option>
+        <option value="runner_fast">&#127939; Profi (14 km/h)</option>
+      </select>
+    </div>
+
+    <!-- Route Color -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Routenfarbe</label>
+      <div style="display:flex;gap:10px;margin-top:8px;" id="colorPicker">
+        <button class="color-btn" data-color="#39ff14" style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:#39ff14;" title="Neon Gr&uuml;n"></button>
+        <button class="color-btn" data-color="#00e5ff" style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:#00e5ff;" title="Cyan"></button>
+        <button class="color-btn" data-color="#ff6ec7" style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:#ff6ec7;" title="Pink"></button>
+        <button class="color-btn" data-color="#ffd700" style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:#ffd700;" title="Gold"></button>
+        <button class="color-btn" data-color="#ff4500" style="width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:#ff4500;" title="Orange-Rot"></button>
+      </div>
+    </div>
+
+    <!-- Map Style -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Kartenansicht</label>
+      <select id="settingsMapStyle" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
+        <option value="topo">&#128506;&#65039; Topografisch</option>
+        <option value="satellite">&#128752;&#65039; Satellit</option>
+        <option value="standard">&#128203; Standard</option>
+      </select>
+    </div>
+
+    <!-- Show Peaks Toggle -->
+    <div class="settings-section" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;">
+      <label style="font-size:14px;font-weight:600;">Gipfel anzeigen</label>
+      <input type="checkbox" id="settingsShowPeaks" checked style="width:20px;height:20px;cursor:pointer;">
+    </div>
+
+    <!-- Show Elevation Profile Toggle -->
+    <div class="settings-section" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <label style="font-size:14px;font-weight:600;">H&ouml;henprofil anzeigen</label>
+      <input type="checkbox" id="settingsShowElevation" checked style="width:20px;height:20px;cursor:pointer;">
+    </div>
+
+    <!-- Saved Locations -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Meine Standorte (max. 5)</label>
+      <p style="font-size:11px;color:var(--text-tertiary);margin:4px 0 8px;">Der oberste Standort wird als Startpunkt verwendet.</p>
+      <div id="settingsLocations" style="margin-top:4px;"></div>
+      <div style="margin-top:8px;position:relative;">
+        <input type="text" id="locationSearchInput" placeholder="Ort suchen und hinzuf&uuml;gen..." style="width:100%;padding:8px 12px;border:1px dashed var(--border-color);background:var(--bg-secondary);border-radius:8px;font-size:13px;color:var(--text-primary);font-family:inherit;outline:none;">
+        <div id="locationSearchResults" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:10;"></div>
+      </div>
+    </div>
+
+    <!-- Watch -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Uhr verbinden</label>
+      <select id="settingsWatch" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
+        <option value="none">Keine Uhr</option>
+        <option value="garmin">Garmin</option>
+        <option value="suunto">Suunto</option>
+        <option value="polar">Polar</option>
+        <option value="apple">Apple Watch</option>
+      </select>
+    </div>
+
+    <!-- Password Change -->
+    <div class="settings-section" style="margin-top:16px;">
+      <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Passwort &auml;ndern</label>
+      <input type="password" id="settingsNewPassword" placeholder="Neues Passwort (min. 6 Zeichen)" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
+      <button id="changePasswordBtn" style="margin-top:8px;padding:10px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;width:100%;color:var(--text-primary);">Passwort &auml;ndern</button>
+    </div>
+
+    <!-- Save Button -->
+    <button id="saveSettingsBtn" style="margin-top:24px;width:100%;padding:14px;background:var(--primary,#c9a84c);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">
+      &#128190; Einstellungen speichern
+    </button>
+
+    <!-- Logout Button -->
+    <button id="logoutBtn" style="margin-top:12px;width:100%;padding:12px;background:transparent;color:var(--color-danger,#ef4444);border:1px solid rgba(239,68,68,0.3);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
+      Abmelden
+    </button>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Mobile toggle handle -->
+      <div class="mobile-toggle" id="mobileToggle" style="display:none;">
+        <div class="mobile-toggle__bar"></div>
+      </div>
+      <div class="sidebar__tabs">
+        <button class="sidebar__tab active" data-tab="discover">Entdecken</button>
+        <button class="sidebar__tab" data-tab="routes">Routen</button>
+        <button class="sidebar__tab" data-tab="saved">Gespeichert</button>
+      </div>
+
+      <!-- Discover Tab -->
+      <div class="sidebar__panel active" id="panel-discover">
+        <div class="sidebar__section">
+          <h3 class="sidebar__heading">Gipfel in der Nähe</h3>
+          <div class="poi-list" id="summitList">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+        <div class="sidebar__section">
+          <h3 class="sidebar__heading">Hütten</h3>
+          <div class="poi-list" id="hutList">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+        <div class="sidebar__section">
+          <h3 class="sidebar__heading">Pässe & Scharten</h3>
+          <div class="poi-list" id="passList">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Route Planning Tab -->
+      <div class="sidebar__panel" id="panel-routes">
+        <div class="route-planner">
+          <div class="route-planner__header">
+            <h3 class="sidebar__heading">Route planen</h3>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn--sm btn--outline" id="clearRouteBtn">Neu starten</button>
+            </div>
+          </div>
+
+          <div class="route-planner__info" id="routeInfo">
+            <p class="route-planner__hint">📍 Klicke auf die Karte um deinen Startpunkt zu wählen</p>
+          </div>
+
+          <!-- Waypoint list -->
+          <div class="waypoint-list hidden" id="waypointList"></div>
+          <!-- Return to start buttons (Rundweg / Gleicher Weg) -->
+          <div class="hidden" id="returnToStartBtns"></div>
+
+          <div class="route-stats hidden" id="routeStats">
+            <div class="route-stats__grid">
+              <div class="stat-card">
+                <span class="stat-card__label">Distanz</span>
+                <span class="stat-card__value" id="statDistance">0 km</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Dauer</span>
+                <span class="stat-card__value" id="statDuration">0:00 h</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Aufstieg</span>
+                <span class="stat-card__value" id="statAscent">0 m ↑</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Abstieg</span>
+                <span class="stat-card__value" id="statDescent">0 m ↓</span>
+              </div>
+            </div>
+
+            <div class="difficulty-badge hidden" id="difficultyBadge">
+              <span class="difficulty-badge__dot"></span>
+              <span class="difficulty-badge__text">Leicht</span>
+            </div>
+
+            <!-- Collapsible info sections -->
+            <div class="route-accordions" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+
+              <!-- SAC Warning (collapsible) -->
+              <div class="route-accordion hidden" id="sacAccordion">
+                <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="route-accordion__title" id="sacAccordionTitle">SAC T3</span>
+                  <span class="route-accordion__arrow">&#9660;</span>
+                </button>
+                <div class="route-accordion__body" id="sacAccordionBody"></div>
+              </div>
+
+              <!-- Snow Warning (collapsible) -->
+              <div class="route-accordion hidden" id="snowAccordion">
+                <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="route-accordion__title" id="snowAccordionTitle">Schneewarnung</span>
+                  <span class="route-accordion__arrow">&#9660;</span>
+                </button>
+                <div class="route-accordion__body" id="snowAccordionBody"></div>
+              </div>
+
+              <!-- Packing List (collapsible) -->
+              <div class="route-accordion hidden" id="packAccordion">
+                <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="route-accordion__title">&#x1F392; Packliste</span>
+                  <span class="route-accordion__arrow">&#9660;</span>
+                </button>
+                <div class="route-accordion__body">
+                  <ul class="packing-list__items" id="packingItems" style="list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;"></ul>
+                </div>
+              </div>
+
+              <!-- Water Sources (collapsible) -->
+              <div class="route-accordion hidden" id="waterAccordion">
+                <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="route-accordion__title" id="waterAccordionTitle">&#x1F4A7; Wasserquellen</span>
+                  <span class="route-accordion__arrow">&#9660;</span>
+                </button>
+                <div class="route-accordion__body" id="waterAccordionBody"></div>
+              </div>
+
+              <!-- Sun Position (collapsible) -->
+              <div class="route-accordion hidden" id="sunAccordion">
+                <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="route-accordion__title" id="sunAccordionTitle">&#x2600;&#xFE0F; Sonnenstand</span>
+                  <span class="route-accordion__arrow">&#9660;</span>
+                </button>
+                <div class="route-accordion__body" id="sunAccordionBody"></div>
+              </div>
+
+            </div>
+
+            <!-- Hidden compat elements for JS -->
+            <div class="hidden" id="snowWarning"><span id="snowWarningText"></span></div>
+            <div class="hidden" id="packingList"></div>
+
+            <!-- Route Weather (below accordions) -->
+            <div class="route-weather hidden" id="routeWeather" style="margin-top:12px;padding:10px 12px;background:var(--bg-tertiary);border-radius:10px;font-size:13px;"></div>
+          </div>
+
+          <div class="route-planner__actions hidden" id="routeActions">
+            <button class="btn btn--primary btn--full" id="saveRouteBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/>
+              </svg>
+              Route speichern
+            </button>
+            <button class="btn btn--accent btn--full" id="exportGpxBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              GPX Export
+            </button>
+            <button class="btn btn--outline btn--full" id="shareWatchBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+              </svg>
+              An Uhr senden
+            </button>
+            <button class="btn btn--outline btn--full" id="walkthroughBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5,3 19,12 5,21 5,3"/>
+              </svg>
+              Route durchgehen
+            </button>
+            <button class="btn btn--outline btn--full" id="finishRouteBtn" style="margin-top:8px;border-color:#0d9488;color:#0d9488;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0d9488" stroke-width="2">
+                <polyline points="20,6 9,17 4,12"/>
+              </svg>
+              Planung abschließen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Saved Routes Tab -->
+      <div class="sidebar__panel" id="panel-saved">
+        <div class="sidebar__section">
+          <h3 class="sidebar__heading">Gespeicherte Routen</h3>
+          <div class="saved-routes" id="savedRoutesList">
+            <p class="sidebar__empty">Noch keine Routen gespeichert.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- POI Detail Panel (overlays sidebar content) -->
+      <div class="poi-detail hidden" id="poiDetail">
+        <button class="poi-detail__close" id="closePoiDetail">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div class="poi-detail__hero" id="poiHero"></div>
+        <div class="poi-detail__content">
+          <div class="poi-detail__type" id="poiType"></div>
+          <h2 class="poi-detail__name" id="poiName"></h2>
+          <div class="poi-detail__elevation" id="poiElevation"></div>
+          <div class="poi-detail__difficulty" id="poiDifficulty"></div>
+
+          <!-- Route button at top -->
+          <button class="btn btn--primary btn--full" id="routeToPoiBtn" style="margin:12px 0;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Zur Route hinzufügen
+          </button>
+
+          <!-- Description from Supabase -->
+          <p class="poi-detail__description" id="poiDescription"></p>
+
+          <!-- Hut-specific -->
+          <div class="poi-detail__hut-info hidden" id="hutInfo">
+            <div class="hut-info__item"><strong>Schlafplätze:</strong> <span id="hutBeds"></span></div>
+            <div class="hut-info__item"><strong>Geöffnet:</strong> <span id="hutSeason"></span></div>
+            <div class="hut-info__item"><strong>Telefon:</strong> <span id="hutPhone"></span></div>
+            <a class="btn btn--accent btn--full" id="hutWebsite" href="#" target="_blank" rel="noopener">
+              Hütten-Website besuchen
+            </a>
+          </div>
+
+          <!-- Pass-specific -->
+          <div class="poi-detail__pass-info hidden" id="passInfo">
+            <div class="pass-info__connects" id="passConnects"></div>
+          </div>
+
+          <!-- Weather -->
+          <div class="poi-detail__weather" id="poiWeather">
+            <h4>Aktuelles Wetter</h4>
+            <div class="weather-loading">Wetter wird geladen...</div>
+          </div>
+
+          <!-- Sunrise/Sunset -->
+          <div class="poi-detail__sun" id="poiSun"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Map -->
+    <main class="map-container">
+      <div id="map" class="map"></div>
+
+      <!-- Map Toolbar -->
+      <div class="map-toolbar">
+        <button class="map-toolbar__btn" id="zoomInBtn" title="Zoom +">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="zoomOutBtn" title="Zoom −">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn active" id="peaksToggleBtn" title="Gipfel an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3L2 20h20L12 3z"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="locateBtn" title="Mein Standort">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn active" id="routePlanBtn" title="Route planen">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="layerBtn" title="Kartenlayer">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12,2 2,7 12,12 22,7 12,2"/>
+            <polyline points="2,17 12,22 22,17"/><polyline points="2,12 12,17 22,12"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="fitRouteBtn" title="Route zentrieren">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="terrainToggleBtn" title="3D Terrain an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 21l4-10 4 10"/><path d="M2 21l6-14 4 8"/><path d="M14 21l4-8 4 8"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Layer Picker -->
+      <div class="layer-picker hidden" id="layerPicker">
+        <button class="layer-picker__option active" data-style="topo">
+          <div class="layer-picker__preview layer-picker__preview--topo"></div>
+          <span>Topo</span>
+        </button>
+        <button class="layer-picker__option" data-style="satellite">
+          <div class="layer-picker__preview layer-picker__preview--satellite"></div>
+          <span>Satellit</span>
+        </button>
+        <button class="layer-picker__option" data-style="standard">
+          <div class="layer-picker__preview layer-picker__preview--standard"></div>
+          <span>Standard</span>
+        </button>
+      </div>
+
+      <!-- Elevation Profile -->
+      <div class="elevation-profile hidden" id="elevationProfile">
+        <div class="elevation-profile__header">
+          <h4>Höhenprofil</h4>
+          <button class="elevation-profile__close" id="closeElevation">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <canvas id="elevationCanvas" width="800" height="150"></canvas>
+        <div class="elevation-profile__tooltip hidden" id="elevationTooltip"></div>
+      </div>
+
+      <!-- Walkthrough Controls -->
+      <div class="walkthrough-controls hidden" id="walkthroughControls">
+        <button class="walkthrough-controls__btn" id="wtPrev" title="Zurück">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="19,20 9,12 19,4 19,20"/><line x1="5" y1="19" x2="5" y2="5"/>
+          </svg>
+        </button>
+        <button class="walkthrough-controls__btn walkthrough-controls__btn--play" id="wtPlayPause" title="Play/Pause">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5,3 19,12 5,21 5,3"/>
+          </svg>
+        </button>
+        <button class="walkthrough-controls__btn" id="wtNext" title="Weiter">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5,4 15,12 5,20 5,4"/><line x1="19" y1="5" x2="19" y2="19"/>
+          </svg>
+        </button>
+        <input type="range" class="walkthrough-controls__progress" id="wtProgress" min="0" max="100" value="0">
+        <select class="walkthrough-controls__speed" id="wtSpeed">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+        <button class="walkthrough-controls__btn" id="wtClose" title="Beenden">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- POI Info Card (during walkthrough) -->
+      <div class="poi-info-card hidden" id="poiInfoCard">
+        <div class="poi-info-card__icon" id="poiCardIcon"></div>
+        <div class="poi-info-card__content">
+          <span class="poi-info-card__distance" id="poiCardDistance"></span>
+          <span class="poi-info-card__name" id="poiCardName"></span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Emergency Modal -->
+  <div class="modal hidden" id="emergencyModal">
+    <div class="modal__backdrop"></div>
+    <div class="modal__content">
+      <h2 class="modal__title">Alpiner Notruf</h2>
+      <div class="emergency-numbers">
+        <a href="tel:112" class="emergency-number">
+          <span class="emergency-number__code">112</span>
+          <span class="emergency-number__label">Europaweiter Notruf</span>
+        </a>
+        <a href="tel:140" class="emergency-number">
+          <span class="emergency-number__code">140</span>
+          <span class="emergency-number__label">Alpiner Notruf (Österreich)</span>
+        </a>
+        <a href="tel:1414" class="emergency-number">
+          <span class="emergency-number__code">1414</span>
+          <span class="emergency-number__label">REGA (Schweiz)</span>
+        </a>
+      </div>
+      <p class="emergency-hint">Im Notfall: Alpines Notsignal = 6x pro Minute pfeifen/rufen, 1 Min Pause, wiederholen.</p>
+      <button class="btn btn--outline btn--full" id="closeEmergencyModal">Schließen</button>
+    </div>
+  </div>
+
+  <!-- Legal Footer -->
+  <footer class="legal-footer" id="legalFooter">
+    <span>Kartendaten &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> Contributors</span>
+    <span>|</span>
+    <span>Wetterdaten &copy; <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (ohne Gew&auml;hr)</span>
+    <span>|</span>
+    <span>Routen dienen nur zur Orientierung. Eigenverantwortung am Berg!</span>
+    <span>|</span>
+    <a href="impressum.html" target="_blank">Impressum</a>
+    <span>|</span>
+    <a href="datenschutz.html" target="_blank">Datenschutz</a>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="utils.js"></script>
+  <script src="supabase.js"></script>
+  <script src="weather.js"></script>
+  <script src="snow.js"></script>
+  <script src="export.js"></script>
+  <script src="routes.js"></script>
+  <script src="walkthrough.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

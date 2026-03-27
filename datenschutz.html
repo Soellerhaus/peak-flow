@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Datenschutz - Peakflow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #faf8f4; color: #1a1a1a; line-height: 1.7; }
+    .page { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+    .back { display: inline-flex; align-items: center; gap: 6px; color: #c9a84c; text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    .back:hover { text-decoration: underline; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 24px; color: #1a1a1a; }
+    h2 { font-size: 18px; font-weight: 600; margin: 24px 0 8px; color: #333; }
+    p, li { margin-bottom: 12px; font-size: 15px; color: #444; }
+    ul { padding-left: 24px; }
+    a { color: #c9a84c; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a href="index.html" class="back">&larr; Zur&uuml;ck zu Peakflow</a>
+    <h1>Datenschutzerkl&auml;rung</h1>
+
+    <h2>1. Verantwortlicher</h2>
+    <p>
+      Claudio Scheiwiller<br>
+      Kleinwalsertal, &Ouml;sterreich<br>
+      E-Mail: info@peakflow.app
+    </p>
+
+    <h2>2. &Uuml;bersicht der Datenverarbeitung</h2>
+    <p>Peakflow verarbeitet personenbezogene Daten nur im notwendigen Umfang. Wir nehmen den Schutz Ihrer Daten ernst und behandeln Ihre personenbezogenen Daten vertraulich.</p>
+
+    <h2>3. Registrierung und Nutzerkonto</h2>
+    <p>Bei der Registrierung erheben wir:</p>
+    <ul>
+      <li>E-Mail-Adresse (zur Anmeldung)</li>
+      <li>Selbstgew&auml;hlter Anzeigename</li>
+      <li>Gespeicherte Standorte (max. 5)</li>
+      <li>Routen und Einstellungen</li>
+    </ul>
+    <p>Die Daten werden bei <a href="https://supabase.com/privacy" target="_blank">Supabase</a> (EU-Server) gespeichert. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserf&uuml;llung).</p>
+
+    <h2>4. Kartendaten und externe Dienste</h2>
+    <p>Peakflow nutzt folgende externe Dienste:</p>
+    <ul>
+      <li><strong>OpenStreetMap / OpenTopoMap</strong> - Kartenkacheln. Beim Laden der Karte wird Ihre IP-Adresse an die Tile-Server &uuml;bermittelt. <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank">Datenschutz OSM</a></li>
+      <li><strong>BRouter</strong> - Routenberechnung. Wegpunkte werden zur Berechnung an den BRouter-Server gesendet.</li>
+      <li><strong>Open-Meteo</strong> - Wetterdaten. Koordinaten werden zur Wetterabfrage &uuml;bermittelt. <a href="https://open-meteo.com/en/terms" target="_blank">Nutzungsbedingungen</a></li>
+      <li><strong>Nominatim (OpenStreetMap)</strong> - Ortssuche. Suchanfragen werden an den Nominatim-Server gesendet.</li>
+      <li><strong>Overpass API</strong> - Wegdaten und SAC-Einstufungen.</li>
+    </ul>
+
+    <h2>5. Lokale Speicherung (LocalStorage)</h2>
+    <p>Peakflow speichert lokal auf Ihrem Ger&auml;t:</p>
+    <ul>
+      <li>Letzter bekannter Standort</li>
+      <li>Gespeicherte Routen (ohne Login)</li>
+      <li>Theme-Einstellung (hell/dunkel)</li>
+    </ul>
+    <p>Diese Daten verlassen Ihr Ger&auml;t nicht und k&ouml;nnen jederzeit &uuml;ber die Browser-Einstellungen gel&ouml;scht werden.</p>
+
+    <h2>6. Standortdaten</h2>
+    <p>Die Standortabfrage (GPS) erfolgt nur auf ausdr&uuml;ckliche Anforderung durch den Nutzer (&quot;Mein Standort&quot;-Button). Der Standort wird nicht an unsere Server &uuml;bermittelt, sondern nur lokal verarbeitet und optional im Browser-Cache gespeichert.</p>
+
+    <h2>7. Ihre Rechte</h2>
+    <p>Sie haben das Recht auf:</p>
+    <ul>
+      <li>Auskunft &uuml;ber Ihre gespeicherten Daten</li>
+      <li>Berichtigung unrichtiger Daten</li>
+      <li>L&ouml;schung Ihrer Daten (&quot;Recht auf Vergessenwerden&quot;)</li>
+      <li>Einschr&auml;nkung der Verarbeitung</li>
+      <li>Daten&uuml;bertragbarkeit</li>
+      <li>Widerspruch gegen die Verarbeitung</li>
+    </ul>
+    <p>Zur Aus&uuml;bung Ihrer Rechte wenden Sie sich an: info@peakflow.app</p>
+
+    <h2>8. Cookies</h2>
+    <p>Peakflow verwendet keine Tracking-Cookies und kein Analytics. Es werden keine Werbe-Cookies gesetzt.</p>
+
+    <h2>9. &Auml;nderungen</h2>
+    <p>Diese Datenschutzerkl&auml;rung kann gelegentlich aktualisiert werden. Die aktuelle Version finden Sie stets auf dieser Seite.</p>
+
+    <p style="margin-top:32px;color:#888;font-size:13px;">Stand: M&auml;rz 2026</p>
+  </div>
+</body>
+</html>

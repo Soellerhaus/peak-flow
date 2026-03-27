@@ -1,0 +1,11 @@
+{
+  "name": "peakflow",
+  "version": "1.0.0",
+  "description": "Peakflow - Better than Komoot. Free outdoor hiking & trail running app with 3D terrain, snow reports, and smart route planning.",
+  "scripts": {
+    "dev": "npx http-server -p 3000 -c-1",
+    "start": "npx http-server -p 3000 -c-1"
+  },
+  "keywords": ["hiking", "outdoor", "trail-running", "maps", "3d-terrain"],
+  "license": "MIT"
+}
