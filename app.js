@@ -1603,6 +1603,62 @@ const Peakflow = {
       });
     }
 
+    // Offline save - cache map tiles for current route area
+    document.getElementById('offlineSaveBtn').addEventListener('click', () => {
+      const coords = PeakflowRoutes.routeCoords;
+      if (!coords || coords.length < 2) {
+        alert('Bitte zuerst eine Route planen!');
+        return;
+      }
+
+      const btn = document.getElementById('offlineSaveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Wird gespeichert...';
+
+      // Calculate tile URLs for zoom levels 12-16 around the route
+      const lngs = coords.map(c => c[0]);
+      const lats = coords.map(c => c[1]);
+      const pad = 0.01;
+      const bounds = {
+        minLng: Math.min(...lngs) - pad, maxLng: Math.max(...lngs) + pad,
+        minLat: Math.min(...lats) - pad, maxLat: Math.max(...lats) + pad
+      };
+
+      const tileUrls = [];
+      for (let z = 12; z <= 15; z++) {
+        const minX = Math.floor((bounds.minLng + 180) / 360 * Math.pow(2, z));
+        const maxX = Math.floor((bounds.maxLng + 180) / 360 * Math.pow(2, z));
+        const minY = Math.floor((1 - Math.log(Math.tan(bounds.maxLat * Math.PI / 180) + 1 / Math.cos(bounds.maxLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        const maxY = Math.floor((1 - Math.log(Math.tan(bounds.minLat * Math.PI / 180) + 1 / Math.cos(bounds.minLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+
+        for (let x = minX; x <= maxX; x++) {
+          for (let y = minY; y <= maxY; y++) {
+            tileUrls.push('https://tile.opentopomap.org/' + z + '/' + x + '/' + y + '.png');
+          }
+        }
+      }
+
+      console.log('[Peakflow] Caching ' + tileUrls.length + ' tiles for offline use');
+
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CACHE_TILES',
+          urls: tileUrls
+        });
+
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '✅ Offline gespeichert (' + tileUrls.length + ' Tiles)';
+          setTimeout(() => {
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v14m0 0l-4-4m4 4l4-4M4 18h16"/></svg> Offline speichern';
+          }, 3000);
+        }, Math.min(tileUrls.length * 50, 5000));
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = 'Offline nicht verfügbar (nur HTTPS)';
+      }
+    });
+
     // Walkthrough controls
     document.getElementById('walkthroughBtn').addEventListener('click', () => {
       PeakflowWalkthrough.start(

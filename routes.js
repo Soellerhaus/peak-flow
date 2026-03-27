@@ -1180,6 +1180,68 @@ out body;`;
         '</div>';
       }
 
+      // Thunderstorm warning - check CAPE (Convective Available Potential Energy)
+      try {
+        const stormResp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
+          '&hourly=cape,precipitation_probability,weathercode&forecast_days=2&timezone=auto');
+        const stormData = await stormResp.json();
+        if (stormData.hourly) {
+          const times = stormData.hourly.time || [];
+          const capes = stormData.hourly.cape || [];
+          const precips = stormData.hourly.precipitation_probability || [];
+          const codes = stormData.hourly.weathercode || [];
+
+          // Find thunderstorm risk in next 24h
+          const now = new Date();
+          let maxCape = 0, stormHours = [];
+
+          for (let i = 0; i < Math.min(times.length, 48); i++) {
+            const t = new Date(times[i]);
+            if (t < now) continue;
+            const cape = capes[i] || 0;
+            const code = codes[i] || 0;
+            const isStormCode = code >= 95; // WMO 95-99 = thunderstorm
+
+            if (cape > maxCape) maxCape = cape;
+            if (cape > 500 || isStormCode) {
+              stormHours.push({
+                time: t.getHours() + ':00',
+                date: t.toLocaleDateString('de-DE', { weekday: 'short' }),
+                cape: cape,
+                precip: precips[i] || 0,
+                isStorm: isStormCode
+              });
+            }
+          }
+
+          if (stormHours.length > 0 || maxCape > 300) {
+            var level, color, icon, text;
+            if (maxCape > 1500 || stormHours.some(function(h) { return h.isStorm; })) {
+              level = 'HOCH'; color = '#dc2626'; icon = '🌩️';
+              text = 'Starke Gewitter wahrscheinlich! Tour verschieben oder früh starten.';
+            } else if (maxCape > 800) {
+              level = 'MITTEL'; color = '#ea580c'; icon = '⛈️';
+              text = 'Gewitterrisiko am Nachmittag. Gipfel vor 13:00 erreichen!';
+            } else {
+              level = 'GERING'; color = '#d97706'; icon = '🌤️';
+              text = 'Leichtes Gewitterpotenzial. Wetter beobachten.';
+            }
+
+            html += '<div style="margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid ' + color + '40;background:' + color + '10;">' +
+              '<div style="font-size:13px;font-weight:700;color:' + color + ';">' + icon + ' Gewitterwarnung: ' + level + '</div>' +
+              '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + text + '</div>';
+
+            if (stormHours.length > 0) {
+              html += '<div style="font-size:11px;margin-top:4px;color:var(--text-tertiary);">Risiko-Zeiten: ' +
+                stormHours.slice(0, 5).map(function(h) { return h.date + ' ' + h.time; }).join(', ') + '</div>';
+            }
+            html += '</div>';
+          }
+        }
+      } catch(e) {
+        console.warn('[Peakflow] Storm check failed:', e);
+      }
+
       weatherEl.innerHTML = html;
 
       // Attach button handlers
