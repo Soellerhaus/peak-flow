@@ -38,11 +38,13 @@
   <!-- Header -->
   <header class="header">
     <div class="header__brand">
-      <svg class="header__logo" viewBox="0 0 32 32" width="32" height="32">
-        <path d="M16 2 L28 28 H4 Z" fill="#c9a84c"/>
-        <path d="M16 2 L21 12 H11 Z" fill="#ffffff"/>
+      <svg class="header__logo" viewBox="0 0 36 36" width="34" height="34">
+        <!-- Mountain body - gold -->
+        <polygon points="18,3 34,30 2,30" fill="#c9a84c"/>
+        <!-- Snow cap - large, prominent -->
+        <polygon points="18,3 24,14 21,12.5 18,11.5 15,12.5 12,14" fill="#ffffff"/>
       </svg>
-      <span class="header__title"><span style="color:#ffffff">Peak</span><span style="color:#c9a84c">flow</span></span>
+      <span class="header__title"><span style="color:#ffffff;font-weight:800;">Peak</span><span style="color:#c9a84c;font-weight:800;">flow</span></span>
     </div>
 
     <div class="header__search">
@@ -671,7 +673,7 @@
   <!-- PWA Install Banner -->
   <div id="pwaInstall" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#f0ece2;padding:12px 16px;z-index:900;box-shadow:0 -2px 12px rgba(0,0,0,0.4);font-family:Inter,sans-serif;">
     <div style="display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto;">
-      <svg width="36" height="36" viewBox="0 0 512 512"><rect width="512" height="512" rx="92" fill="#c9a84c"/><polygon points="256,92 420,370 92,370" fill="#1a1a1a"/><polygon points="256,92 295,152 275,148 237,148 217,152" fill="#fff"/></svg>
+      <svg width="36" height="36" viewBox="0 0 512 512"><rect width="512" height="512" rx="92" fill="#1a1a1a"/><polygon points="256,65 440,380 72,380" fill="#c9a84c"/><polygon points="256,65 320,185 298,170 256,158 214,170 192,185" fill="#ffffff"/></svg>
       <div style="flex:1;">
         <strong style="font-size:14px;">Peakflow installieren</strong>
         <p style="font-size:11px;color:#a8a29e;margin:2px 0 0;">Als App auf dem Homescreen - schneller, offline-fähig</p>
