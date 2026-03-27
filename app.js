@@ -409,39 +409,49 @@ const Peakflow = {
       }
     }
 
-    const warningHtml = reachInfo.warning
-      ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(220,38,38,0.1);border-radius:4px;font-size:10px;color:#dc2626;line-height:1.3;">
-          ⚠️ ${reachInfo.warning}
-        </div>` : '';
+    // Determine if peak can be added to route
+    const isBlocked = poi.type === 'summit' && !reachInfo.reachable && !reachInfo.lastTrailPoint;
 
-    const btnLabel = !reachInfo.reachable && reachInfo.lastTrailPoint
-      ? 'Route zum letzten Wegpunkt'
-      : '+ Zur Route hinzufügen';
+    const warningHtml = isBlocked
+      ? '<div style="margin-top:6px;padding:6px 8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);border-radius:6px;font-size:11px;color:#dc2626;line-height:1.4;text-align:center;">' +
+        '<strong>\u26D4 Nicht erreichbar</strong><br>Dieser Gipfel ist zu Fu\u00DF / per Trailrun nicht erreichbar. Kein Wanderweg f\u00fchrt zum Gipfel.</div>'
+      : reachInfo.warning
+        ? '<div style="margin-top:6px;padding:4px 6px;background:rgba(220,38,38,0.1);border-radius:4px;font-size:10px;color:#dc2626;line-height:1.3;">\u26A0\uFE0F ' + reachInfo.warning + '</div>'
+        : '';
 
-    const btnColor = reachInfo.reachable
-      ? 'var(--primary, #c9a84c)'
-      : '#e67e22';
+    const btnLabel = isBlocked
+      ? '\u26D4 Nicht zur Route hinzuf\u00fcgbar'
+      : !reachInfo.reachable && reachInfo.lastTrailPoint
+        ? 'Route zum letzten Wegpunkt'
+        : '+ Zur Route hinzuf\u00fcgen';
+
+    const btnColor = isBlocked
+      ? '#78716c'
+      : reachInfo.reachable
+        ? 'var(--primary, #c9a84c)'
+        : '#e67e22';
 
     const popup = new maplibregl.Popup({ offset: 20, closeOnClick: true })
       .setLngLat([poi.lng, poi.lat])
-      .setHTML(`
-        <div class="popup-content">
-          <div class="popup-content__type">${typeLabels[poi.type] || poi.type}</div>
-          <div class="popup-content__name">${poi.name}</div>
-          <div class="popup-content__elevation">${poi.elevation}m</div>
-          ${warningHtml}
-          <button class="popup-add-route-btn" id="popupAddRoute"
-            style="margin-top:8px;width:100%;padding:6px 10px;background:${btnColor};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">
-            ${btnLabel}
-          </button>
-        </div>
-      `)
+      .setHTML(
+        '<div class="popup-content">' +
+          '<div class="popup-content__type">' + (typeLabels[poi.type] || poi.type) + '</div>' +
+          '<div class="popup-content__name">' + poi.name + '</div>' +
+          '<div class="popup-content__elevation">' + poi.elevation + 'm</div>' +
+          warningHtml +
+          '<button class="popup-add-route-btn" id="popupAddRoute"' +
+            ' style="margin-top:8px;width:100%;padding:6px 10px;background:' + btnColor + ';color:#fff;border:none;border-radius:6px;cursor:' + (isBlocked ? 'not-allowed' : 'pointer') + ';font-size:12px;font-weight:600;' + (isBlocked ? 'opacity:0.6;' : '') + '"' +
+            (isBlocked ? ' disabled' : '') + '>' +
+            btnLabel +
+          '</button>' +
+        '</div>'
+      )
       .addTo(this.map);
 
     // Quick "add to route" button in popup
     setTimeout(() => {
       const btn = document.getElementById('popupAddRoute');
-      if (btn) {
+      if (btn && !isBlocked) {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           popup.remove();
@@ -522,19 +532,31 @@ const Peakflow = {
         })();
 
         if (!reach.reachable) {
-          reachEl.innerHTML = `
-            <div style="margin:8px 0;padding:8px 12px;background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;border-radius:4px;font-size:12px;color:#dc2626;line-height:1.4;">
-              ⚠️ <strong>Nicht auf Wanderweg erreichbar!</strong><br>
-              ${reach.warning || 'Kein begehbarer Weg zum Gipfel.'}
-              ${reach.lastTrailPoint ? '<br>Route wird zum letzten Wegpunkt geführt.' : ''}
-            </div>`;
-          // Update button text
-          const routeBtn = document.getElementById('routeToPoiBtn');
+          var isFullyBlocked = !reach.lastTrailPoint;
+          reachEl.innerHTML = isFullyBlocked
+            ? '<div style="margin:8px 0;padding:10px 12px;background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.3);border-radius:8px;font-size:13px;color:#dc2626;line-height:1.5;text-align:center;">' +
+              '<strong>\u26D4 Nicht erreichbar</strong><br>' +
+              'Dieser Gipfel ist zu Fu\u00DF / per Trailrun nicht erreichbar.<br>Kein Wanderweg f\u00fchrt zum Gipfel.</div>'
+            : '<div style="margin:8px 0;padding:8px 12px;background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;border-radius:4px;font-size:12px;color:#dc2626;line-height:1.4;">' +
+              '\u26A0\uFE0F <strong>Eingeschr\u00e4nkt erreichbar</strong><br>' +
+              (reach.warning || 'Kein begehbarer Weg zum Gipfel.') +
+              '<br>Route wird zum letzten Wegpunkt gef\u00fchrt.</div>';
+          // Update button
+          var routeBtn = document.getElementById('routeToPoiBtn');
           if (routeBtn) {
-            routeBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>Route zum letzten Wegpunkt`;
-            routeBtn.style.background = '#e67e22';
+            if (isFullyBlocked) {
+              routeBtn.innerHTML = '\u26D4 Nicht zur Route hinzuf\u00fcgbar';
+              routeBtn.style.background = '#78716c';
+              routeBtn.style.opacity = '0.6';
+              routeBtn.style.cursor = 'not-allowed';
+              routeBtn.disabled = true;
+            } else {
+              routeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Route zum letzten Wegpunkt';
+              routeBtn.style.background = '#e67e22';
+              routeBtn.style.opacity = '';
+              routeBtn.style.cursor = '';
+              routeBtn.disabled = false;
+            }
           }
           // Save reach info for route button
           this._currentPoiReach = reach;
@@ -2183,13 +2205,17 @@ const Peakflow = {
       if (userMenu) userMenu.classList.remove('hidden');
     }
 
-    // Save locations list and set top one as active start point
+    // Save locations list and fly to top one as active start point
     if (profile.locations && profile.locations.length > 0) {
       this._settingsLocations = profile.locations;
       var topLoc = profile.locations[0];
       this._userLocation = { lat: topLoc.lat, lng: topLoc.lng };
       localStorage.setItem('peakflow_location', JSON.stringify(this._userLocation));
       localStorage.setItem('peakflow_city', topLoc.name);
+      // Fly to first saved location
+      if (this.map) {
+        this.map.flyTo({ center: [topLoc.lng, topLoc.lat], zoom: 13, duration: 1500 });
+      }
     }
   },
 
