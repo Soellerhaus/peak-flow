@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
   <rect width="180" height="180" rx="32" fill="#1a1a1a"/>
-  <!-- Mountain body - gold -->
   <polygon points="90,22 160,130 20,130" fill="#c9a84c"/>
-  <!-- Snow cap - large prominent white area -->
   <polygon points="90,22 115,62 106,56 90,52 74,56 65,62" fill="#ffffff"/>
-  <!-- Two-color text: Peak white + flow gold -->
-  <text x="30" y="160" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="24">Peak</text>
-  <text x="103" y="160" fill="#c9a84c" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="24">flow</text>
+  <text y="160" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="24" text-anchor="middle"><tspan x="75" fill="#ffffff">Peak</tspan><tspan fill="#c9a84c">flow</tspan></text>
 </svg>
