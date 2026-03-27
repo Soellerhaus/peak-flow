@@ -1,13 +1,15 @@
 /**
- * Peakflow Route Finder
- * Suggests routes based on duration + elevation preferences
+ * Peakflow Route Finder v2
+ * Generates round-trip hiking routes using OpenRouteService
  */
 const PeakflowRouteFinder = {
   map: null,
   previewLayers: [],
   selectedDuration: 60,
   selectedHM: 500,
-  ROUTE_COLORS: ['#e63946', '#457b9d', '#2a9d8f'], // Red, Blue, Teal
+  ORS_KEY: 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjlkOGIyMmY0YjcyYTQzOTM4ZWE5OTgyYjUwMTQ4YzNjIiwiaCI6Im11cm11cjY0In0=',
+  ROUTE_COLORS: ['#e63946', '#457b9d', '#2a9d8f'],
+  ROUTE_NAMES: [],
 
   init(map) {
     this.map = map;
@@ -26,7 +28,6 @@ const PeakflowRouteFinder = {
       });
     }
 
-    // Duration chips
     document.querySelectorAll('#rfDuration .rf-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         document.querySelectorAll('#rfDuration .rf-chip').forEach(c => c.classList.remove('active'));
@@ -35,7 +36,6 @@ const PeakflowRouteFinder = {
       });
     });
 
-    // Elevation chips
     document.querySelectorAll('#rfElevation .rf-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         document.querySelectorAll('#rfElevation .rf-chip').forEach(c => c.classList.remove('active'));
@@ -49,14 +49,46 @@ const PeakflowRouteFinder = {
     }
   },
 
+  _getSpeed() {
+    // Match user's activity profile
+    const sel = document.getElementById('activityProfile');
+    const profile = sel ? sel.value : 'hiker';
+    const speeds = {
+      'hiker_slow': 3, 'hiker': 4, 'hiker_fast': 5,
+      'runner': 8, 'runner_fast': 14
+    };
+    return speeds[profile] || 4;
+  },
+
+  _getDirection(coords) {
+    if (coords.length < 10) return 'Rundweg';
+    // Find the point furthest from start to determine direction
+    const start = coords[0];
+    let maxDist = 0, furthest = coords[0];
+    for (let i = 0; i < coords.length; i++) {
+      const d = Math.pow(coords[i][0] - start[0], 2) + Math.pow(coords[i][1] - start[1], 2);
+      if (d > maxDist) { maxDist = d; furthest = coords[i]; }
+    }
+    const angle = Math.atan2(furthest[0] - start[0], furthest[1] - start[1]) * 180 / Math.PI;
+    if (angle > -22.5 && angle <= 22.5) return 'Rundweg Nord';
+    if (angle > 22.5 && angle <= 67.5) return 'Rundweg Nord-Ost';
+    if (angle > 67.5 && angle <= 112.5) return 'Rundweg Ost';
+    if (angle > 112.5 && angle <= 157.5) return 'Rundweg Süd-Ost';
+    if (angle > 157.5 || angle <= -157.5) return 'Rundweg Süd';
+    if (angle > -157.5 && angle <= -112.5) return 'Rundweg Süd-West';
+    if (angle > -112.5 && angle <= -67.5) return 'Rundweg West';
+    return 'Rundweg Nord-West';
+  },
+
   async searchRoutes() {
     const results = document.getElementById('rfResults');
     const loading = document.getElementById('rfLoading');
     const list = document.getElementById('rfResultsList');
     const searchBtn = document.getElementById('rfSearchBtn');
 
-    // Get start location
-    const startLoc = Peakflow._userLocation || Peakflow.getCachedLocation();
+    const startLoc = (typeof Peakflow !== 'undefined') ?
+      (Peakflow._userLocation || Peakflow.getCachedLocation()) : null;
+
     if (!startLoc) {
       alert('Bitte zuerst einen Standort wählen!');
       return;
@@ -66,81 +98,110 @@ const PeakflowRouteFinder = {
     loading.classList.remove('hidden');
     list.innerHTML = '';
     searchBtn.disabled = true;
-    searchBtn.textContent = '🔍 Suche läuft...';
+    searchBtn.textContent = '🔍 Suche Rundwege...';
 
-    // Clear old preview routes
     this.clearPreviews();
 
     try {
-      // Calculate search radius based on duration + speed
-      const speedKmh = 4; // Average hiking speed
-      const maxDistKm = (this.selectedDuration / 60) * speedKmh;
-      const radiusDeg = maxDistKm / 111; // ~111km per degree
+      const speed = this._getSpeed();
+      const lengthM = Math.round((this.selectedDuration / 60) * speed * 1000);
 
-      // Find peaks from Supabase within radius that match elevation criteria
-      const peaks = await this.findMatchingPeaks(startLoc, radiusDeg, this.selectedHM);
+      console.log('[RouteFinder] Searching round trips: ' + lengthM + 'm, ' + this.selectedHM + 'Hm, speed=' + speed + 'km/h');
 
-      if (peaks.length === 0) {
-        list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-secondary);font-size:13px;">Keine passenden Gipfel in der Nähe gefunden. Versuche andere Einstellungen.</div>';
-        loading.classList.add('hidden');
-        searchBtn.disabled = false;
-        searchBtn.textContent = '🔍 Routen suchen';
-        return;
-      }
+      // Try seeds 1-9, collect best 3 matching routes
+      const allRoutes = [];
 
-      // Calculate routes to top 3 peaks
-      const routes = [];
-      for (let i = 0; i < Math.min(3, peaks.length); i++) {
-        const peak = peaks[i];
-        const route = await this.calculateRoute(startLoc, peak);
-        if (route) {
-          route.color = this.ROUTE_COLORS[i];
-          route.peak = peak;
-          routes.push(route);
+      // Fetch 3 routes in parallel (seeds 1, 2, 3)
+      const batch1 = await Promise.allSettled([
+        this._fetchRoundTrip(startLoc, lengthM, 1),
+        this._fetchRoundTrip(startLoc, lengthM, 2),
+        this._fetchRoundTrip(startLoc, lengthM, 3)
+      ]);
+
+      for (const result of batch1) {
+        if (result.status === 'fulfilled' && result.value) {
+          allRoutes.push(result.value);
         }
       }
+
+      // If we need more routes, try seeds 4-6
+      if (allRoutes.length < 3) {
+        const batch2 = await Promise.allSettled([
+          this._fetchRoundTrip(startLoc, lengthM, 4),
+          this._fetchRoundTrip(startLoc, lengthM, 5),
+          this._fetchRoundTrip(startLoc, lengthM, 6)
+        ]);
+        for (const result of batch2) {
+          if (result.status === 'fulfilled' && result.value) {
+            allRoutes.push(result.value);
+          }
+        }
+      }
+
+      // Filter by elevation preference (±50% tolerance)
+      const minHM = this.selectedHM * 0.5;
+      const maxHM = this.selectedHM * 1.5;
+      let matched = allRoutes.filter(r => r.ascent >= minHM && r.ascent <= maxHM);
+
+      // If no exact match, take all and sort by closest HM
+      if (matched.length === 0) {
+        matched = allRoutes.sort((a, b) =>
+          Math.abs(a.ascent - this.selectedHM) - Math.abs(b.ascent - this.selectedHM)
+        );
+      }
+
+      // Take top 3
+      const routes = matched.slice(0, 3);
 
       loading.classList.add('hidden');
 
       if (routes.length === 0) {
-        list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-secondary);font-size:13px;">Keine Wanderwege gefunden. Versuche eine andere Dauer.</div>';
+        list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-secondary);font-size:13px;">' +
+          'Keine Rundwege gefunden. Versuche andere Einstellungen.</div>';
       } else {
-        // Draw preview routes on map
+        // Assign colors and names
+        routes.forEach((route, i) => {
+          route.color = this.ROUTE_COLORS[i];
+          route.name = this._getDirection(route.coords);
+          // Avoid duplicate names
+          if (i > 0 && route.name === routes[i-1].name) {
+            route.name += ' ' + (i + 1);
+          }
+        });
+
+        // Draw on map
         routes.forEach((route, i) => this.drawPreviewRoute(route, i));
 
-        // Show results
+        // Show results list
         list.innerHTML = routes.map((route, i) => {
-          const durationH = Math.floor(route.duration / 60);
-          const durationM = Math.round(route.duration % 60);
+          const dH = Math.floor(route.duration / 60);
+          const dM = Math.round(route.duration % 60);
           return '<div class="rf-result" data-index="' + i + '" style="border-left:4px solid ' + route.color + ';">' +
             '<div class="rf-result__header">' +
             '<div class="rf-result__color" style="background:' + route.color + ';"></div>' +
-            '<span class="rf-result__name">' + (route.peak.name || 'Gipfel ' + (i+1)) + ' (' + Math.round(route.peak.elevation) + 'm)</span>' +
+            '<span class="rf-result__name">' + route.name + '</span>' +
             '</div>' +
             '<div class="rf-result__stats">' +
             '<span>📏 ' + route.distance.toFixed(1) + ' km</span>' +
-            '<span>⬆ ' + route.ascent + ' Hm</span>' +
-            '<span>⏱ ' + durationH + ':' + (durationM < 10 ? '0' : '') + durationM + ' h</span>' +
+            '<span>⬆ ' + Math.round(route.ascent) + ' Hm</span>' +
+            '<span>⬇ ' + Math.round(route.descent) + ' Hm</span>' +
+            '<span>⏱ ' + dH + ':' + (dM < 10 ? '0' : '') + dM + ' h</span>' +
             '</div>' +
             '<button class="rf-result__btn" data-index="' + i + '">Diese Route wählen →</button>' +
             '</div>';
         }).join('');
 
-        // Event handlers for "Diese Route wählen"
+        // Event handlers
         list.querySelectorAll('.rf-result__btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const idx = parseInt(btn.dataset.index);
-            this.selectRoute(routes[idx]);
+            this.selectRoute(routes[parseInt(btn.dataset.index)]);
           });
         });
 
-        // Hover highlights
         list.querySelectorAll('.rf-result').forEach(card => {
-          card.addEventListener('mouseenter', () => {
-            const idx = parseInt(card.dataset.index);
-            this.highlightRoute(idx);
-          });
+          card.addEventListener('mouseenter', () => this.highlightRoute(parseInt(card.dataset.index)));
+          card.addEventListener('mouseleave', () => this.resetHighlight());
         });
 
         // Fit map to show all routes
@@ -149,14 +210,14 @@ const PeakflowRouteFinder = {
           const lngs = allCoords.map(c => c[0]);
           const lats = allCoords.map(c => c[1]);
           this.map.fitBounds([
-            [Math.min(...lngs) - 0.01, Math.min(...lats) - 0.01],
-            [Math.max(...lngs) + 0.01, Math.max(...lats) + 0.01]
-          ], { padding: 60, duration: 1000 });
+            [Math.min(...lngs) - 0.005, Math.min(...lats) - 0.005],
+            [Math.max(...lngs) + 0.005, Math.max(...lats) + 0.005]
+          ], { padding: 50, duration: 1000 });
         }
       }
     } catch(e) {
       console.error('[RouteFinder] Error:', e);
-      list.innerHTML = '<div style="padding:12px;color:#e63946;">Fehler beim Suchen: ' + e.message + '</div>';
+      list.innerHTML = '<div style="padding:12px;color:#e63946;font-size:13px;">Fehler: ' + e.message + '</div>';
       loading.classList.add('hidden');
     }
 
@@ -164,116 +225,75 @@ const PeakflowRouteFinder = {
     searchBtn.textContent = '🔍 Routen suchen';
   },
 
-  async findMatchingPeaks(startLoc, radiusDeg, targetHM) {
-    // Calculate target elevation: start elevation + target HM
-    const startElevResp = await fetch('https://api.open-meteo.com/v1/elevation?latitude=' + startLoc.lat + '&longitude=' + startLoc.lng);
-    const startElevData = await startElevResp.json();
-    const startElev = startElevData.elevation?.[0] || 800;
+  async _fetchRoundTrip(startLoc, lengthM, seed) {
+    const body = {
+      coordinates: [[startLoc.lng, startLoc.lat]],
+      options: {
+        round_trip: {
+          length: lengthM,
+          points: 5,
+          seed: seed
+        }
+      },
+      elevation: true,
+      instructions: false
+    };
 
-    const targetElev = startElev + targetHM;
-    const minElev = targetElev - (targetHM * 0.3); // 30% tolerance below
-    const maxElev = targetElev + (targetHM * 0.3); // 30% tolerance above
-
-    // Query Supabase for peaks
-    const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks' +
-      '?latitude=gte.' + (startLoc.lat - radiusDeg) +
-      '&latitude=lte.' + (startLoc.lat + radiusDeg) +
-      '&longitude=gte.' + (startLoc.lng - radiusDeg) +
-      '&longitude=lte.' + (startLoc.lng + radiusDeg) +
-      '&elevation=gte.' + Math.round(minElev) +
-      '&elevation=lte.' + Math.round(maxElev) +
-      '&select=id,name,latitude,longitude,elevation' +
-      '&order=elevation.desc' +
-      '&limit=10';
-
-    const resp = await fetch(url, {
-      headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+    const resp = await fetch('https://api.openrouteservice.org/v2/directions/foot-hiking/geojson', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': this.ORS_KEY
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000)
     });
-    const peaks = await resp.json();
 
-    if (!Array.isArray(peaks)) return [];
-
-    // Sort by distance from start and pick diverse ones
-    const withDist = peaks.map(p => ({
-      ...p,
-      dist: Math.sqrt(Math.pow(p.latitude - startLoc.lat, 2) + Math.pow(p.longitude - startLoc.lng, 2))
-    })).sort((a, b) => a.dist - b.dist);
-
-    // Pick 3 diverse peaks (different directions)
-    const selected = [];
-    const usedAngles = [];
-
-    for (const peak of withDist) {
-      const angle = Math.atan2(peak.longitude - startLoc.lng, peak.latitude - startLoc.lat) * 180 / Math.PI;
-      const tooClose = usedAngles.some(a => Math.abs(a - angle) < 40); // At least 40° apart
-      if (!tooClose || selected.length < 1) {
-        selected.push(peak);
-        usedAngles.push(angle);
-      }
-      if (selected.length >= 3) break;
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.warn('[RouteFinder] ORS seed ' + seed + ' failed: ' + resp.status, errText.substring(0, 100));
+      return null;
     }
 
-    console.log('[RouteFinder] Found ' + peaks.length + ' peaks, selected ' + selected.length + ' diverse ones');
-    return selected;
-  },
+    const data = await resp.json();
+    const feature = data.features?.[0];
+    if (!feature) return null;
 
-  async calculateRoute(startLoc, peak) {
-    const coords = startLoc.lng + ',' + startLoc.lat + '|' + peak.longitude + ',' + peak.latitude;
+    const coords = feature.geometry?.coordinates;
+    const summary = feature.properties?.summary;
+    if (!coords || coords.length < 5 || !summary) return null;
 
-    // Try BRouter
-    const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
-    for (const profile of profiles) {
-      try {
-        const url = 'https://brouter.de/brouter?lonlats=' + coords +
-          '&profile=' + profile + '&alternativeidx=0&format=geojson';
-        const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        if (!resp.ok) continue;
+    // Extract ascent/descent from segments
+    const segments = feature.properties?.segments || [];
+    let ascent = 0, descent = 0;
+    for (const seg of segments) {
+      ascent += seg.ascent || 0;
+      descent += seg.descent || 0;
+    }
 
-        const data = await resp.json();
-        const routeCoords = data.features?.[0]?.geometry?.coordinates;
-        if (!routeCoords || routeCoords.length < 2) continue;
-
-        // Get elevations
-        const elevResp = await fetch('https://api.open-meteo.com/v1/elevation?latitude=' +
-          routeCoords.filter((_, i) => i % 10 === 0).map(c => c[1]).join(',') +
-          '&longitude=' + routeCoords.filter((_, i) => i % 10 === 0).map(c => c[0]).join(','));
-        const elevData = await elevResp.json();
-        const elevations = elevData.elevation || [];
-
-        // Calculate stats
-        let ascent = 0, descent = 0, distance = 0;
-        for (let i = 1; i < elevations.length; i++) {
-          const diff = elevations[i] - elevations[i-1];
-          if (diff > 0) ascent += diff;
-          else descent += Math.abs(diff);
-        }
-        for (let i = 1; i < routeCoords.length; i++) {
-          const dLat = (routeCoords[i][1] - routeCoords[i-1][1]) * 111;
-          const dLng = (routeCoords[i][0] - routeCoords[i-1][0]) * 111 * Math.cos(routeCoords[i][1] * Math.PI / 180);
-          distance += Math.sqrt(dLat * dLat + dLng * dLng);
-        }
-
-        // Calculate duration (DIN 33466)
-        const flatTime = distance / 4;
-        const ascentTime = ascent / 300;
-        const descentTime = descent / 500;
-        const verticalTime = ascentTime + descentTime;
-        const duration = (Math.max(verticalTime, flatTime) + Math.min(verticalTime, flatTime) / 2) * 60;
-
-        return {
-          coords: routeCoords,
-          elevations,
-          distance: distance * 2, // Round trip estimate
-          ascent: Math.round(ascent),
-          descent: Math.round(descent),
-          duration: duration * 1.8, // Round trip factor
-          profile
-        };
-      } catch(e) {
-        continue;
+    // If no segment data, estimate from coordinates (they include elevation as 3rd value)
+    if (ascent === 0 && coords[0].length >= 3) {
+      for (let i = 1; i < coords.length; i++) {
+        const diff = coords[i][2] - coords[i-1][2];
+        if (diff > 0) ascent += diff;
+        else descent += Math.abs(diff);
       }
     }
-    return null;
+
+    const distKm = (summary.distance || 0) / 1000;
+    const durationMin = (summary.duration || 0) / 60;
+
+    console.log('[RouteFinder] Seed ' + seed + ': ' + distKm.toFixed(1) + 'km, ' + Math.round(ascent) + 'Hm, ' + Math.round(durationMin) + 'min');
+
+    return {
+      coords: coords.map(c => [c[0], c[1]]), // [lng, lat] without elevation
+      elevations: coords.map(c => c[2] || 0),
+      distance: distKm,
+      ascent: ascent,
+      descent: descent,
+      duration: durationMin,
+      seed: seed
+    };
   },
 
   drawPreviewRoute(route, index) {
@@ -283,41 +303,50 @@ const PeakflowRouteFinder = {
     const layerId = 'rf-preview-line-' + index;
     const outlineId = 'rf-preview-outline-' + index;
 
-    // Wait for style if needed
     const addLayers = () => {
       try {
+        const geojson = {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: route.coords }
+        };
+
         if (this.map.getSource(sourceId)) {
-          this.map.getSource(sourceId).setData({
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: route.coords }
-          });
+          this.map.getSource(sourceId).setData(geojson);
         } else {
-          this.map.addSource(sourceId, {
-            type: 'geojson',
-            data: { type: 'Feature', geometry: { type: 'LineString', coordinates: route.coords } }
-          });
+          this.map.addSource(sourceId, { type: 'geojson', data: geojson });
           this.map.addLayer({
             id: outlineId, type: 'line', source: sourceId,
-            paint: { 'line-color': '#000', 'line-width': 5, 'line-opacity': 0.2 }
+            paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.6 },
+            layout: { 'line-cap': 'round', 'line-join': 'round' }
           });
           this.map.addLayer({
             id: layerId, type: 'line', source: sourceId,
-            paint: { 'line-color': route.color, 'line-width': 3, 'line-opacity': 0.8 },
+            paint: { 'line-color': route.color, 'line-width': 4, 'line-opacity': 0.85 },
             layout: { 'line-cap': 'round', 'line-join': 'round' }
           });
         }
         this.previewLayers.push(sourceId, layerId, outlineId);
 
-        // Add peak marker
-        const peakCoord = [route.peak.longitude, route.peak.latitude];
+        // Number marker at the "furthest point" of the route
+        let maxDist = 0, furthestIdx = 0;
+        const s = route.coords[0];
+        for (let i = 0; i < route.coords.length; i++) {
+          const d = Math.pow(route.coords[i][0] - s[0], 2) + Math.pow(route.coords[i][1] - s[1], 2);
+          if (d > maxDist) { maxDist = d; furthestIdx = i; }
+        }
+        const markerCoord = route.coords[furthestIdx];
+
         const el = document.createElement('div');
-        el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:' + route.color + ';border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+        el.style.cssText = 'width:26px;height:26px;border-radius:50%;background:' + route.color +
+          ';border:2px solid white;display:flex;align-items:center;justify-content:center;' +
+          'font-size:12px;color:white;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;';
         el.textContent = (index + 1);
+
         const marker = new maplibregl.Marker({ element: el })
-          .setLngLat(peakCoord)
+          .setLngLat(markerCoord)
           .setPopup(new maplibregl.Popup({ offset: 15 }).setHTML(
-            '<strong>' + (route.peak.name || 'Gipfel') + '</strong><br>' +
-            Math.round(route.peak.elevation) + 'm • ' + route.distance.toFixed(1) + 'km • ' + route.ascent + 'Hm'
+            '<strong>' + route.name + '</strong><br>' +
+            route.distance.toFixed(1) + ' km • ' + Math.round(route.ascent) + ' Hm ⬆'
           ))
           .addTo(this.map);
         this.previewLayers.push(marker);
@@ -331,11 +360,23 @@ const PeakflowRouteFinder = {
 
   highlightRoute(index) {
     for (let i = 0; i < 3; i++) {
-      const layerId = 'rf-preview-line-' + i;
       try {
-        if (this.map.getLayer(layerId)) {
-          this.map.setPaintProperty(layerId, 'line-opacity', i === index ? 1 : 0.3);
-          this.map.setPaintProperty(layerId, 'line-width', i === index ? 5 : 2);
+        const lid = 'rf-preview-line-' + i;
+        if (this.map.getLayer(lid)) {
+          this.map.setPaintProperty(lid, 'line-opacity', i === index ? 1 : 0.25);
+          this.map.setPaintProperty(lid, 'line-width', i === index ? 6 : 2);
+        }
+      } catch(e) {}
+    }
+  },
+
+  resetHighlight() {
+    for (let i = 0; i < 3; i++) {
+      try {
+        const lid = 'rf-preview-line-' + i;
+        if (this.map.getLayer(lid)) {
+          this.map.setPaintProperty(lid, 'line-opacity', 0.85);
+          this.map.setPaintProperty(lid, 'line-width', 4);
         }
       } catch(e) {}
     }
@@ -355,32 +396,54 @@ const PeakflowRouteFinder = {
   },
 
   selectRoute(route) {
-    // Clear previews
     this.clearPreviews();
 
     // Close finder panel
-    document.getElementById('routeFinderPanel').classList.add('hidden');
-    document.getElementById('routeFinderToggle').classList.remove('active');
+    document.getElementById('routeFinderPanel')?.classList.add('hidden');
+    document.getElementById('routeFinderToggle')?.classList.remove('active');
 
-    // Set waypoints in route planner
+    // Load route directly into the route planner
     PeakflowRoutes.clearRoute();
 
-    // Add start + peak as waypoints
-    const startLoc = Peakflow._userLocation || Peakflow.getCachedLocation();
-    if (startLoc) {
-      PeakflowRoutes.addWaypoint({ lng: startLoc.lng, lat: startLoc.lat, name: 'Start' });
+    // Set the route coordinates directly (skip BRouter - we already have the route!)
+    PeakflowRoutes.routeCoords = route.coords;
+    PeakflowRoutes.elevations = route.elevations;
+
+    // Add start as waypoint
+    const startCoord = route.coords[0];
+    PeakflowRoutes.addWaypoint({ lng: startCoord[0], lat: startCoord[1], name: 'Start' });
+
+    // Add furthest point as waypoint (for display)
+    let maxDist = 0, furthestIdx = 0;
+    for (let i = 0; i < route.coords.length; i++) {
+      const d = Math.pow(route.coords[i][0] - startCoord[0], 2) + Math.pow(route.coords[i][1] - startCoord[1], 2);
+      if (d > maxDist) { maxDist = d; furthestIdx = i; }
     }
-    PeakflowRoutes.addWaypoint({
-      lng: route.peak.longitude,
-      lat: route.peak.latitude,
-      name: route.peak.name || 'Gipfel'
-    });
+    const furthest = route.coords[furthestIdx];
+    PeakflowRoutes.addWaypoint({ lng: furthest[0], lat: furthest[1], name: route.name });
+
+    // Draw the route line
+    PeakflowRoutes.drawRouteLine(route.coords);
+    PeakflowRoutes.updateStats();
+
+    // Show elevation profile
+    document.getElementById('elevationProfile')?.classList.remove('hidden');
+    setTimeout(() => PeakflowRoutes.drawElevationProfile(), 100);
+
+    // Load additional data (SAC, weather, etc.)
+    PeakflowRoutes.loadSACDataForRoute(route.coords).catch(() => {});
+    PeakflowRoutes.analyzeSnowOnRoute().catch(() => {});
+    PeakflowRoutes.loadRouteWeather(route.coords).catch(() => {});
+    PeakflowRoutes.loadWaterSources(route.coords).catch(() => {});
+    PeakflowRoutes.loadSunAnalysis(route.coords, route.elevations);
 
     // Collapse sidebar on mobile
-    var sidebar = document.querySelector('.sidebar');
+    const sidebar = document.querySelector('.sidebar');
     if (sidebar && window.innerWidth < 768) {
       sidebar.classList.remove('expanded', 'fully-expanded');
       sidebar.classList.add('collapsed');
     }
+
+    console.log('[RouteFinder] Route selected: ' + route.name + ' (' + route.distance.toFixed(1) + 'km, ' + Math.round(route.ascent) + 'Hm)');
   }
 };
