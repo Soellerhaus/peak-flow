@@ -126,6 +126,7 @@ const Peakflow = {
 
     // Pass map reference immediately
     PeakflowRoutes.init(this.map);
+    PeakflowRouteFinder.init(this.map);
     PeakflowWalkthrough.init(this.map);
 
     // When map loads

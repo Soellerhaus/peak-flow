@@ -310,6 +310,40 @@
             </div>
           </div>
 
+          <!-- Route Finder -->
+          <div class="route-finder" id="routeFinder">
+            <button class="route-finder__toggle" id="routeFinderToggle">
+              🔍 Routenvorschläge
+            </button>
+            <div class="route-finder__panel hidden" id="routeFinderPanel">
+              <p class="route-finder__label">Dauer</p>
+              <div class="route-finder__chips" id="rfDuration">
+                <button class="rf-chip" data-min="30">30 Min</button>
+                <button class="rf-chip active" data-min="60">1 Std</button>
+                <button class="rf-chip" data-min="120">2 Std</button>
+                <button class="rf-chip" data-min="240">4 Std</button>
+                <button class="rf-chip" data-min="480">Tagestour</button>
+              </div>
+              <p class="route-finder__label">Höhenmeter</p>
+              <div class="route-finder__chips" id="rfElevation">
+                <button class="rf-chip" data-hm="300">300 Hm</button>
+                <button class="rf-chip active" data-hm="500">500 Hm</button>
+                <button class="rf-chip" data-hm="1000">1000 Hm</button>
+                <button class="rf-chip" data-hm="2000">2000 Hm</button>
+                <button class="rf-chip" data-hm="3000">&gt;2000 Hm</button>
+              </div>
+              <button class="route-finder__search-btn" id="rfSearchBtn">
+                🔍 Routen suchen
+              </button>
+              <div class="route-finder__results hidden" id="rfResults">
+                <div class="route-finder__loading hidden" id="rfLoading">
+                  <div class="rf-spinner"></div> Suche Routen...
+                </div>
+                <div id="rfResultsList"></div>
+              </div>
+            </div>
+          </div>
+
           <div class="route-planner__info" id="routeInfo">
             <p class="route-planner__hint">📍 Klicke auf die Karte um deinen Startpunkt zu wählen</p>
           </div>
@@ -669,6 +703,7 @@
   <script src="export.js"></script>
   <script src="routes.js"></script>
   <script src="walkthrough.js"></script>
+  <script src="route-finder.js"></script>
   <script src="app.js"></script>
 
   <!-- PWA Install Banner -->
