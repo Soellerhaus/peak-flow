@@ -523,20 +523,24 @@ const PeakflowRoutes = {
     this.routeCoords = coords;
     this.elevations = elevations;
 
-    // PRIORITY 1: Draw route immediately (no API call)
+    // PRIORITY 1: Route sofort zeichnen (kein API-Call)
     this.drawRouteLine(coords);
     this.updateStats();
-
-    // PRIORITY 2: Elevation profile (no API call, instant)
     document.getElementById('elevationProfile').classList.remove('hidden');
     this.drawElevationProfile();
 
-    // PRIORITY 3: All API-dependent features load IN PARALLEL
+    // PRIORITY 2: Gefahren zuerst (wichtigste Info für Sicherheit)
+    try { await this.loadSACDataForRoute(coords); } catch(e) { console.warn('[Peakflow] SAC:', e); }
+
+    // PRIORITY 3: Schnee + Wetter parallel (beide nutzen Open-Meteo)
+    await Promise.all([
+      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
+      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e))
+    ]);
+
+    // PRIORITY 4: Sonne + Wasser parallel (weniger kritisch)
     Promise.all([
-      this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC load error:', e)),
-      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow error:', e)),
-      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather error:', e)),
-      this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water error:', e)),
+      this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
       this.loadSunAnalysis(coords, elevations)
     ]).then(() => console.log('[Peakflow] All route data loaded'));
   },
