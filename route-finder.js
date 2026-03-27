@@ -86,8 +86,24 @@ const PeakflowRouteFinder = {
     const list = document.getElementById('rfResultsList');
     const searchBtn = document.getElementById('rfSearchBtn');
 
-    const startLoc = (typeof Peakflow !== 'undefined') ?
-      (Peakflow._userLocation || Peakflow.getCachedLocation()) : null;
+    // Find start location from all possible sources
+    let startLoc = null;
+    if (typeof Peakflow !== 'undefined') {
+      // 1. User's active location
+      startLoc = Peakflow._userLocation;
+      // 2. First saved location from settings
+      if (!startLoc && Peakflow._settingsLocations && Peakflow._settingsLocations.length > 0) {
+        const loc = Peakflow._settingsLocations[0];
+        startLoc = { lat: loc.lat, lng: loc.lng };
+      }
+      // 3. Cached location from localStorage
+      if (!startLoc) startLoc = Peakflow.getCachedLocation();
+      // 4. Current map center as last resort
+      if (!startLoc && this.map) {
+        const center = this.map.getCenter();
+        startLoc = { lat: center.lat, lng: center.lng };
+      }
+    }
 
     if (!startLoc) {
       alert('Bitte zuerst einen Standort wählen!');
