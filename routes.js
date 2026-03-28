@@ -383,13 +383,13 @@ const PeakflowRoutes = {
         `;
 
         document.getElementById('btnRoundTrip').addEventListener('click', () => {
-          // Add start point as last waypoint → triggers round trip routing
+          this._fitAfterRoute = true;
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
           returnBtns.classList.add('hidden');
         });
 
         document.getElementById('btnSameWayBack').addEventListener('click', () => {
-          // Add all waypoints in reverse (except last = already there)
+          this._fitAfterRoute = true;
           const reversed = [...this.waypoints].reverse().slice(1);
           for (const wp of reversed) {
             this.waypoints.push({ lng: wp.lng, lat: wp.lat, name: wp.name, index: this.waypoints.length });
@@ -407,6 +407,7 @@ const PeakflowRoutes = {
         });
 
         document.getElementById('btnRouteToStart').addEventListener('click', () => {
+          this._fitAfterRoute = true;
           // Route directly back to start (BRouter finds best way)
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
           returnBtns.classList.add('hidden');
@@ -663,8 +664,9 @@ const PeakflowRoutes = {
     document.getElementById('elevationProfile').classList.remove('hidden');
     this.drawElevationProfile();
 
-    // Auto-fit map to show entire route
-    if (this.map && coords.length > 1) {
+    // Auto-fit only when route is finalized (flag set by return-to-start buttons)
+    if (this._fitAfterRoute && this.map && coords.length > 1) {
+      this._fitAfterRoute = false;
       const bounds = new maplibregl.LngLatBounds();
       coords.forEach(c => bounds.extend([c[0], c[1]]));
       this.map.fitBounds(bounds, { padding: 60, duration: 600 });
