@@ -469,8 +469,8 @@ const PeakflowRoutes = {
    */
   async removeWaypoint(index) {
     if (index < 0 || index >= this.waypoints.length) return;
-    this.markers[index].remove();
-    this.markers.splice(index, 1);
+    if (this.markers[index]) this.markers[index].remove();
+    if (index < this.markers.length) this.markers.splice(index, 1);
     this.waypoints.splice(index, 1);
 
     // Re-index

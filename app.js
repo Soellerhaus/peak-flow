@@ -2189,10 +2189,9 @@ const Peakflow = {
     let searchTimeout = null;
     const searchInput = document.getElementById('searchInput');
     // Clear any browser autofill (email etc.) - multiple attempts
-    const clearAutofill = () => { if (searchInput.value.includes('@')) searchInput.value = ''; };
-    setTimeout(clearAutofill, 100);
-    setTimeout(clearAutofill, 500);
-    setTimeout(clearAutofill, 1000);
+    // Aggressively prevent Chrome email autofill
+    searchInput.setAttribute('readonly', true);
+    setTimeout(() => { searchInput.removeAttribute('readonly'); searchInput.value = ''; }, 300);
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       const q = e.target.value.trim();
