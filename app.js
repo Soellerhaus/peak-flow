@@ -1124,15 +1124,22 @@ const Peakflow = {
         PeakflowRoutes.loadSunAnalysis(coords, elevations).catch(e => console.warn('[Peakflow] Sun:', e))
       ]).then(() => console.log('[Peakflow] Saved route analysis complete'));
 
-      // If edit mode: reconstruct waypoints from route endpoints
-      if (editMode && route.waypoints) {
+      // If edit mode: reconstruct waypoints
+      if (editMode) {
+        // Use saved waypoints, or reconstruct from route start/end
+        if (!route.waypoints || route.waypoints.length === 0) {
+          route.waypoints = [
+            { lng: route.coords[0][0], lat: route.coords[0][1], name: 'Start' },
+            { lng: route.coords[route.coords.length-1][0], lat: route.coords[route.coords.length-1][1], name: 'Ziel' }
+          ];
+        }
         PeakflowRoutes.isPlanning = true;
         if (this.map) this.map.getCanvas().style.cursor = 'crosshair';
         document.getElementById('routePlanBtn').classList.add('active');
 
         // Re-add waypoint markers
         route.waypoints.forEach(wp => {
-          const waypoint = { lng: wp.lng || wp[0], lat: wp.lat || wp[1], index: PeakflowRoutes.waypoints.length };
+          const waypoint = { lng: wp.lng || wp[0], lat: wp.lat || wp[1], index: PeakflowRoutes.waypoints.length, name: wp.name || null };
           PeakflowRoutes.waypoints.push(waypoint);
 
           const el = document.createElement('div');
