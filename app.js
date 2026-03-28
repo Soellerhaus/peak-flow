@@ -1750,15 +1750,6 @@ const Peakflow = {
       PeakflowRoutes._showStartPointPicker();
     });
 
-    // Routenvorschläge toggle
-    const rfToggleBtn = document.getElementById('routeFinderToggle');
-    if (rfToggleBtn) {
-      rfToggleBtn.addEventListener('click', () => {
-        const panel = document.getElementById('routeFinderPanel');
-        if (panel) panel.classList.toggle('hidden');
-      });
-    }
-
     // Add Race Modal
     const addRaceBtn = document.getElementById('addRaceBtn');
     const addRaceModal = document.getElementById('addRaceModal');
@@ -1868,7 +1859,8 @@ const Peakflow = {
           coords: coords,
           waypoints: this._raceWaypoints || null,
           description: document.getElementById('raceDescInput').value.trim() || null,
-          logo_url: this._raceLogoDataUrl || null
+          logo_url: this._raceLogoDataUrl || null,
+          website_url: website || null
         });
         publishBtn.textContent = '🏁 Rennen veröffentlichen';
         publishBtn.disabled = false;

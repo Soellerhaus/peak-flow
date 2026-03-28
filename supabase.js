@@ -578,6 +578,7 @@ const PeakflowData = {
           waypoints: race.waypoints || null,
           description: race.description || null,
           logo_url: race.logo_url || null,
+          website_url: race.website_url || null,
           is_public: true
         }])
         .select()
