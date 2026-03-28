@@ -282,8 +282,9 @@ const PeakflowRoutes = {
     // Click on route line → insert waypoint at nearest segment
     this.map.on('click', 'route-line', (e) => {
       if (!this.isPlanning || this.waypoints.length < 2) return;
+      // Prevent the map click handler from ALSO adding a waypoint
+      this._skipNextMapClick = true;
       const clickLng = e.lngLat.lng, clickLat = e.lngLat.lat;
-      // Find which segment the click is closest to
       let bestSeg = 0, bestDist = Infinity;
       for (let i = 0; i < this.waypoints.length - 1; i++) {
         const midLat = (this.waypoints[i].lat + this.waypoints[i+1].lat) / 2;

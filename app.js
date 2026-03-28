@@ -162,6 +162,11 @@ const Peakflow = {
 
       // Map click for route planning
       this.map.on('click', (e) => {
+        // Skip if route-line click already handled this (prevents double waypoint)
+        if (PeakflowRoutes._skipNextMapClick) {
+          PeakflowRoutes._skipNextMapClick = false;
+          return;
+        }
         if (PeakflowRoutes.isPlanning) {
           PeakflowRoutes.addWaypoint(e.lngLat);
         }
