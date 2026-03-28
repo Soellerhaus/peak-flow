@@ -275,12 +275,12 @@
       <div class="sidebar__panel" id="panel-discover">
         <!-- Discover sub-tabs: Gipfel / Rennen -->
         <div class="discover-tabs">
-          <button class="dtab dtab--active" data-dtab="peaks">⛰ Gipfel</button>
-          <button class="dtab" data-dtab="races">🏁 Rennen</button>
+          <button class="dtab dtab--active" data-dtab="races">🏁 Rennen</button>
+          <button class="dtab" data-dtab="peaks">⛰ Gipfel</button>
         </div>
 
         <!-- Gipfel Tab (existing content) -->
-        <div id="dtab-peaks">
+        <div id="dtab-peaks" class="hidden">
           <div class="sidebar__section">
             <h3 class="sidebar__heading">Gipfel in der Nähe</h3>
             <div class="poi-list" id="summitList">
@@ -302,7 +302,7 @@
         </div>
 
         <!-- Rennen Tab (new) -->
-        <div id="dtab-races" class="hidden">
+        <div id="dtab-races">
           <div id="raceRoutesList">
             <div class="race-loading">Lade Rennstrecken...</div>
           </div>
