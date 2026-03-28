@@ -597,8 +597,8 @@ const PeakflowRoutes = {
       if (!this._segmentCache) this._segmentCache = {};
 
       const routeSegment = async (from, to) => {
-        // Check cache: same start+end coords → reuse result
-        const cacheKey = from.lat.toFixed(5) + ',' + from.lng.toFixed(5) + '→' + to.lat.toFixed(5) + ',' + to.lng.toFixed(5);
+        // Check cache: same start+end coords → reuse result (round to 4 decimals ~11m accuracy)
+        const cacheKey = from.lat.toFixed(4) + ',' + from.lng.toFixed(4) + '→' + to.lat.toFixed(4) + ',' + to.lng.toFixed(4);
         if (this._segmentCache[cacheKey]) {
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: cached`);
           return this._segmentCache[cacheKey];
@@ -708,14 +708,19 @@ const PeakflowRoutes = {
       this.map.fitBounds(bounds, { padding: 60, duration: 600 });
     }
 
-    // ALL secondary data loads in parallel (non-blocking)
-    Promise.all([
-      this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e)),
-      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
-      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
-      this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
-      Promise.resolve().then(() => this.loadSunAnalysis(coords, elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
-    ]).then(() => console.log('[Peakflow] All route data loaded'));
+    // Debounce secondary data (weather/snow get 429'd if called every waypoint click)
+    clearTimeout(this._secondaryDataTimer);
+    // SAC + Water load immediately (from Supabase, no rate limit)
+    this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e));
+    this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e));
+    // Weather/Snow/Sun delayed 2s (only fires for the final route, not intermediate)
+    this._secondaryDataTimer = setTimeout(() => {
+      Promise.all([
+        this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
+        this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
+        Promise.resolve().then(() => this.loadSunAnalysis(coords, elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
+      ]).then(() => console.log('[Peakflow] All route data loaded'));
+    }, 2000);
   },
 
   /**
