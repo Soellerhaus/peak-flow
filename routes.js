@@ -1684,16 +1684,13 @@ const PeakflowRoutes = {
           ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
           'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
         el.title = pt.sacInfo.level + ' ' + pt.sacInfo.label + (pt.name ? ' - ' + pt.name : '');
-        console.log('[Peakflow] Danger marker at:', pt.coord, pt.sacInfo.level, pt.name);
-        if (!pt.coord || pt.coord[0] === 0 || pt.coord[1] === 0 || Math.abs(pt.coord[0]) > 180 || Math.abs(pt.coord[1]) > 90) {
-          console.warn('[Peakflow] Invalid danger coord, skipping:', pt.coord);
-          return;
-        }
-        const lngLat = new maplibregl.LngLat(pt.coord[0], pt.coord[1]);
-        const marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(this.map);
+        if (!pt.coord || Math.abs(pt.coord[0]) > 180 || Math.abs(pt.coord[1]) > 90) return;
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([parseFloat(pt.coord[0]), parseFloat(pt.coord[1])])
+          .addTo(this.map);
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
-          new maplibregl.Popup({ offset: 10 }).setLngLat(lngLat)
+          new maplibregl.Popup({ offset: 10 }).setLngLat(marker.getLngLat())
             .setHTML('<strong style="color:' + pt.sacInfo.color + ';">⚠ SAC ' + pt.sacInfo.level + ' ' + pt.sacInfo.label + '</strong>' +
               (pt.name ? '<div style="font-size:12px;">' + pt.name + '</div>' : ''))
             .addTo(this.map);
@@ -1857,8 +1854,8 @@ const PeakflowRoutes = {
       el.title = label;
 
       if (!pt.coord || Math.abs(pt.coord[0]) > 180) return;
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(new maplibregl.LngLat(pt.coord[0], pt.coord[1]))
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([parseFloat(pt.coord[0]), parseFloat(pt.coord[1])])
         .addTo(this.map);
 
       el.addEventListener('click', () => {
