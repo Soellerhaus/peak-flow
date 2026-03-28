@@ -250,12 +250,20 @@ const PeakflowRoutes = {
       const marker = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat([w.lng, w.lat]).addTo(this.map);
       marker.on('dragend', () => {
-        const pos = marker.getLngLat();
-        this.waypoints[w.index].lng = pos.lng;
-        this.waypoints[w.index].lat = pos.lat;
-        this.updateRoute();
+        // Use current index (w.index is kept up-to-date by re-indexing)
+        const idx = this.markers.indexOf(marker);
+        if (idx >= 0 && this.waypoints[idx]) {
+          const pos = marker.getLngLat();
+          this.waypoints[idx].lng = pos.lng;
+          this.waypoints[idx].lat = pos.lat;
+          this.updateRoute();
+        }
       });
-      el.addEventListener('contextmenu', (e) => { e.preventDefault(); this.removeWaypoint(w.index); });
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const idx = this.markers.indexOf(marker);
+        if (idx >= 0) this.removeWaypoint(idx);
+      });
       this.markers.push(marker);
     });
     this.updateWaypointList();

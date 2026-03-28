@@ -1097,8 +1097,15 @@ const Peakflow = {
    */
   loadRoute(route, editMode = false) {
     PeakflowRoutes.clearRoute();
+    // Parse coords if string (Supabase JSONB sometimes returns string)
+    if (typeof route.coords === 'string') {
+      try { route.coords = JSON.parse(route.coords); } catch(e) { console.error('Invalid coords', e); return; }
+    }
+    if (typeof route.waypoints === 'string') {
+      try { route.waypoints = JSON.parse(route.waypoints); } catch(e) { route.waypoints = null; }
+    }
 
-    if (route.coords) {
+    if (route.coords && Array.isArray(route.coords) && route.coords.length > 1) {
       PeakflowRoutes.routeCoords = route.coords;
       PeakflowRoutes.elevations = route.coords.map(c => c[2] || 0);
       PeakflowRoutes.drawRouteLine(route.coords);
