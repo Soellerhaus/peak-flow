@@ -491,53 +491,41 @@ const PeakflowRoutes = {
     // Non-round-trip or round-trip failed: normal routing
     if (coords.length === 0) {
       // Route each segment independently and concatenate.
-      // 3 profiles: hiking-mountain (prefers trails), hiking-beta (less restrictive), shortest (finds ALL paths including T4-T6 ridges)
+      // Race: first valid response wins (fastest profile)
       const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
       const failedSegments = [];
 
       const routeSegment = async (from, to) => {
         const segDirect = PeakflowUtils.haversineDistance(from.lat, from.lng, to.lat, to.lng);
         const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
-        const results = await Promise.allSettled(
-          profiles.map(profile => {
-            const tSig = AbortSignal.timeout(8000);
-            const sig = (typeof AbortSignal.any === 'function')
-              ? AbortSignal.any([routeSignal, tSig]) : tSig;
-            return fetch(
-              `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
-              { signal: sig }
-            )
-              .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-              .then(data => {
-                const rc = data.features?.[0]?.geometry?.coordinates;
-                if (!rc || rc.length === 0) throw new Error('No route');
-                const dist = PeakflowUtils.routeDistance(rc);
-                const detour = segDirect > 0.05 ? dist / segDirect : 1;
-                if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
-                return { profile, coords: rc, dist };
-              });
-          })
-        );
-        // Prefer trail profiles over shortest (shortest may use roads)
-        const valid = results
-          .filter(r => r.status === 'fulfilled')
-          .map(r => r.value);
-        if (valid.length === 0) return null;
-        // If hiking profiles found a route, prefer them. Only use shortest if hiking profiles failed or made huge detour.
-        const hiking = valid.filter(v => v.profile !== 'shortest');
-        const shortest = valid.filter(v => v.profile === 'shortest');
-        let best;
-        if (hiking.length > 0) {
-          best = hiking.sort((a, b) => a.dist - b.dist)[0];
-          // But if shortest is >30% shorter, it found a direct trail the hiking profiles missed
-          if (shortest.length > 0 && shortest[0].dist < best.dist * 0.7) {
-            best = shortest[0];
-          }
-        } else {
-          best = shortest[0] || valid[0];
+
+        const fetchProfile = (profile) => {
+          const tSig = AbortSignal.timeout(5000);
+          const sig = (typeof AbortSignal.any === 'function')
+            ? AbortSignal.any([routeSignal, tSig]) : tSig;
+          return fetch(
+            `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
+            { signal: sig }
+          )
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            .then(data => {
+              const rc = data.features?.[0]?.geometry?.coordinates;
+              if (!rc || rc.length === 0) throw new Error('No route');
+              const dist = PeakflowUtils.routeDistance(rc);
+              const detour = segDirect > 0.05 ? dist / segDirect : 1;
+              if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
+              return { profile, coords: rc, dist };
+            });
+        };
+
+        // Race: first profile to return a valid route wins
+        try {
+          const best = await Promise.any(profiles.map(p => fetchProfile(p)));
+          console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
+          return best.coords;
+        } catch(e) {
+          return null;
         }
-        console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
-        return best.coords;
       };
 
       try {
