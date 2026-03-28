@@ -1658,6 +1658,11 @@ const PeakflowRoutes = {
           ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
           'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
         el.title = pt.sacInfo.level + ' ' + pt.sacInfo.label + (pt.name ? ' - ' + pt.name : '');
+        console.log('[Peakflow] Danger marker at:', pt.coord, pt.sacInfo.level, pt.name);
+        if (!pt.coord || pt.coord[0] === 0 || pt.coord[1] === 0 || Math.abs(pt.coord[0]) > 180 || Math.abs(pt.coord[1]) > 90) {
+          console.warn('[Peakflow] Invalid danger coord, skipping:', pt.coord);
+          return;
+        }
         const marker = new maplibregl.Marker({ element: el }).setLngLat(pt.coord).addTo(this.map);
         el.addEventListener('click', () => {
           new maplibregl.Popup({ offset: 10 }).setLngLat(pt.coord)
@@ -1823,6 +1828,7 @@ const PeakflowRoutes = {
         'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
       el.title = label;
 
+      if (!pt.coord || Math.abs(pt.coord[0]) > 180) return;
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat(pt.coord)
         .addTo(this.map);
