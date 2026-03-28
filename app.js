@@ -95,6 +95,30 @@ const Peakflow = {
     });
 
     console.log('[Peakflow] Ready!');
+
+    // Auto-activate planning mode on start with first saved location as start point
+    setTimeout(() => {
+      if (!PeakflowRoutes.isPlanning) {
+        PeakflowRoutes.isPlanning = true;
+        const btn = document.getElementById('routePlanBtn');
+        if (btn) btn.classList.add('active');
+        if (this.map) this.map.getCanvas().style.cursor = 'crosshair';
+        // Switch to routes tab
+        document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
+        const routeTab = document.querySelector('[data-tab="routes"]');
+        if (routeTab) routeTab.classList.add('active');
+        const routePanel = document.getElementById('panel-routes');
+        if (routePanel) routePanel.classList.add('active');
+        // Auto-set first saved location as start point
+        const locs = this._settingsLocations || [];
+        if (locs.length > 0) {
+          PeakflowRoutes.addWaypoint({ lng: locs[0].lng, lat: locs[0].lat, name: locs[0].name });
+        } else {
+          PeakflowRoutes._showStartPointPicker();
+        }
+      }
+    }, 500);
   },
 
   /**

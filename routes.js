@@ -375,19 +375,10 @@ const PeakflowRoutes = {
       if (!isAlreadyLoop && returnBtns) {
         returnBtns.classList.remove('hidden');
         returnBtns.innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:6px;margin:12px 0 8px 0;">
-            <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Zurück zum Start</div>
-            <div style="display:flex;gap:6px;">
-              <button id="btnRoundTrip" style="flex:1;padding:10px 6px;border:2px solid var(--primary, #c9a84c);background:rgba(201,168,76,0.08);color:var(--primary, #c9a84c);border-radius:10px;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.2s;">
-                🔄 Rundweg
-              </button>
-              <button id="btnSameWayBack" style="flex:1;padding:10px 6px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;">
-                ↩️ Gleicher Weg
-              </button>
-              <button id="btnRouteToStart" style="flex:1;padding:10px 6px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;">
-                📍 Zum Start
-              </button>
-            </div>
+          <div style="display:flex;gap:4px;margin:8px 0 4px 0;">
+            <button id="btnRoundTrip" style="flex:1;padding:7px 4px;border:1px solid var(--color-primary,#c9a84c);background:transparent;color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">🔄 Rundweg</button>
+            <button id="btnSameWayBack" style="flex:1;padding:7px 4px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="flex:1;padding:7px 4px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">📍 Zum Start</button>
           </div>
         `;
 
@@ -671,6 +662,13 @@ const PeakflowRoutes = {
     this.updateStats();
     document.getElementById('elevationProfile').classList.remove('hidden');
     this.drawElevationProfile();
+
+    // Auto-fit map to show entire route
+    if (this.map && coords.length > 1) {
+      const bounds = new maplibregl.LngLatBounds();
+      coords.forEach(c => bounds.extend([c[0], c[1]]));
+      this.map.fitBounds(bounds, { padding: 60, duration: 600 });
+    }
 
     // ALL secondary data loads in parallel (non-blocking)
     Promise.all([
