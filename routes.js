@@ -598,6 +598,10 @@ const PeakflowRoutes = {
         const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
 
         const fetchProfile = (profile) => {
+          // Skip profiles that consistently fail for this area (reduces 400 spam)
+          if (!this._failedProfiles) this._failedProfiles = {};
+          const areaKey = Math.round(from.lat * 10) + ',' + Math.round(from.lng * 10) + ':' + profile;
+          if (this._failedProfiles[areaKey] >= 3) return Promise.reject(new Error('skipped'));
           const tSig = AbortSignal.timeout(8000);
           const sig = (typeof AbortSignal.any === 'function')
             ? AbortSignal.any([routeSignal, tSig]) : tSig;
@@ -605,7 +609,13 @@ const PeakflowRoutes = {
             `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
             { signal: sig }
           )
-            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            .then(r => {
+              if (!r.ok) {
+                this._failedProfiles[areaKey] = (this._failedProfiles[areaKey] || 0) + 1;
+                throw new Error(`HTTP ${r.status}`);
+              }
+              return r.json();
+            })
             .then(data => {
               const rc = data.features?.[0]?.geometry?.coordinates;
               if (!rc || rc.length === 0) throw new Error('No route');
