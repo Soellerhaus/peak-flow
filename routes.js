@@ -1694,9 +1694,11 @@ const PeakflowRoutes = {
           console.warn('[Peakflow] Invalid danger coord, skipping:', pt.coord);
           return;
         }
-        const marker = new maplibregl.Marker({ element: el }).setLngLat(pt.coord).addTo(this.map);
-        el.addEventListener('click', () => {
-          new maplibregl.Popup({ offset: 10 }).setLngLat(pt.coord)
+        const lngLat = new maplibregl.LngLat(pt.coord[0], pt.coord[1]);
+        const marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(this.map);
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          new maplibregl.Popup({ offset: 10 }).setLngLat(lngLat)
             .setHTML('<strong style="color:' + pt.sacInfo.color + ';">⚠ SAC ' + pt.sacInfo.level + ' ' + pt.sacInfo.label + '</strong>' +
               (pt.name ? '<div style="font-size:12px;">' + pt.name + '</div>' : ''))
             .addTo(this.map);
@@ -1861,7 +1863,7 @@ const PeakflowRoutes = {
 
       if (!pt.coord || Math.abs(pt.coord[0]) > 180) return;
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(pt.coord)
+        .setLngLat(new maplibregl.LngLat(pt.coord[0], pt.coord[1]))
         .addTo(this.map);
 
       el.addEventListener('click', () => {
