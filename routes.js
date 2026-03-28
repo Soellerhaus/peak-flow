@@ -773,61 +773,39 @@ const PeakflowRoutes = {
         el.innerHTML = '\uD83D\uDCA7';
         el.title = src.name + ' (' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          // Close previous water popup with shrink animation
-          if (self._activeWaterPopup) {
-            const oldEl = self._activeWaterPopup.getElement();
-            if (oldEl) {
-              oldEl.style.transition = 'transform 0.25s ease-in, opacity 0.25s ease-in';
-              oldEl.style.transform = 'scale(0.3)';
-              oldEl.style.opacity = '0';
-              const oldPopup = self._activeWaterPopup;
-              setTimeout(() => oldPopup.remove(), 250);
-            } else {
-              self._activeWaterPopup.remove();
-            }
+        // Create popup and bind to marker (ensures correct position)
+        const distLabel = src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1);
+        const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
+        const popupId = 'water-btn-' + Math.random().toString(36).substr(2,6);
+        const popup = new maplibregl.Popup({ offset: 25, maxWidth: '220px' })
+          .setHTML(
+            '<div style="padding:6px;font-family:Inter,sans-serif;">' +
+              '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">💧 ' + src.name + '</div>' +
+              '<div style="font-size:12px;color:#666;margin-bottom:2px;">' + typeIcon + '</div>' +
+              '<div style="font-size:12px;color:#888;margin-bottom:8px;">📍 bei ' + distLabel + ' der Route</div>' +
+              '<button id="' + popupId + '" style="width:100%;padding:8px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Zur Route hinzufügen</button>' +
+            '</div>'
+          );
+        marker.setPopup(popup);
+        // When popup opens, bind the route button
+        popup.on('open', () => {
+          // Close previous popup
+          if (self._activeWaterPopup && self._activeWaterPopup !== popup) {
+            self._activeWaterPopup.remove();
           }
-          const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
-          const popupId = 'water-route-btn-' + Math.random().toString(36).substr(2,6);
-          const markerPos = marker.getLngLat();
-          const popup = new maplibregl.Popup({ offset: [0, -12], maxWidth: '220px', anchor: 'bottom' })
-            .setLngLat(markerPos)
-            .setHTML(
-              '<div style="padding:6px;font-family:Inter,sans-serif;">' +
-                '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">💧 ' + src.name + '</div>' +
-                '<div style="font-size:12px;color:#666;margin-bottom:2px;">' + typeIcon + '</div>' +
-                '<div style="font-size:12px;color:#888;margin-bottom:8px;">📍 bei ' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ' der Route</div>' +
-                '<button id="' + popupId + '" style="width:100%;padding:8px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Zur Route hinzufügen</button>' +
-              '</div>'
-            )
-            .addTo(this.map);
           self._activeWaterPopup = popup;
-          // Animate popup opening
-          const popupEl = popup.getElement();
-          if (popupEl) {
-            popupEl.style.transform = 'scale(0.3)';
-            popupEl.style.opacity = '0';
-            popupEl.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-            requestAnimationFrame(() => { popupEl.style.transform = 'scale(1)'; popupEl.style.opacity = '1'; });
-          }
-          // Bind route button after popup is added to DOM
           setTimeout(() => {
             const btn = document.getElementById(popupId);
-            if (btn) {
-              btn.addEventListener('click', () => {
-                popup.remove();
-                if (self.isPlanning) {
-                  self.addWaypoint({ lng: src.lng, lat: src.lat, name: '💧 ' + src.name });
-                } else {
-                  self.isPlanning = true;
-                  const planBtn = document.getElementById('routePlanBtn');
-                  if (planBtn) planBtn.classList.add('active');
-                  if (self.map) self.map.getCanvas().style.cursor = 'crosshair';
-                  self.addWaypoint({ lng: src.lng, lat: src.lat, name: '💧 ' + src.name });
-                }
-              });
-            }
+            if (btn) btn.addEventListener('click', () => {
+              popup.remove();
+              if (!self.isPlanning) {
+                self.isPlanning = true;
+                const planBtn = document.getElementById('routePlanBtn');
+                if (planBtn) planBtn.classList.add('active');
+                if (self.map) self.map.getCanvas().style.cursor = 'crosshair';
+              }
+              self.addWaypoint({ lng: src.lng, lat: src.lat, name: '💧 ' + src.name });
+            });
           }, 50);
         });
         this._waterMarkers.push(marker);
