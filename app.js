@@ -1075,14 +1075,14 @@ const Peakflow = {
     const startMarker = new maplibregl.Marker({ color: '#22c55e' })
       .setLngLat([startCoord[0], startCoord[1]]).addTo(R.map);
     R.markers.push(startMarker);
-    R.waypoints.push({ lng: startCoord[0], lat: startCoord[1], name: `E${stage.stage} Start` });
+    R.waypoints.push({ lng: startCoord[0], lat: startCoord[1], name: stage.start_name || stage.stage_name || 'Start' });
 
     // End marker
     const endCoord = stage.coords[stage.coords.length - 1];
     const endMarker = new maplibregl.Marker({ color: '#e63946' })
       .setLngLat([endCoord[0], endCoord[1]]).addTo(R.map);
     R.markers.push(endMarker);
-    R.waypoints.push({ lng: endCoord[0], lat: endCoord[1], name: stage.stage_name || `E${stage.stage} Ziel` });
+    R.waypoints.push({ lng: endCoord[0], lat: endCoord[1], name: stage.finish_name || stage.stage_name || 'Ziel' });
 
     R.updateWaypointList();
     R.drawRouteLine(stage.coords);
