@@ -725,9 +725,15 @@ const PeakflowRoutes = {
 out body;`;
 
     try {
+      // Skip if Overpass was rate-limited recently (avoid 429 spam)
+      if (this._overpassCooldown && Date.now() < this._overpassCooldown) {
+        console.log('[Peakflow] Overpass cooldown active, skipping water query');
+        return;
+      }
       console.log('[Peakflow] Loading water sources from Overpass...');
       const resp = await fetch(this.OVERPASS_URL, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
       if (!resp.ok) {
+        if (resp.status === 429) this._overpassCooldown = Date.now() + 30000; // 30s cooldown
         console.warn('[Peakflow] Water source query HTTP error:', resp.status);
         return;
       }
@@ -1564,31 +1570,8 @@ out body;`;
       console.warn('[Peakflow] Supabase SAC query failed:', e);
     }
 
-    // METHOD 2: Fallback to Overpass API if Supabase empty
-    if (trails.length === 0) {
-      try {
-        console.log('[Peakflow] Fallback: Loading SAC from Overpass...');
-        const query = '[out:json][timeout:15];(way["sac_scale"~"demanding_mountain_hiking|alpine_hiking|demanding_alpine_hiking|difficult_alpine_hiking"](' + south + ',' + west + ',' + north + ',' + east + '););out geom;';
-        const resp = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: 'data=' + encodeURIComponent(query)
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.elements) {
-            trails = data.elements.filter(e => e.geometry).map(e => ({
-              geometry: e.geometry.map(n => [n.lon, n.lat]),
-              sac_scale: e.tags?.sac_scale,
-              name: e.tags?.name,
-              osm_id: e.id
-            }));
-            console.log('[Peakflow] Overpass: ' + trails.length + ' SAC trails found');
-          }
-        }
-      } catch(e) {
-        console.warn('[Peakflow] Overpass fallback failed:', e);
-      }
-    }
+    // No Overpass fallback - Supabase has 181K SAC trails, if query returned empty
+    // it means this area has no T3+ trails (which is fine)
 
     if (trails.length === 0) {
       console.log('[Peakflow] No SAC trail data available');
