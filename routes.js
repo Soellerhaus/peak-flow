@@ -598,7 +598,7 @@ const PeakflowRoutes = {
         const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
 
         const fetchProfile = (profile) => {
-          const tSig = AbortSignal.timeout(5000);
+          const tSig = AbortSignal.timeout(8000);
           const sig = (typeof AbortSignal.any === 'function')
             ? AbortSignal.any([routeSignal, tSig]) : tSig;
           return fetch(
@@ -610,8 +610,11 @@ const PeakflowRoutes = {
               const rc = data.features?.[0]?.geometry?.coordinates;
               if (!rc || rc.length === 0) throw new Error('No route');
               const dist = PeakflowUtils.routeDistance(rc);
-              const detour = segDirect > 0.05 ? dist / segDirect : 1;
-              if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
+              // No detour check for 'shortest' - it must find ANY path
+              if (profile !== 'shortest') {
+                const detour = segDirect > 0.05 ? dist / segDirect : 1;
+                if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
+              }
               return { profile, coords: rc, dist };
             });
         };
@@ -622,6 +625,7 @@ const PeakflowRoutes = {
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           return best.coords;
         } catch(e) {
+          console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}:`, e.errors?.map(x=>x.message) || e.message);
           return null;
         }
       };
@@ -636,11 +640,13 @@ const PeakflowRoutes = {
         if (routeSignal.aborted) return;
         const allSegCoords = [];
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
-          if (segCoords) {
+          if (segCoords && segCoords.length > 1) {
             if (allSegCoords.length > 0) allSegCoords.push(...segCoords.slice(1));
             else allSegCoords.push(...segCoords);
           } else {
             failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
+            // DON'T connect the gap with a straight line - skip this segment entirely
+            // But we need to start the next segment fresh if there are coords after the gap
           }
         }
         if (allSegCoords.length > 0) {

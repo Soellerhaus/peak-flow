@@ -870,9 +870,12 @@ const Peakflow = {
     container.querySelectorAll('.saved-route__edit').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const route = routes.find(r => r.id === btn.dataset.id || r.id === parseInt(btn.dataset.id));
+        const route = routes.find(r => String(r.id) === String(btn.dataset.id));
+        console.log('[Peakflow] Edit route:', route ? route.name : 'NOT FOUND', 'id:', btn.dataset.id, 'coords:', route?.coords?.length);
         if (route && route.coords) {
           this.loadRoute(route, true); // edit mode
+        } else {
+          console.warn('[Peakflow] Route not found or no coords for id:', btn.dataset.id);
         }
       });
     });
@@ -1714,7 +1717,7 @@ const Peakflow = {
       await PeakflowData.saveRoute({
         name,
         coords: PeakflowRoutes.routeCoords,
-        waypoints: PeakflowRoutes.waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
+        waypoints: PeakflowRoutes.waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng, name: wp.name || null })),
         distance: distance.toFixed(1),
         ascent: ascent,
         duration: PeakflowUtils.formatDuration(time.hours, time.minutes),
