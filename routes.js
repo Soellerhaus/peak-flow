@@ -790,8 +790,9 @@ const PeakflowRoutes = {
           }
           const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
           const popupId = 'water-route-btn-' + Math.random().toString(36).substr(2,6);
-          const popup = new maplibregl.Popup({ offset: 12, maxWidth: '220px' })
-            .setLngLat([src.lng, src.lat])
+          const markerPos = marker.getLngLat();
+          const popup = new maplibregl.Popup({ offset: [0, -12], maxWidth: '220px', anchor: 'bottom' })
+            .setLngLat(markerPos)
             .setHTML(
               '<div style="padding:6px;font-family:Inter,sans-serif;">' +
                 '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">💧 ' + src.name + '</div>' +
