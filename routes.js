@@ -1676,38 +1676,27 @@ out body;`;
       allSlopes.push({ coord: [coords[i][0], coords[i][1]], slope, idx: i });
     }
 
-    // Filter steep sections (>20° instead of >25°)
-    let steepPoints = allSlopes.filter(pt => pt.slope > 20);
-
-    // If SAC says T4+ but no steep points found, take the top 5 steepest sections anyway
-    if (steepPoints.length === 0 && allSlopes.length > 0) {
-      allSlopes.sort((a, b) => b.slope - a.slope);
-      steepPoints = allSlopes.slice(0, Math.min(5, allSlopes.length)).filter(pt => pt.slope > 12);
-      if (steepPoints.length > 0) {
-        console.log('[Peakflow] Using top steepest sections as danger markers');
-      }
-    }
+    // Only mark T4+ danger zones (>30° = alpine hiking / exposed)
+    let steepPoints = allSlopes.filter(pt => pt.slope > 30);
 
     if (steepPoints.length === 0) {
       console.log('[Peakflow] No steep sections found for markers');
       return;
     }
 
-    // Don't place too many markers - max 15, spread evenly
-    if (steepPoints.length > 15) {
+    // Max 8 markers, spread evenly along the route
+    if (steepPoints.length > 8) {
       steepPoints.sort((a, b) => a.idx - b.idx);
-      const step2 = Math.ceil(steepPoints.length / 15);
+      const step2 = Math.ceil(steepPoints.length / 8);
       steepPoints = steepPoints.filter((_, i) => i % step2 === 0);
     }
 
     console.log('[Peakflow] Placing ' + steepPoints.length + ' steep-section markers');
 
     steepPoints.forEach(pt => {
-      const color = pt.slope > 40 ? '#8b0000' : pt.slope > 30 ? '#e74c3c' : pt.slope > 20 ? '#e67e22' : '#d97706';
-      const label = pt.slope > 40 ? 'Sehr steil (' + Math.round(pt.slope) + '\u00b0)' :
-                    pt.slope > 30 ? 'Steil (' + Math.round(pt.slope) + '\u00b0)' :
-                    pt.slope > 20 ? 'Anspruchsvoll (' + Math.round(pt.slope) + '\u00b0)' :
-                    'Steilere Passage (' + Math.round(pt.slope) + '\u00b0)';
+      const color = pt.slope > 40 ? '#8b0000' : '#e74c3c';
+      const label = pt.slope > 40 ? '⚠ T5+ Sehr steil (' + Math.round(pt.slope) + '\u00b0)' :
+                    '⚠ T4 Steil (' + Math.round(pt.slope) + '\u00b0)';
 
       const el = document.createElement('div');
       el.innerHTML = '\u26A0';
