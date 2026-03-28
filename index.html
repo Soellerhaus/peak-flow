@@ -273,22 +273,38 @@
 
       <!-- Discover Tab -->
       <div class="sidebar__panel" id="panel-discover">
-        <div class="sidebar__section">
-          <h3 class="sidebar__heading">Gipfel in der Nähe</h3>
-          <div class="poi-list" id="summitList">
-            <!-- Filled by JS -->
+        <!-- Discover sub-tabs: Gipfel / Rennen -->
+        <div class="discover-tabs">
+          <button class="dtab dtab--active" data-dtab="peaks">⛰ Gipfel</button>
+          <button class="dtab" data-dtab="races">🏁 Rennen</button>
+        </div>
+
+        <!-- Gipfel Tab (existing content) -->
+        <div id="dtab-peaks">
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Gipfel in der Nähe</h3>
+            <div class="poi-list" id="summitList">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Hütten</h3>
+            <div class="poi-list" id="hutList">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Pässe & Scharten</h3>
+            <div class="poi-list" id="passList">
+              <!-- Filled by JS -->
+            </div>
           </div>
         </div>
-        <div class="sidebar__section">
-          <h3 class="sidebar__heading">Hütten</h3>
-          <div class="poi-list" id="hutList">
-            <!-- Filled by JS -->
-          </div>
-        </div>
-        <div class="sidebar__section">
-          <h3 class="sidebar__heading">Pässe & Scharten</h3>
-          <div class="poi-list" id="passList">
-            <!-- Filled by JS -->
+
+        <!-- Rennen Tab (new) -->
+        <div id="dtab-races" class="hidden">
+          <div id="raceRoutesList">
+            <div class="race-loading">Lade Rennstrecken...</div>
           </div>
         </div>
       </div>

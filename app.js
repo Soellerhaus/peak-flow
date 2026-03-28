@@ -858,6 +858,212 @@ const Peakflow = {
     });
   },
 
+  // ─── Race Routes ────────────────────────────────────────────────────────────
+
+  _raceRoutesCache: null,        // Cached race data from Supabase
+  _raceMapLayers: {},            // { raceSlug+edition: [layerIds...] }
+  _raceMapVisible: {},           // { raceSlug+edition: bool }
+
+  async loadRaceRoutes() {
+    const list = document.getElementById('raceRoutesList');
+    if (!list) return;
+
+    // Use cache if available
+    if (this._raceRoutesCache) {
+      this._renderRaceRoutes(this._raceRoutesCache);
+      return;
+    }
+
+    list.innerHTML = '<div class="race-loading">Lade Rennstrecken...</div>';
+
+    try {
+      const SUPABASE_URL = PeakflowData.SUPABASE_URL;
+      const SUPABASE_KEY = PeakflowData.SUPABASE_KEY;
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/race_routes?select=*&order=race_date.desc,stage.asc`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const rows = await resp.json();
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        list.innerHTML = '<div class="race-loading">Noch keine Rennstrecken verfügbar.</div>';
+        return;
+      }
+
+      this._raceRoutesCache = rows;
+      this._renderRaceRoutes(rows);
+    } catch(e) {
+      console.warn('[Peakflow] Race routes load failed:', e);
+      list.innerHTML = '<div class="race-loading">Rennstrecken konnten nicht geladen werden.</div>';
+    }
+  },
+
+  _renderRaceRoutes(rows) {
+    const list = document.getElementById('raceRoutesList');
+    if (!list) return;
+
+    // Group by race_slug + edition
+    const grouped = {};
+    for (const row of rows) {
+      const key = row.race_slug + '_' + row.edition;
+      if (!grouped[key]) grouped[key] = { ...row, stages: [] };
+      if (row.stage !== null) grouped[key].stages.push(row);
+    }
+
+    const now = new Date();
+    let html = '';
+    for (const key of Object.keys(grouped)) {
+      const g = grouped[key];
+      const raceDate = g.race_date ? new Date(g.race_date) : null;
+      const dateStr = raceDate ? raceDate.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' }) : '';
+      const isNew = raceDate && (now - raceDate) < 30 * 24 * 3600 * 1000;
+      const totalDist = g.stages.reduce((s, st) => s + (st.distance || 0), 0);
+      const totalAsc  = g.stages.reduce((s, st) => s + (st.ascent  || 0), 0);
+      const mapActive = this._raceMapVisible[key] ? 'active' : '';
+
+      html += `<div class="race-card">
+        <div class="race-card__header">
+          <div class="race-logo-placeholder">🏁</div>
+          <div class="race-card__meta">
+            <div class="race-card__title">${g.race_name} ${g.edition}</div>
+            <div class="race-card__subtitle">${dateStr} · ${g.stages.length} Etappen · ${totalDist.toFixed(0)}km · ${(totalAsc/1000).toFixed(1)}k Hm</div>
+          </div>
+          ${isNew ? '<span class="race-card__badge">NEU</span>' : ''}
+        </div>
+        <div class="race-card__actions">
+          <button class="race-map-btn ${mapActive}" data-key="${key}" data-action="toggle">
+            ${mapActive ? '🗺 Auf Karte' : '🗺 Auf Karte'}
+          </button>
+        </div>
+        ${g.stages.map(st => `
+          <div class="race-stage-row" data-id="${st.id}" data-key="${key}">
+            <div class="race-stage-dot" style="background:${st.stage_color||'#888'}"></div>
+            <div class="race-stage-name">E${st.stage} ${st.stage_name || ''}</div>
+            <div class="race-stage-stats">${st.distance ? st.distance.toFixed(0)+'km' : ''} ${st.ascent ? '⬆'+st.ascent+'m' : ''}</div>
+          </div>`).join('')}
+      </div>`;
+    }
+
+    list.innerHTML = html;
+
+    // Toggle-all-stages button
+    list.querySelectorAll('.race-map-btn[data-action="toggle"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        const g = grouped[key];
+        this._toggleRaceOnMap(key, g.stages, btn);
+      });
+    });
+
+    // Individual stage click → load route
+    list.querySelectorAll('.race-stage-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const id = parseInt(row.dataset.id);
+        const stage = rows.find(r => r.id === id);
+        if (stage) this.loadRaceStage(stage);
+      });
+    });
+  },
+
+  _toggleRaceOnMap(key, stages, btn) {
+    const map = PeakflowRoutes.map;
+    if (!map) return;
+
+    if (this._raceMapVisible[key]) {
+      // Hide: remove layers
+      (this._raceMapLayers[key] || []).forEach(id => {
+        try { map.removeLayer(id); } catch(e) {}
+        try { map.removeSource(id); } catch(e) {}
+      });
+      delete this._raceMapLayers[key];
+      this._raceMapVisible[key] = false;
+      btn.classList.remove('active');
+      btn.textContent = '🗺 Auf Karte';
+    } else {
+      // Show all stages
+      const layers = [];
+      stages.forEach((st, i) => {
+        if (!st.coords || st.coords.length < 2) return;
+        const srcId = `race-${key}-${i}`;
+        const lineId = `race-line-${key}-${i}`;
+        const color = st.stage_color || '#888';
+        try {
+          map.addSource(srcId, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: st.coords } } });
+          map.addLayer({ id: lineId, type: 'line', source: srcId, paint: { 'line-color': color, 'line-width': 3, 'line-opacity': 0.85 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+          layers.push(srcId, lineId);
+        } catch(e) { console.warn('[Race] Layer error:', e.message); }
+      });
+      this._raceMapLayers[key] = layers;
+      this._raceMapVisible[key] = true;
+      btn.classList.add('active');
+      btn.textContent = '🗺 Ausblenden';
+
+      // Fit map to all stages
+      const allCoords = stages.flatMap(st => st.coords || []);
+      if (allCoords.length > 0) {
+        const lngs = allCoords.map(c => c[0]), lats = allCoords.map(c => c[1]);
+        map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, duration: 1000 });
+      }
+    }
+  },
+
+  async loadRaceStage(stage) {
+    if (!stage.coords || stage.coords.length < 2) return;
+
+    const R = PeakflowRoutes;
+    R.clearRoute();
+    R.isPlanning = false;
+    R.routeCoords = stage.coords;
+    R.elevations = stage.coords.map(c => c[2] || 0);
+
+    // Start marker
+    const startCoord = stage.coords[0];
+    const startMarker = new maplibregl.Marker({ color: '#22c55e' })
+      .setLngLat([startCoord[0], startCoord[1]]).addTo(R.map);
+    R.markers.push(startMarker);
+    R.waypoints.push({ lng: startCoord[0], lat: startCoord[1], name: `E${stage.stage} Start` });
+
+    // End marker
+    const endCoord = stage.coords[stage.coords.length - 1];
+    const endMarker = new maplibregl.Marker({ color: '#e63946' })
+      .setLngLat([endCoord[0], endCoord[1]]).addTo(R.map);
+    R.markers.push(endMarker);
+    R.waypoints.push({ lng: endCoord[0], lat: endCoord[1], name: stage.stage_name || `E${stage.stage} Ziel` });
+
+    R.updateWaypointList();
+    R.drawRouteLine(stage.coords);
+    R.updateStats();
+
+    const elevEl = document.getElementById('elevationProfile');
+    if (elevEl) elevEl.classList.remove('hidden');
+    setTimeout(() => R.drawElevationProfile(), 150);
+
+    R.isPlanning = true;
+    if (R.map) R.map.getCanvas().style.cursor = 'crosshair';
+
+    // Fit map to stage
+    const lngs = stage.coords.map(c => c[0]), lats = stage.coords.map(c => c[1]);
+    R.map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, duration: 800 });
+
+    // Background analysis
+    R.loadSACDataForRoute(stage.coords).catch(() => {});
+    R.analyzeSnowOnRoute().catch(() => {});
+    R.loadRouteWeather(stage.coords).catch(() => {});
+    R.loadWaterSources(stage.coords).catch(() => {});
+    R.loadSunAnalysis(stage.coords, R.elevations);
+
+    // Switch to route planner tab
+    document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.sidebar__tab[data-tab="routes"]')?.classList.add('active');
+    document.getElementById('panel-routes')?.classList.add('active');
+
+    console.log(`[Peakflow] Race stage loaded: ${stage.race_name} ${stage.edition} E${stage.stage} — ${stage.coords.length} pts`);
+  },
+
+  // ─── End Race Routes ─────────────────────────────────────────────────────────
+
   /**
    * Load a saved route onto the map
    */
@@ -1308,10 +1514,27 @@ const Peakflow = {
         tab.classList.add('active');
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
 
+        // Load race routes when Entdecken tab is opened
+        if (tab.dataset.tab === 'discover') {
+          this.loadRaceRoutes();
+        }
+
         // Mobile: always expand when tab clicked (don't close)
         if (window.innerWidth <= 768 && sidebar && !sidebar.classList.contains('expanded')) {
           sidebar.classList.add('expanded');
         }
+      });
+    });
+
+    // Discover sub-tabs: Gipfel / Rennen
+    document.querySelectorAll('.dtab').forEach(dtab => {
+      dtab.addEventListener('click', () => {
+        document.querySelectorAll('.dtab').forEach(d => d.classList.remove('dtab--active'));
+        dtab.classList.add('dtab--active');
+        const target = dtab.dataset.dtab;
+        document.getElementById('dtab-peaks').classList.toggle('hidden', target !== 'peaks');
+        document.getElementById('dtab-races').classList.toggle('hidden', target !== 'races');
+        if (target === 'races') this.loadRaceRoutes();
       });
     });
 
