@@ -2006,6 +2006,8 @@ const Peakflow = {
     // Search with debounce + dropdown
     let searchTimeout = null;
     const searchInput = document.getElementById('searchInput');
+    // Clear any browser autofill (email etc.)
+    setTimeout(() => { if (searchInput.value.includes('@')) searchInput.value = ''; }, 100);
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => this.showSearchResults(e.target.value), 400);

@@ -1,6 +1,10 @@
-const CACHE_NAME = 'peakflow-v3';
+const CACHE_NAME = 'peakflow-v4';
 const TILE_CACHE = 'peakflow-tiles-v1';
 const MAX_TILE_CACHE_SIZE = 2000; // Max 2000 tiles (~100MB)
+
+// Force immediate activation (no waiting for old tabs to close)
+self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
 const STATIC_ASSETS = [
   '/',
