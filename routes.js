@@ -163,6 +163,16 @@ const PeakflowRoutes = {
   async addWaypoint(lngLat) {
     if (!this.isPlanning) return;
 
+    // If insert mode is active, insert at specific position
+    if (this._insertAfterIndex != null) {
+      const idx = this._insertAfterIndex;
+      this._insertAfterIndex = null;
+      const hint = document.getElementById('routeInfo');
+      if (hint) hint.innerHTML = '';
+      this.insertWaypointAt(idx, lngLat);
+      return;
+    }
+
     const wp = { lng: lngLat.lng, lat: lngLat.lat, index: this.waypoints.length, name: lngLat.name || null };
     this.waypoints.push(wp);
 
@@ -222,6 +232,70 @@ const PeakflowRoutes = {
   },
 
   /**
+   * Insert a waypoint at a specific position in the route
+   */
+  insertWaypointAt(position, lngLat) {
+    const wp = { lng: lngLat.lng, lat: lngLat.lat, index: position, name: lngLat.name || null };
+    this.waypoints.splice(position, 0, wp);
+    // Re-index all waypoints
+    this.waypoints.forEach((w, i) => w.index = i);
+    // Rebuild all markers (simpler than inserting mid-array)
+    this.markers.forEach(m => m.remove());
+    this.markers = [];
+    this.waypoints.forEach((w, i) => {
+      const el = document.createElement('div');
+      el.className = 'route-marker';
+      el.innerHTML = `<span>${i + 1}</span>`;
+      el.style.cssText = `width:28px;height:28px;background:var(--color-primary,#c9a84c);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:grab;font-family:Inter,sans-serif;`;
+      const marker = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat([w.lng, w.lat]).addTo(this.map);
+      marker.on('dragend', () => {
+        const pos = marker.getLngLat();
+        this.waypoints[w.index].lng = pos.lng;
+        this.waypoints[w.index].lat = pos.lat;
+        this.updateRoute();
+      });
+      el.addEventListener('contextmenu', (e) => { e.preventDefault(); this.removeWaypoint(w.index); });
+      this.markers.push(marker);
+    });
+    this.updateWaypointList();
+    clearTimeout(this._routeDebounce);
+    if (this._routingController) this._routingController.abort();
+    this._routeDebounce = setTimeout(() => this.updateRoute(), 250);
+  },
+
+  /**
+   * Enable route dragging - click on route line to add intermediate waypoint
+   */
+  enableRouteDrag() {
+    if (!this.map || this._routeDragEnabled) return;
+    this._routeDragEnabled = true;
+
+    // Click on route line → insert waypoint at nearest segment
+    this.map.on('click', 'route-line', (e) => {
+      if (!this.isPlanning || this.waypoints.length < 2) return;
+      const clickLng = e.lngLat.lng, clickLat = e.lngLat.lat;
+      // Find which segment the click is closest to
+      let bestSeg = 0, bestDist = Infinity;
+      for (let i = 0; i < this.waypoints.length - 1; i++) {
+        const midLat = (this.waypoints[i].lat + this.waypoints[i+1].lat) / 2;
+        const midLng = (this.waypoints[i].lng + this.waypoints[i+1].lng) / 2;
+        const d = Math.pow(clickLat - midLat, 2) + Math.pow(clickLng - midLng, 2);
+        if (d < bestDist) { bestDist = d; bestSeg = i + 1; }
+      }
+      this.insertWaypointAt(bestSeg, e.lngLat);
+    });
+
+    // Change cursor on route hover
+    this.map.on('mouseenter', 'route-line', () => {
+      if (this.isPlanning) this.map.getCanvas().style.cursor = 'copy';
+    });
+    this.map.on('mouseleave', 'route-line', () => {
+      if (this.isPlanning) this.map.getCanvas().style.cursor = 'crosshair';
+    });
+  },
+
+  /**
    * Render the waypoint list in sidebar
    */
   updateWaypointList() {
@@ -235,13 +309,23 @@ const PeakflowRoutes = {
     }
 
     container.classList.remove('hidden');
-    container.innerHTML = this.waypoints.map((wp, i) => `
-      <div class="waypoint-item" data-index="${i}">
+    let html = '';
+    this.waypoints.forEach((wp, i) => {
+      html += `<div class="waypoint-item" data-index="${i}">
         <div class="waypoint-item__num">${i + 1}</div>
         <div class="waypoint-item__coords" id="wp-name-${i}">${wp.name || wp.lat.toFixed(4) + ', ' + wp.lng.toFixed(4)}</div>
         <button class="waypoint-item__delete" data-index="${i}" title="Wegpunkt löschen">✕</button>
-      </div>
-    `).join('');
+      </div>`;
+      // "+" button between waypoints to insert intermediate stop
+      if (i < this.waypoints.length - 1) {
+        html += `<div class="waypoint-insert" data-after="${i}" title="Zwischenstopp einfügen">
+          <span class="waypoint-insert__line"></span>
+          <button class="waypoint-insert__btn">+</button>
+          <span class="waypoint-insert__line"></span>
+        </div>`;
+      }
+    });
+    container.innerHTML = html;
 
     // Reverse geocode waypoints that don't have names yet
     this.waypoints.forEach((wp, i) => {
@@ -253,6 +337,19 @@ const PeakflowRoutes = {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.removeWaypoint(parseInt(btn.dataset.index));
+      });
+    });
+
+    // Insert waypoint buttons
+    container.querySelectorAll('.waypoint-insert__btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const afterIdx = parseInt(btn.parentElement.dataset.after);
+        // Prompt user to click on map for the new waypoint
+        this._insertAfterIndex = afterIdx + 1;
+        this.map.getCanvas().style.cursor = 'crosshair';
+        const hint = document.getElementById('routeInfo');
+        if (hint) hint.innerHTML = '<p style="text-align:center;color:var(--color-primary);font-weight:600;padding:8px;">📍 Klicke auf die Karte für den Zwischenstopp</p>';
       });
     });
 

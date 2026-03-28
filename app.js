@@ -127,6 +127,7 @@ const Peakflow = {
 
     // Pass map reference immediately
     PeakflowRoutes.init(this.map);
+    PeakflowRoutes.enableRouteDrag();
     PeakflowRouteFinder.init(this.map);
     PeakflowNavigation.init(this.map);
     PeakflowWalkthrough.init(this.map);
@@ -1087,6 +1088,17 @@ const Peakflow = {
       const bounds = new maplibregl.LngLatBounds();
       route.coords.forEach(c => bounds.extend([c[0], c[1]]));
       this.map.fitBounds(bounds, { padding: 80 });
+
+      // Load all route analysis (SAC dangers, snow, weather, water, sun)
+      const coords = route.coords;
+      const elevations = PeakflowRoutes.elevations;
+      Promise.all([
+        PeakflowRoutes.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e)),
+        PeakflowRoutes.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
+        PeakflowRoutes.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
+        PeakflowRoutes.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
+        PeakflowRoutes.loadSunAnalysis(coords, elevations).catch(e => console.warn('[Peakflow] Sun:', e))
+      ]).then(() => console.log('[Peakflow] Saved route analysis complete'));
 
       // If edit mode: reconstruct waypoints from route endpoints
       if (editMode && route.waypoints) {
