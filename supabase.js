@@ -241,75 +241,36 @@ const PeakflowData = {
     const result = { reachable: true, maxSac: null, lastTrailPoint: null, warning: null };
 
     try {
-      // Search for paths within 300m of summit
-      const pad = 0.003; // ~300m
-      const query = `[out:json][timeout:10];
-(
-  way["highway"~"path|track|footway"](${poi.lat - pad},${poi.lng - pad},${poi.lat + pad},${poi.lng + pad});
-);
-out geom;`;
-
-      const resp = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-      });
-      const data = await resp.json();
-
-      if (!data.elements || data.elements.length === 0) {
-        // No paths near summit at all
-        result.reachable = false;
-        result.warning = 'Kein Wanderweg zum Gipfel vorhanden. Weglose Besteigung – nur für erfahrene Alpinisten!';
-        this._reachabilityCache.set(key, result);
-        return result;
-      }
-
-      // Find the closest trail point to the summit and the max SAC scale
-      let closestDist = Infinity;
-      let closestPoint = null;
-      let highestSac = null;
-      const sacOrder = { 'hiking': 'T1', 'mountain_hiking': 'T2', 'demanding_mountain_hiking': 'T3',
-        'alpine_hiking': 'T4', 'demanding_alpine_hiking': 'T5', 'difficult_alpine_hiking': 'T6' };
-
-      for (const way of data.elements) {
-        const sac = way.tags?.sac_scale;
-        if (sac && sacOrder[sac]) {
-          const sacLevel = sacOrder[sac];
-          if (!highestSac || sacLevel > highestSac) highestSac = sacLevel;
-        }
-
-        if (way.geometry) {
-          for (const node of way.geometry) {
-            const d = Math.sqrt((node.lat - poi.lat) ** 2 + (node.lon - poi.lng) ** 2);
-            if (d < closestDist) {
-              closestDist = d;
-              closestPoint = [node.lon, node.lat];
+      // Check Supabase peaks table for pre-analyzed reachability data (no Overpass needed!)
+      if (poi.id || poi.osm_id) {
+        const idField = poi.id ? 'id' : 'osm_id';
+        const idVal = poi.id || poi.osm_id;
+        const url = `${this.SUPABASE_URL}/rest/v1/peaks?${idField}=eq.${idVal}&select=reachable,max_sac_scale,nearest_trail_distance_m`;
+        const resp = await fetch(url, { headers: { 'apikey': this.SUPABASE_KEY } });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.length > 0 && data[0].reachable !== null) {
+            const p = data[0];
+            result.reachable = p.reachable;
+            result.maxSac = p.max_sac_scale;
+            if (!p.reachable) {
+              if (p.nearest_trail_distance_m > 200) {
+                result.warning = `Wanderweg endet ${p.nearest_trail_distance_m}m vor dem Gipfel. Wegloses Gelände!`;
+              } else if (p.max_sac_scale && p.max_sac_scale >= 'T5') {
+                result.warning = `Gipfel nur über SAC ${p.max_sac_scale} (Alpinklettern) erreichbar.`;
+              } else {
+                result.warning = 'Kein Wanderweg zum Gipfel vorhanden.';
+              }
             }
+            this._reachabilityCache.set(key, result);
+            return result;
           }
         }
       }
-
-      result.maxSac = highestSac;
-      const distMeters = closestDist * 111000; // rough degrees to meters
-
-      if (distMeters > 200) {
-        // Trail exists but doesn't reach summit (>200m away)
-        result.reachable = false;
-        result.lastTrailPoint = closestPoint;
-        result.warning = `Wanderweg endet ${Math.round(distMeters)}m vor dem Gipfel. Wegloses Gelände bis zum Gipfel.`;
-      } else if (highestSac && highestSac >= 'T5') {
-        // Trail reaches summit but is T5+ (alpine climbing)
-        result.reachable = false;
-        result.lastTrailPoint = closestPoint;
-        result.warning = `Gipfel nur über SAC ${highestSac} (Alpinklettern) erreichbar. Kletterausrüstung erforderlich!`;
-      } else {
-        // Reachable!
-        result.reachable = true;
-        result.lastTrailPoint = closestPoint;
-      }
-
+      // If no Supabase data available, assume reachable (don't spam Overpass)
+      result.reachable = true;
     } catch (e) {
       console.warn('[Peakflow] Reachability check failed', e);
-      // On error, assume reachable (don't block user)
     }
 
     this._reachabilityCache.set(key, result);

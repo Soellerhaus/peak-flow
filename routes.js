@@ -693,7 +693,7 @@ const PeakflowRoutes = {
       this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
       this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
       this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
-      this.loadSunAnalysis(coords, elevations).catch(e => console.warn('[Peakflow] Sun:', e))
+      Promise.resolve().then(() => this.loadSunAnalysis(coords, elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
     ]).then(() => console.log('[Peakflow] All route data loaded'));
   },
 
@@ -1545,7 +1545,7 @@ out body;`;
         '&limit=500';
       const resp = await fetch(url, {
         headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indicndrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcyODU0OTUsImV4cCI6MjA1Mjg2MTQ5NX0.4X0VhYAiKmoBhAp2FVj4E8H8puSCjhigKl3GiP8UoXo'
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE'
         }
       });
       if (resp.ok) {
