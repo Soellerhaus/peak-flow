@@ -346,11 +346,12 @@ const PeakflowRoutes = {
         <div class="waypoint-item__coords" id="wp-name-${i}">${wp.name || wp.lat.toFixed(4) + ', ' + wp.lng.toFixed(4)}</div>
         <button class="waypoint-item__delete" data-index="${i}" title="Wegpunkt löschen">✕</button>
       </div>`;
-      // "+" button between waypoints to insert intermediate stop
+      // "+" button between waypoints (hidden when collapsed)
       if (i < this.waypoints.length - 1) {
-        html += `<div class="waypoint-insert" data-after="${i}" title="Zwischenstopp einfügen">
+        const insertHidden = collapsed && i >= 3 && i < this.waypoints.length - 2 ? ' style="display:none;" data-wp-hidden="1"' : '';
+        html += `<div class="waypoint-insert" data-after="${i}"${insertHidden}>
           <span class="waypoint-insert__line"></span>
-          <button class="waypoint-insert__btn">+</button>
+          <button class="waypoint-insert__btn" title="Zwischenstopp">+</button>
           <span class="waypoint-insert__line"></span>
         </div>`;
       }
@@ -664,14 +665,23 @@ const PeakflowRoutes = {
             });
         };
 
-        // Race: first profile to return a valid route wins
+        // Try all profiles, prefer hiking over shortest (shortest uses roads)
         try {
-          const best = await Promise.any(profiles.map(p => fetchProfile(p)));
+          const results = await Promise.allSettled(profiles.map(p => fetchProfile(p)));
+          const valid = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+          if (valid.length === 0) {
+            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}`);
+            return null;
+          }
+          // Prefer hiking profiles over shortest (shortest follows roads)
+          const hiking = valid.filter(v => v.profile !== 'shortest');
+          const best = hiking.length > 0
+            ? hiking.sort((a, b) => a.dist - b.dist)[0]  // shortest hiking route
+            : valid[0]; // fallback to shortest if no hiking profile works
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
-          this._segmentCache[cacheKey] = best.coords; // Cache for reuse
+          this._segmentCache[cacheKey] = best.coords;
           return best.coords;
         } catch(e) {
-          console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}:`, e.errors?.map(x=>x.message) || e.message);
           return null;
         }
       };
