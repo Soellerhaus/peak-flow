@@ -1618,32 +1618,9 @@ out body;`;
         maxSac = sacInfo;
       }
 
-      if (sacInfo.blink && sacInfo.color && nearNodes.length > 0) {
+      // Count danger zones for sidebar info (no map markers from SAC - only _placeSteepMarkers does that)
+      if (sacInfo.blink) {
         dangerCount++;
-        // Place blinking markers every few nodes
-        const step = Math.max(1, Math.floor(nearNodes.length / 4));
-        for (let i = 0; i < nearNodes.length; i += step) {
-          const coord = nearNodes[i];
-          const el = document.createElement('div');
-          el.className = 'danger-blink-marker';
-          el.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + sacInfo.color + ';border:2px solid white;box-shadow:0 0 12px ' + sacInfo.color + ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;';
-          el.title = sacInfo.level + ' ' + sacInfo.label + (trail.name ? ' - ' + trail.name : '');
-
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat(coord)
-            .addTo(this.map);
-
-          el.addEventListener('click', () => {
-            new maplibregl.Popup({ offset: 10 })
-              .setLngLat(coord)
-              .setHTML('<div style="padding:4px;"><strong style="color:' + sacInfo.color + ';">⚠️ SAC ' + sacInfo.level + ' - ' + sacInfo.label + '</strong>' +
-                (trail.name ? '<div style="font-size:12px;margin-top:2px;">' + trail.name + '</div>' : '') + '</div>')
-              .addTo(this.map);
-          });
-
-          if (!this._dangerMarkers) this._dangerMarkers = [];
-          this._dangerMarkers.push(marker);
-        }
       }
     }
 
