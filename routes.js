@@ -443,10 +443,14 @@ const PeakflowRoutes = {
       const retLonlats = returnLeg.map(wp => `${wp.lng},${wp.lat}`).join('|');
 
       // Parallel fetch: outbound (normal) + return (alternative route)
+      // Both legs get a 20s timeout so we fall through to segment routing if BRouter hangs
+      const rtSig = (typeof AbortSignal.any === 'function')
+        ? AbortSignal.any([routeSignal, AbortSignal.timeout(20000)])
+        : routeSignal;
       try {
         const [outResp, retResp] = await Promise.all([
-          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: routeSignal }),
-          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=1&format=geojson`, { signal: routeSignal })
+          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: rtSig }),
+          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=1&format=geojson`, { signal: rtSig })
         ]);
         const [outData, retData] = await Promise.all([outResp.json(), retResp.json()]);
 
@@ -455,9 +459,8 @@ const PeakflowRoutes = {
 
         // Fallback: if alternative return failed, try normal return
         if (retCoords.length === 0) {
-          const fallback = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: routeSignal });
-          const fbData = await fallback.json();
-          retCoords = fbData.features?.[0]?.geometry?.coordinates || [];
+          const fb = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: rtSig });
+          retCoords = (await fb.json()).features?.[0]?.geometry?.coordinates || [];
         }
 
         if (outCoords.length > 0 && retCoords.length > 0) {
@@ -468,8 +471,9 @@ const PeakflowRoutes = {
           this._analyzeRouteDanger(coords, elevations, routeDist);
         }
       } catch (e) {
-        if (e.name === 'AbortError') return; // Newer request cancelled us — stop silently
-        console.warn('[Peakflow] Round trip routing failed:', e.message);
+        if (routeSignal.aborted) return; // Newer request cancelled us — stop silently
+        console.warn('[Peakflow] Round trip routing failed, falling through to segment routing:', e.message);
+        // coords stays empty → segment-by-segment routing below picks it up
       }
     }
 
