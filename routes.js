@@ -211,11 +211,8 @@ const PeakflowRoutes = {
 
     // Update route if we have 2+ waypoints
     if (this.waypoints.length >= 2) {
-      // Draw straight preview line immediately for instant feedback
-      const previewCoords = this.waypoints.map(wp => [wp.lng, wp.lat]);
-      this.drawRouteLine(previewCoords);
-
       // Debounce: cancel pending timer + abort in-flight request, then wait 250ms
+      // No straight-line preview — only real trail routes are drawn
       clearTimeout(this._routeDebounce);
       if (this._routingController) this._routingController.abort();
       this._routeDebounce = setTimeout(() => this.updateRoute(), 250);
@@ -547,15 +544,10 @@ const PeakflowRoutes = {
       }
     }
 
-    // 2. No route found on any trail profile — clear preview, show error
+    // 2. No route found on any trail profile — show error, nothing to draw
     if (coords.length === 0) {
-      // Clear any straight-line preview left from addWaypoint()
-      try {
-        const src = this.map && this.map.getSource('route');
-        if (src) src.setData({ type: 'FeatureCollection', features: [] });
-      } catch (_) {}
-      this._showRoutingWarning('⚠️ Kein Wanderweg gefunden. Der Weg zwischen diesen Punkten existiert nicht in OSM oder ist für BRouter nicht begehbar. Wegpunkte anpassen oder offizieller Trail-Verlauf prüfen (sac_scale T1–T6).');
-      return; // Nothing to draw
+      this._showRoutingWarning('⚠️ Kein Wanderweg gefunden. BRouter findet keinen markierten Trail zwischen diesen Punkten. Wegpunkte anpassen oder Zwischenpunkt auf dem Weg setzen.');
+      return; // Nothing to draw — no straight lines
     }
 
     this.routeCoords = coords;
