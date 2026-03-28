@@ -771,7 +771,7 @@ const PeakflowRoutes = {
         const el = document.createElement('div');
         el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 8px rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;z-index:40;';
         el.innerHTML = '\uD83D\uDCA7';
-        el.title = src.name + ' (km ' + src.distKm.toFixed(1) + ')';
+        el.title = src.name + ' (' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
         el.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -796,7 +796,7 @@ const PeakflowRoutes = {
               '<div style="padding:6px;font-family:Inter,sans-serif;">' +
                 '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">💧 ' + src.name + '</div>' +
                 '<div style="font-size:12px;color:#666;margin-bottom:2px;">' + typeIcon + '</div>' +
-                '<div style="font-size:12px;color:#888;margin-bottom:8px;">📍 bei km ' + src.distKm.toFixed(1) + ' der Route</div>' +
+                '<div style="font-size:12px;color:#888;margin-bottom:8px;">📍 bei ' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ' der Route</div>' +
                 '<button id="' + popupId + '" style="width:100%;padding:8px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Zur Route hinzufügen</button>' +
               '</div>'
             )
@@ -840,7 +840,7 @@ const PeakflowRoutes = {
         waterTitle.innerHTML = '\uD83D\uDCA7 ' + sources.length + ' Wasserquelle' + (sources.length > 1 ? 'n' : '') + ' auf der Route';
         waterBody.innerHTML = sources.map(function(s) {
           return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border-color);">' +
-            '<span>' + s.name + '</span><span style="color:var(--text-tertiary);">km ' + s.distKm.toFixed(1) + '</span></div>';
+            '<span>' + s.name + '</span><span style="color:var(--text-tertiary);">' + (s.distKm < 0.1 ? Math.round(s.distKm * 1000) + 'm' : 'km ' + s.distKm.toFixed(1)) + '</span></div>';
         }).join('');
         waterAccordion.classList.remove('hidden');
       }
