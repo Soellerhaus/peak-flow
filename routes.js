@@ -764,19 +764,47 @@ const PeakflowRoutes = {
       console.log('[Peakflow] Found ' + sources.length + ' water sources near route');
       sources.sort((a, b) => a.distKm - b.distKm);
 
-      // Place blue markers on map
+      // Place blue water markers on map with info popup + route button
       if (!this._waterMarkers) this._waterMarkers = [];
+      const self = this;
       sources.forEach(src => {
         const el = document.createElement('div');
-        el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 6px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;z-index:40;';
+        el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 8px rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;z-index:40;';
         el.innerHTML = '\uD83D\uDCA7';
         el.title = src.name + ' (km ' + src.distKm.toFixed(1) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
         el.addEventListener('click', () => {
-          new maplibregl.Popup({ offset: 12 })
+          const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
+          const popupId = 'water-route-btn-' + Math.random().toString(36).substr(2,6);
+          const popup = new maplibregl.Popup({ offset: 12, maxWidth: '220px' })
             .setLngLat([src.lng, src.lat])
-            .setHTML('<div style="padding:4px;"><strong>\uD83D\uDCA7 ' + src.name + '</strong><div style="font-size:12px;color:#666;">bei km ' + src.distKm.toFixed(1) + ' der Route</div></div>')
+            .setHTML(
+              '<div style="padding:6px;font-family:Inter,sans-serif;">' +
+                '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">💧 ' + src.name + '</div>' +
+                '<div style="font-size:12px;color:#666;margin-bottom:2px;">' + typeIcon + '</div>' +
+                '<div style="font-size:12px;color:#888;margin-bottom:8px;">📍 bei km ' + src.distKm.toFixed(1) + ' der Route</div>' +
+                '<button id="' + popupId + '" style="width:100%;padding:8px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Zur Route hinzufügen</button>' +
+              '</div>'
+            )
             .addTo(this.map);
+          // Bind route button after popup is added to DOM
+          setTimeout(() => {
+            const btn = document.getElementById(popupId);
+            if (btn) {
+              btn.addEventListener('click', () => {
+                popup.remove();
+                if (self.isPlanning) {
+                  self.addWaypoint({ lng: src.lng, lat: src.lat, name: '💧 ' + src.name });
+                } else {
+                  self.isPlanning = true;
+                  const planBtn = document.getElementById('routePlanBtn');
+                  if (planBtn) planBtn.classList.add('active');
+                  if (self.map) self.map.getCanvas().style.cursor = 'crosshair';
+                  self.addWaypoint({ lng: src.lng, lat: src.lat, name: '💧 ' + src.name });
+                }
+              });
+            }
+          }, 50);
         });
         this._waterMarkers.push(marker);
       });
