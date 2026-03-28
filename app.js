@@ -948,6 +948,8 @@ const Peakflow = {
     let html = '';
     for (const key of Object.keys(grouped)) {
       const g = grouped[key];
+      // Skip races without any route data (no coords/stages)
+      if (g.stages.length === 0 && (!g.coords || g.coords.length < 2)) continue;
       const raceDate = g.race_date ? new Date(g.race_date) : null;
       const dateStr = raceDate ? raceDate.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' }) : '';
       const isNew = raceDate && (now - raceDate) < 30 * 24 * 3600 * 1000;
