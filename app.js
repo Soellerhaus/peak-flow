@@ -966,13 +966,8 @@ const Peakflow = {
           </div>
           ${isNew ? '<span class="race-card__badge">NEU</span>' : ''}
         </div>
-        <div class="race-card__actions">
-          <button class="race-map-btn ${mapActive}" data-key="${key}" data-action="toggle">
-            ${mapActive ? '🗺 Auf Karte' : '🗺 Auf Karte'}
-          </button>
-        </div>
         ${g.stages.map(st => `
-          <div class="race-stage-row" data-id="${st.id}" data-key="${key}">
+          <div class="race-stage-row" data-id="${st.id}" data-key="${key}" style="cursor:pointer;">
             <div class="race-stage-dot" style="background:${st.stage_color||'#888'}"></div>
             <div class="race-stage-name">E${st.stage} ${st.stage_name || ''}</div>
             <div class="race-stage-stats">${st.distance ? st.distance.toFixed(0)+'km' : ''} ${st.ascent ? '⬆'+st.ascent+'m' : ''}</div>
@@ -982,16 +977,7 @@ const Peakflow = {
 
     list.innerHTML = html;
 
-    // Toggle-all-stages button
-    list.querySelectorAll('.race-map-btn[data-action="toggle"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.key;
-        const g = grouped[key];
-        this._toggleRaceOnMap(key, g.stages, btn);
-      });
-    });
-
-    // Individual stage click → load route
+    // Stage click → load route
     list.querySelectorAll('.race-stage-row').forEach(row => {
       row.addEventListener('click', () => {
         const id = parseInt(row.dataset.id);
@@ -1090,8 +1076,8 @@ const Peakflow = {
     if (elevEl) elevEl.classList.remove('hidden');
     setTimeout(() => R.drawElevationProfile(), 150);
 
-    R.isPlanning = true;
-    if (R.map) R.map.getCanvas().style.cursor = 'crosshair';
+    R.isPlanning = false; // Don't allow editing race routes
+    if (R.map) R.map.getCanvas().style.cursor = '';
 
     // Fit map to stage
     const lngs = stage.coords.map(c => c[0]), lats = stage.coords.map(c => c[1]);
@@ -1102,13 +1088,36 @@ const Peakflow = {
     R.analyzeSnowOnRoute().catch(() => {});
     R.loadRouteWeather(stage.coords).catch(() => {});
     R.loadWaterSources(stage.coords).catch(() => {});
-    R.loadSunAnalysis(stage.coords, R.elevations);
+    Promise.resolve().then(() => R.loadSunAnalysis(stage.coords, R.elevations)).catch(() => {});
 
     // Switch to route planner tab
     document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
     document.querySelector('.sidebar__tab[data-tab="routes"]')?.classList.add('active');
     document.getElementById('panel-routes')?.classList.add('active');
+
+    // Hide Routenvorschläge, show Zurück button
+    const routeFinder = document.getElementById('routeFinderPanel');
+    if (routeFinder) routeFinder.classList.add('hidden');
+    const routeInfo = document.getElementById('routeInfo');
+    if (routeInfo) {
+      routeInfo.innerHTML = '<button id="backToRaces" style="width:100%;padding:10px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;color:var(--text-primary);">← Zurück zu den Rennen</button>';
+      document.getElementById('backToRaces').addEventListener('click', () => {
+        R.clearRoute();
+        routeInfo.innerHTML = '';
+        if (routeFinder) routeFinder.classList.remove('hidden');
+        // Switch to Entdecken → Rennen tab
+        document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('.sidebar__tab[data-tab="discover"]')?.classList.add('active');
+        document.getElementById('panel-discover')?.classList.add('active');
+        // Activate Rennen sub-tab
+        document.querySelectorAll('.dtab').forEach(d => d.classList.remove('dtab--active'));
+        document.querySelector('.dtab[data-dtab="races"]')?.classList.add('dtab--active');
+        document.getElementById('dtab-peaks')?.classList.add('hidden');
+        document.getElementById('dtab-races')?.classList.remove('hidden');
+      });
+    }
 
     console.log(`[Peakflow] Race stage loaded: ${stage.race_name} ${stage.edition} E${stage.stage} — ${stage.coords.length} pts`);
   },
