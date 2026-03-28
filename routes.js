@@ -486,68 +486,79 @@ const PeakflowRoutes = {
 
     // Non-round-trip or round-trip failed: normal routing
     if (coords.length === 0) {
-      const lonlats = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join('|');
-
-      // Try hiking profiles in parallel with proper timeout + cancellation
+      // Route each segment independently (WP0→WP1, WP1→WP2, …) and concatenate.
+      // This is more robust than sending all waypoints at once: if one segment
+      // fails the others still render, and we can show a per-segment warning.
       const profiles = ['hiking-mountain', 'hiking-beta'];
-      try {
+      const failedSegments = [];
+
+      const routeSegment = async (from, to) => {
+        const segDirect = PeakflowUtils.haversineDistance(from.lat, from.lng, to.lat, to.lng);
+        const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
         const results = await Promise.allSettled(
           profiles.map(profile => {
-            // Combine routeSignal (new waypoint added) + 10s timeout
-            const tSig = AbortSignal.timeout(10000);
+            const tSig = AbortSignal.timeout(15000);
             const sig = (typeof AbortSignal.any === 'function')
               ? AbortSignal.any([routeSignal, tSig]) : tSig;
-            return fetch(`${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
-              { signal: sig })
+            return fetch(
+              `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
+              { signal: sig }
+            )
               .then(r => r.json())
               .then(data => {
-                if (data.features && data.features[0] && data.features[0].geometry.coordinates.length > 0) {
-                  return { profile, data };
-                }
-                throw new Error('No route');
+                const rc = data.features?.[0]?.geometry?.coordinates;
+                if (!rc || rc.length === 0) throw new Error('No route');
+                const dist = PeakflowUtils.routeDistance(rc);
+                const detour = segDirect > 0.05 ? dist / segDirect : 1;
+                if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
+                return { profile, coords: rc, dist };
               });
           })
         );
+        const valid = results
+          .filter(r => r.status === 'fulfilled')
+          .map(r => r.value)
+          .sort((a, b) => a.dist - b.dist);
+        if (valid.length > 0) {
+          console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${valid[0].profile} ${valid[0].dist.toFixed(1)}km`);
+          return valid[0].coords;
+        }
+        return null;
+      };
 
-        // Collect valid routes, filter out absurd detours
-        var validRoutes = [];
-        for (const result of results) {
-          if (result.status === 'fulfilled') {
-            const { profile, data } = result.value;
-            const rc = data.features[0].geometry.coordinates;
-            const dist = PeakflowUtils.routeDistance(rc);
-            const detourFactor = directDist > 0.1 ? dist / directDist : 1;
-            if (detourFactor <= MAX_DETOUR) {
-              validRoutes.push({ profile, coords: rc, dist });
-              console.log('[Peakflow] BRouter ' + profile + ': ' + rc.length + 'pts, ' + dist.toFixed(1) + 'km (detour ×' + detourFactor.toFixed(1) + ')');
-            } else {
-              console.warn('[Peakflow] BRouter ' + profile + ' rejected: ×' + detourFactor.toFixed(1) + ' detour (' + dist.toFixed(1) + 'km for ' + directDist.toFixed(1) + 'km direct)');
-            }
+      try {
+        const allSegCoords = [];
+        for (let i = 0; i < this.waypoints.length - 1; i++) {
+          if (routeSignal.aborted) return;
+          const segCoords = await routeSegment(this.waypoints[i], this.waypoints[i + 1]);
+          if (segCoords) {
+            // Avoid duplicate junction point between segments
+            if (allSegCoords.length > 0) allSegCoords.push(...segCoords.slice(1));
+            else allSegCoords.push(...segCoords);
+          } else {
+            failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
+            console.warn(`[Peakflow] No trail found: WP${i+1} → WP${i+2}`);
           }
         }
-        // Pick shortest of remaining valid routes
-        validRoutes.sort(function(a, b) { return a.dist - b.dist; });
-        if (validRoutes.length > 0) {
-          var best = validRoutes[0];
-          coords = best.coords;
-          elevations = coords.map(function(c) { return c[2] || 0; });
-          console.log('[Peakflow] Best route: ' + best.profile + ' (' + best.dist.toFixed(1) + 'km)');
-          this._analyzeRouteDanger(coords, elevations, best.dist);
-        }
-
-        if (coords.length === 0) {
-          console.warn('[Peakflow] All BRouter profiles failed or had excessive detours');
+        if (allSegCoords.length > 0) {
+          coords = allSegCoords;
+          elevations = coords.map(c => c[2] || 0);
+          const totalDist = PeakflowUtils.routeDistance(coords);
+          this._analyzeRouteDanger(coords, elevations, totalDist);
+          if (failedSegments.length > 0) {
+            this._showRoutingWarning(`⚠️ Kein Trail für: ${failedSegments.join(', ')}. Restliche Segmente wurden geroutet.`);
+          }
         }
       } catch (e) {
-        if (e.name === 'AbortError') return; // Cancelled by newer request
-        console.warn('[Peakflow] BRouter routing error:', e.message || e);
+        if (e.name === 'AbortError') return;
+        console.warn('[Peakflow] Routing error:', e.message || e);
       }
     }
 
-    // 2. No route found on any trail profile — show error, nothing to draw
+    // 2. No route found at all — show error, draw nothing
     if (coords.length === 0) {
-      this._showRoutingWarning('⚠️ Kein Wanderweg gefunden. BRouter findet keinen markierten Trail zwischen diesen Punkten. Wegpunkte anpassen oder Zwischenpunkt auf dem Weg setzen.');
-      return; // Nothing to draw — no straight lines
+      this._showRoutingWarning('⚠️ Kein Wanderweg gefunden. BRouter findet keinen markierten Trail. Zwischenpunkt direkt auf einen sichtbaren Weg setzen.');
+      return;
     }
 
     this.routeCoords = coords;
