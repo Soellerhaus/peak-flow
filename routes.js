@@ -1690,28 +1690,36 @@ const PeakflowRoutes = {
         const step = Math.ceil(markers.length / 8);
         markers = markers.filter((_, i) => i % step === 0);
       }
+      // Add markers after short delay (ensures map projection is ready)
       if (!this._dangerMarkers) this._dangerMarkers = [];
-      markers.forEach(pt => {
-        const el = document.createElement('div');
-        el.innerHTML = '\u26A0';
-        el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + pt.sacInfo.color +
-          ';border:2px solid white;box-shadow:0 0 16px ' + pt.sacInfo.color +
-          ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
-          'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
-        el.title = pt.sacInfo.level + ' ' + pt.sacInfo.label + (pt.name ? ' - ' + pt.name : '');
-        if (!pt.coord || Math.abs(pt.coord[0]) > 180 || Math.abs(pt.coord[1]) > 90) return;
-        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([parseFloat(pt.coord[0]), parseFloat(pt.coord[1])])
-          .addTo(this.map);
-        el.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          new maplibregl.Popup({ offset: 10 }).setLngLat(marker.getLngLat())
+      const map = this.map;
+      const addDangerMarkers = () => {
+        markers.forEach(pt => {
+          if (!pt.coord || Math.abs(pt.coord[0]) > 180 || Math.abs(pt.coord[1]) > 90) return;
+          const lng = Number(pt.coord[0]);
+          const lat = Number(pt.coord[1]);
+          if (isNaN(lng) || isNaN(lat)) return;
+
+          const el = document.createElement('div');
+          el.innerHTML = '\u26A0';
+          el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + pt.sacInfo.color +
+            ';border:2px solid white;box-shadow:0 0 16px ' + pt.sacInfo.color +
+            ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
+            'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
+
+          const popup = new maplibregl.Popup({ offset: 25 })
             .setHTML('<strong style="color:' + pt.sacInfo.color + ';">⚠ SAC ' + pt.sacInfo.level + ' ' + pt.sacInfo.label + '</strong>' +
-              (pt.name ? '<div style="font-size:12px;">' + pt.name + '</div>' : ''))
-            .addTo(this.map);
+              (pt.name ? '<div style="font-size:12px;">' + pt.name + '</div>' : ''));
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat({ lng: lng, lat: lat })
+            .setPopup(popup)
+            .addTo(map);
+          this._dangerMarkers.push(marker);
         });
-        this._dangerMarkers.push(marker);
-      });
+      };
+      // Delay to ensure map has correct projection
+      setTimeout(addDangerMarkers, 500);
       console.log('[Peakflow] Placed ' + markers.length + ' SAC danger markers ON route');
     }
 
@@ -1869,8 +1877,8 @@ const PeakflowRoutes = {
       el.title = label;
 
       if (!pt.coord || Math.abs(pt.coord[0]) > 180) return;
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([parseFloat(pt.coord[0]), parseFloat(pt.coord[1])])
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat({ lng: Number(pt.coord[0]), lat: Number(pt.coord[1]) })
         .addTo(this.map);
 
       el.addEventListener('click', () => {
