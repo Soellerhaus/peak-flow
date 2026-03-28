@@ -547,50 +547,15 @@ const PeakflowRoutes = {
       }
     }
 
-    // 2. Fallback: OSRM foot routing — only if route isn't an absurd road detour
+    // 2. No route found on any trail profile — clear preview, show error
     if (coords.length === 0) {
+      // Clear any straight-line preview left from addWaypoint()
       try {
-        const coordStr = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
-        const url = `${this.OSRM_URL}/${coordStr}?overview=full&geometries=geojson&steps=false`;
-        const osrmSig = AbortSignal.timeout(8000);
-        const resp = await fetch(url, { signal: osrmSig });
-        const data = await resp.json();
-
-        if (data.code === 'Ok' && data.routes && data.routes[0]) {
-          const osrmCoords = data.routes[0].geometry.coordinates;
-          const osrmDist = PeakflowUtils.routeDistance(osrmCoords);
-          const osrmDetour = directDist > 0.1 ? osrmDist / directDist : 1;
-          if (osrmDetour <= MAX_DETOUR) {
-            coords = osrmCoords;
-            console.log(`[Peakflow] OSRM fallback: ${coords.length} points, ${osrmDist.toFixed(1)}km (×${osrmDetour.toFixed(1)})`);
-            elevations = await this.fetchElevations(coords);
-            this._showRoutingWarning('⚠️ Kein Wanderweg gefunden! Route folgt Straßen/Gehwegen (OSRM Fallback). Zwischen den Wegpunkten gibt es möglicherweise keinen markierten Wanderweg.');
-          } else {
-            console.warn(`[Peakflow] OSRM rejected: ×${osrmDetour.toFixed(1)} detour (${osrmDist.toFixed(1)}km for ${directDist.toFixed(1)}km direct) — using straight line`);
-          }
-        }
-      } catch (e) {
-        if (e.name === 'AbortError') return;
-        console.warn('[Peakflow] OSRM also failed, using straight line', e);
-      }
-    }
-
-    // 3. Last fallback: straight line (no trail exists)
-    if (coords.length === 0) {
-      coords = this.waypoints.map(wp => [wp.lng, wp.lat]);
-      const interpolated = [];
-      for (let i = 0; i < coords.length - 1; i++) {
-        for (let s = 0; s <= 20; s++) {
-          const t = s / 20;
-          interpolated.push([
-            coords[i][0] + (coords[i + 1][0] - coords[i][0]) * t,
-            coords[i][1] + (coords[i + 1][1] - coords[i][1]) * t
-          ]);
-        }
-      }
-      coords = interpolated;
-      elevations = await this.fetchElevations(coords);
-      this._showRoutingWarning('🚫 KEIN WEG GEFUNDEN! Die Route zeigt nur die Luftlinie. Es existiert kein bekannter Wanderweg zwischen diesen Punkten. Begehung auf eigene Gefahr - alpine Erfahrung und Ausrüstung erforderlich!');
+        const src = this.map && this.map.getSource('route');
+        if (src) src.setData({ type: 'FeatureCollection', features: [] });
+      } catch (_) {}
+      this._showRoutingWarning('⚠️ Kein Wanderweg gefunden. Der Weg zwischen diesen Punkten existiert nicht in OSM oder ist für BRouter nicht begehbar. Wegpunkte anpassen oder offizieller Trail-Verlauf prüfen (sac_scale T1–T6).');
+      return; // Nothing to draw
     }
 
     this.routeCoords = coords;
