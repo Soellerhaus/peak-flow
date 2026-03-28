@@ -476,31 +476,40 @@ const PeakflowRoutes = {
       }
     }
 
+    // Direct distance = sum of all consecutive segments (not just first→last!)
+    // Used by both BRouter and OSRM detour checks
+    let directDist = 0;
+    for (let i = 1; i < this.waypoints.length; i++) {
+      directDist += PeakflowUtils.haversineDistance(
+        this.waypoints[i-1].lat, this.waypoints[i-1].lng,
+        this.waypoints[i].lat, this.waypoints[i].lng
+      );
+    }
+    const MAX_DETOUR = 3.5; // reject route if > 3.5× sum of direct segments
+
     // Non-round-trip or round-trip failed: normal routing
     if (coords.length === 0) {
       const lonlats = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join('|');
-      // Direct distance for detour sanity check
-      const directDist = PeakflowUtils.haversineDistance(
-        this.waypoints[0].lat, this.waypoints[0].lng,
-        this.waypoints[this.waypoints.length - 1].lat, this.waypoints[this.waypoints.length - 1].lng
-      );
-      const MAX_DETOUR = 4.0; // reject route if > 4× direct distance
 
-      // Try hiking profiles in order — first good result wins (no 'shortest' which uses roads)
+      // Try hiking profiles in parallel with proper timeout + cancellation
       const profiles = ['hiking-mountain', 'hiking-beta'];
       try {
         const results = await Promise.allSettled(
-          profiles.map(profile =>
-            fetch(`${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
-              { signal: routeSignal })
+          profiles.map(profile => {
+            // Combine routeSignal (new waypoint added) + 10s timeout
+            const tSig = AbortSignal.timeout(10000);
+            const sig = (typeof AbortSignal.any === 'function')
+              ? AbortSignal.any([routeSignal, tSig]) : tSig;
+            return fetch(`${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
+              { signal: sig })
               .then(r => r.json())
               .then(data => {
                 if (data.features && data.features[0] && data.features[0].geometry.coordinates.length > 0) {
                   return { profile, data };
                 }
                 throw new Error('No route');
-              })
-          )
+              });
+          })
         );
 
         // Collect valid routes, filter out absurd detours
@@ -538,19 +547,27 @@ const PeakflowRoutes = {
       }
     }
 
-    // 2. Fallback: OSRM foot routing
+    // 2. Fallback: OSRM foot routing — only if route isn't an absurd road detour
     if (coords.length === 0) {
       try {
         const coordStr = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
         const url = `${this.OSRM_URL}/${coordStr}?overview=full&geometries=geojson&steps=false`;
-        const resp = await fetch(url, { signal: routeSignal });
+        const osrmSig = AbortSignal.timeout(8000);
+        const resp = await fetch(url, { signal: osrmSig });
         const data = await resp.json();
 
         if (data.code === 'Ok' && data.routes && data.routes[0]) {
-          coords = data.routes[0].geometry.coordinates;
-          console.log(`[Peakflow] OSRM fallback: ${coords.length} points`);
-          elevations = await this.fetchElevations(coords);
-          this._showRoutingWarning('⚠️ Kein Wanderweg gefunden! Route folgt Straßen/Gehwegen (OSRM Fallback). Zwischen den Wegpunkten gibt es möglicherweise keinen markierten Wanderweg.');
+          const osrmCoords = data.routes[0].geometry.coordinates;
+          const osrmDist = PeakflowUtils.routeDistance(osrmCoords);
+          const osrmDetour = directDist > 0.1 ? osrmDist / directDist : 1;
+          if (osrmDetour <= MAX_DETOUR) {
+            coords = osrmCoords;
+            console.log(`[Peakflow] OSRM fallback: ${coords.length} points, ${osrmDist.toFixed(1)}km (×${osrmDetour.toFixed(1)})`);
+            elevations = await this.fetchElevations(coords);
+            this._showRoutingWarning('⚠️ Kein Wanderweg gefunden! Route folgt Straßen/Gehwegen (OSRM Fallback). Zwischen den Wegpunkten gibt es möglicherweise keinen markierten Wanderweg.');
+          } else {
+            console.warn(`[Peakflow] OSRM rejected: ×${osrmDetour.toFixed(1)} detour (${osrmDist.toFixed(1)}km for ${directDist.toFixed(1)}km direct) — using straight line`);
+          }
         }
       } catch (e) {
         if (e.name === 'AbortError') return;
