@@ -176,28 +176,43 @@ const PeakflowRoutes = {
     const wp = { lng: lngLat.lng, lat: lngLat.lat, index: this.waypoints.length, name: lngLat.name || null };
     this.waypoints.push(wp);
 
-    // Add marker
+    // Add marker — first marker gets 🏁 flag icon
+    const isFirst = this.waypoints.length === 1;
     const el = document.createElement('div');
     el.className = 'route-marker';
-    el.innerHTML = `<span>${this.waypoints.length}</span>`;
+    el.innerHTML = isFirst ? '<span>🏁</span>' : `<span>${this.waypoints.length}</span>`;
     el.style.cssText = `
-      width: 28px; height: 28px; background: var(--color-primary, #c9a84c);
+      width: 28px; height: 28px; background: ${isFirst ? '#22c55e' : 'var(--color-primary, #c9a84c)'};
       border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 12px; font-weight: 700; border: 2px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: grab; font-family: Inter, sans-serif;
+      color: white; font-size: ${isFirst ? '16px' : '12px'}; font-weight: 700; border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: ${isFirst ? 'pointer' : 'grab'}; font-family: Inter, sans-serif;
     `;
 
-    const marker = new maplibregl.Marker({ element: el, draggable: true })
+    const marker = new maplibregl.Marker({ element: el, draggable: !isFirst })
       .setLngLat([wp.lng, wp.lat])
       .addTo(this.map);
 
-    // Drag handler
-    marker.on('dragend', () => {
-      const pos = marker.getLngLat();
-      this.waypoints[wp.index].lng = pos.lng;
-      this.waypoints[wp.index].lat = pos.lat;
-      this.updateRoute();
-    });
+    // First marker: click to close the loop (return to start)
+    if (isFirst) {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.waypoints.length < 3) return; // Need at least 3 points for a loop
+        // Add start point as final waypoint → closes the loop
+        const start = this.waypoints[0];
+        this._fitAfterRoute = true;
+        this.addWaypoint({ lng: start.lng, lat: start.lat, name: start.name || '🏁 Ziel' });
+      });
+    }
+
+    // Drag handler (not for first marker)
+    if (!isFirst) {
+      marker.on('dragend', () => {
+        const pos = marker.getLngLat();
+        this.waypoints[wp.index].lng = pos.lng;
+        this.waypoints[wp.index].lat = pos.lat;
+        this.updateRoute();
+      });
+    }
 
     // Right-click to remove
     el.addEventListener('contextmenu', (e) => {
