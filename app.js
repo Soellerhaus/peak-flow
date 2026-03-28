@@ -1128,7 +1128,14 @@ const Peakflow = {
       route.coords.forEach(c => bounds.extend([c[0], c[1]]));
       this.map.fitBounds(bounds, { padding: 80 });
 
-      // Load all route analysis (SAC dangers, snow, weather, water, sun)
+      // Set temporary waypoints so analyzeSnowOnRoute works
+      if (!PeakflowRoutes.waypoints || PeakflowRoutes.waypoints.length === 0) {
+        PeakflowRoutes.waypoints = [
+          { lat: route.coords[0][1], lng: route.coords[0][0], index: 0 },
+          { lat: route.coords[route.coords.length-1][1], lng: route.coords[route.coords.length-1][0], index: 1 }
+        ];
+      }
+      // Load route analysis (all non-async wrapped in Promise.resolve)
       const coords = route.coords;
       const elevations = PeakflowRoutes.elevations;
       Promise.all([
@@ -1136,7 +1143,7 @@ const Peakflow = {
         PeakflowRoutes.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
         PeakflowRoutes.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
         PeakflowRoutes.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
-        PeakflowRoutes.loadSunAnalysis(coords, elevations).catch(e => console.warn('[Peakflow] Sun:', e))
+        Promise.resolve().then(() => PeakflowRoutes.loadSunAnalysis(coords, elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
       ]).then(() => console.log('[Peakflow] Saved route analysis complete'));
 
       // If edit mode: reconstruct waypoints
