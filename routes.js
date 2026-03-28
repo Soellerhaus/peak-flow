@@ -13,6 +13,8 @@ const PeakflowRoutes = {
   elevationCanvas: null,
   elevationCtx: null,
   routeColor: '#39ff14', // default neon green, overridden by profile
+  _routingController: null,  // AbortController for cancelling in-flight requests
+  _routeDebounce: null,      // Debounce timer
 
   // BRouter public hiking routing (follows real trails, no API key!)
   BROUTER_URL: 'https://brouter.de/brouter',
@@ -209,7 +211,14 @@ const PeakflowRoutes = {
 
     // Update route if we have 2+ waypoints
     if (this.waypoints.length >= 2) {
-      await this.updateRoute();
+      // Draw straight preview line immediately for instant feedback
+      const previewCoords = this.waypoints.map(wp => [wp.lng, wp.lat]);
+      this.drawRouteLine(previewCoords);
+
+      // Debounce: cancel pending timer + abort in-flight request, then wait 250ms
+      clearTimeout(this._routeDebounce);
+      if (this._routingController) this._routingController.abort();
+      this._routeDebounce = setTimeout(() => this.updateRoute(), 250);
     } else {
       this.updateStats();
     }
@@ -399,6 +408,11 @@ const PeakflowRoutes = {
   async updateRoute() {
     if (this.waypoints.length < 2) return;
 
+    // Cancel any previous in-flight routing request
+    if (this._routingController) this._routingController.abort();
+    this._routingController = new AbortController();
+    const routeSignal = this._routingController.signal;
+
     let coords = [];
     let elevations = [];
     this._hideRoutingWarning(); // Clear old warnings
@@ -434,8 +448,8 @@ const PeakflowRoutes = {
       // Parallel fetch: outbound (normal) + return (alternative route)
       try {
         const [outResp, retResp] = await Promise.all([
-          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: AbortSignal.timeout(8000) }),
-          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=1&format=geojson`, { signal: AbortSignal.timeout(8000) })
+          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: routeSignal }),
+          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=1&format=geojson`, { signal: routeSignal })
         ]);
         const [outData, retData] = await Promise.all([outResp.json(), retResp.json()]);
 
@@ -444,7 +458,7 @@ const PeakflowRoutes = {
 
         // Fallback: if alternative return failed, try normal return
         if (retCoords.length === 0) {
-          const fallback = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: AbortSignal.timeout(8000) });
+          const fallback = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: routeSignal });
           const fbData = await fallback.json();
           retCoords = fbData.features?.[0]?.geometry?.coordinates || [];
         }
@@ -457,6 +471,7 @@ const PeakflowRoutes = {
           this._analyzeRouteDanger(coords, elevations, routeDist);
         }
       } catch (e) {
+        if (e.name === 'AbortError') return; // Newer request cancelled us — stop silently
         console.warn('[Peakflow] Round trip routing failed:', e.message);
       }
     }
@@ -464,14 +479,20 @@ const PeakflowRoutes = {
     // Non-round-trip or round-trip failed: normal routing
     if (coords.length === 0) {
       const lonlats = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join('|');
-      const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
+      // Direct distance for detour sanity check
+      const directDist = PeakflowUtils.haversineDistance(
+        this.waypoints[0].lat, this.waypoints[0].lng,
+        this.waypoints[this.waypoints.length - 1].lat, this.waypoints[this.waypoints.length - 1].lng
+      );
+      const MAX_DETOUR = 4.0; // reject route if > 4× direct distance
 
-      // Race all profiles in PARALLEL - first valid response wins
+      // Try hiking profiles in order — first good result wins (no 'shortest' which uses roads)
+      const profiles = ['hiking-mountain', 'hiking-beta'];
       try {
         const results = await Promise.allSettled(
           profiles.map(profile =>
             fetch(`${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
-              { signal: AbortSignal.timeout(8000) })
+              { signal: routeSignal })
               .then(r => r.json())
               .then(data => {
                 if (data.features && data.features[0] && data.features[0].geometry.coordinates.length > 0) {
@@ -482,18 +503,23 @@ const PeakflowRoutes = {
           )
         );
 
-        // Compare all successful results - pick SHORTEST route
+        // Collect valid routes, filter out absurd detours
         var validRoutes = [];
         for (const result of results) {
           if (result.status === 'fulfilled') {
             const { profile, data } = result.value;
             const rc = data.features[0].geometry.coordinates;
             const dist = PeakflowUtils.routeDistance(rc);
-            validRoutes.push({ profile, coords: rc, dist });
-            console.log('[Peakflow] BRouter ' + profile + ': ' + rc.length + 'pts, ' + dist.toFixed(1) + 'km');
+            const detourFactor = directDist > 0.1 ? dist / directDist : 1;
+            if (detourFactor <= MAX_DETOUR) {
+              validRoutes.push({ profile, coords: rc, dist });
+              console.log('[Peakflow] BRouter ' + profile + ': ' + rc.length + 'pts, ' + dist.toFixed(1) + 'km (detour ×' + detourFactor.toFixed(1) + ')');
+            } else {
+              console.warn('[Peakflow] BRouter ' + profile + ' rejected: ×' + detourFactor.toFixed(1) + ' detour (' + dist.toFixed(1) + 'km for ' + directDist.toFixed(1) + 'km direct)');
+            }
           }
         }
-        // Sort by distance - shortest first
+        // Pick shortest of remaining valid routes
         validRoutes.sort(function(a, b) { return a.dist - b.dist; });
         if (validRoutes.length > 0) {
           var best = validRoutes[0];
@@ -504,9 +530,10 @@ const PeakflowRoutes = {
         }
 
         if (coords.length === 0) {
-          console.warn('[Peakflow] All BRouter profiles failed');
+          console.warn('[Peakflow] All BRouter profiles failed or had excessive detours');
         }
       } catch (e) {
+        if (e.name === 'AbortError') return; // Cancelled by newer request
         console.warn('[Peakflow] BRouter routing error:', e.message || e);
       }
     }
@@ -516,7 +543,7 @@ const PeakflowRoutes = {
       try {
         const coordStr = this.waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
         const url = `${this.OSRM_URL}/${coordStr}?overview=full&geometries=geojson&steps=false`;
-        const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+        const resp = await fetch(url, { signal: routeSignal });
         const data = await resp.json();
 
         if (data.code === 'Ok' && data.routes && data.routes[0]) {
@@ -526,6 +553,7 @@ const PeakflowRoutes = {
           this._showRoutingWarning('⚠️ Kein Wanderweg gefunden! Route folgt Straßen/Gehwegen (OSRM Fallback). Zwischen den Wegpunkten gibt es möglicherweise keinen markierten Wanderweg.');
         }
       } catch (e) {
+        if (e.name === 'AbortError') return;
         console.warn('[Peakflow] OSRM also failed, using straight line', e);
       }
     }
