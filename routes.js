@@ -698,71 +698,52 @@ const PeakflowRoutes = {
   },
 
   /**
-   * Load water sources near the route from OSM Overpass API
+   * Load water sources near the route from Supabase (no Overpass needed)
    */
   async loadWaterSources(coords) {
     if (!coords || coords.length < 2 || !this.map) return;
 
-    // Small delay to stagger Overpass requests
-    await new Promise(r => setTimeout(r, 500));
-
     const lngs = coords.map(c => c[0]);
     const lats = coords.map(c => c[1]);
-    const pad = 0.01; // ~1km padding for wider search
+    const pad = 0.01;
     const south = Math.min(...lats) - pad, west = Math.min(...lngs) - pad;
     const north = Math.max(...lats) + pad, east = Math.max(...lngs) + pad;
 
-    // Broader query - also search fountains without drinking_water tag, and alpine hut water
-    const query = `[out:json][timeout:15];
-(
-  node["amenity"="drinking_water"](${south},${west},${north},${east});
-  node["natural"="spring"](${south},${west},${north},${east});
-  node["amenity"="fountain"](${south},${west},${north},${east});
-  node["man_made"="water_well"](${south},${west},${north},${east});
-  node["amenity"="water_point"](${south},${west},${north},${east});
-  node["waterway"="water_point"](${south},${west},${north},${east});
-);
-out body;`;
+    let waterNodes = [];
+    try {
+      console.log('[Peakflow] Loading water sources from Supabase...');
+      const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/water_sources' +
+        '?lat=gte.' + south + '&lat=lte.' + north +
+        '&lng=gte.' + west + '&lng=lte.' + east +
+        '&select=osm_id,name,type,lat,lng&limit=200';
+      const resp = await fetch(url, {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      });
+      if (resp.ok) {
+        waterNodes = await resp.json();
+        console.log('[Peakflow] Supabase: ' + waterNodes.length + ' water sources found');
+      }
+    } catch(e) { console.warn('[Peakflow] Water Supabase failed:', e); }
+
+    if (waterNodes.length === 0) return;
 
     try {
-      // Skip if Overpass was rate-limited recently (avoid 429 spam)
-      if (this._overpassCooldown && Date.now() < this._overpassCooldown) {
-        console.log('[Peakflow] Overpass cooldown active, skipping water query');
-        return;
-      }
-      console.log('[Peakflow] Loading water sources from Overpass...');
-      const resp = await fetch(this.OVERPASS_URL, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
-      if (!resp.ok) {
-        if (resp.status === 429) this._overpassCooldown = Date.now() + 30000; // 30s cooldown
-        console.warn('[Peakflow] Water source query HTTP error:', resp.status);
-        return;
-      }
-      const data = await resp.json();
-      console.log('[Peakflow] Overpass returned ' + (data.elements ? data.elements.length : 0) + ' water source nodes');
-      if (!data.elements || data.elements.length === 0) {
-        console.log('[Peakflow] No water sources found in area');
-        return;
-      }
-
       // Filter to sources within 1km of route
-      const threshold = 0.01; // ~1km
+      const threshold = 0.01;
       const thresholdSq = threshold * threshold;
       const sources = [];
 
-      for (const node of data.elements) {
+      for (const node of waterNodes) {
         for (let ci = 0; ci < coords.length; ci += 3) {
           const dLat = coords[ci][1] - node.lat;
-          const dLng = coords[ci][0] - node.lon;
+          const dLng = coords[ci][0] - node.lng;
           if (dLat * dLat + dLng * dLng < thresholdSq) {
-            // Calculate distance along route
             let distKm = 0;
             for (let j = 1; j <= ci && j < coords.length; j++) {
               distKm += PeakflowUtils.haversineDistance(coords[j-1][1], coords[j-1][0], coords[j][1], coords[j][0]);
             }
-            const type = node.tags?.natural === 'spring' ? 'Quelle' :
-                         node.tags?.man_made === 'water_well' ? 'Brunnen' : 'Trinkwasser';
-            const name = node.tags?.name || type;
-            sources.push({ lat: node.lat, lng: node.lon, name: name, type: type, distKm: distKm });
+            const type = node.type === 'spring' ? 'Quelle' : node.type === 'water_well' ? 'Brunnen' : 'Trinkwasser';
+            sources.push({ lat: node.lat, lng: node.lng, name: node.name || type, type: type, distKm: distKm });
             break;
           }
         }
