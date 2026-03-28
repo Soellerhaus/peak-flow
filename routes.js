@@ -774,7 +774,20 @@ const PeakflowRoutes = {
         el.title = src.name + ' (km ' + src.distKm.toFixed(1) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
         el.addEventListener('click', (e) => {
-          e.stopPropagation(); // Prevent map click from adding waypoint
+          e.stopPropagation();
+          // Close previous water popup with shrink animation
+          if (self._activeWaterPopup) {
+            const oldEl = self._activeWaterPopup.getElement();
+            if (oldEl) {
+              oldEl.style.transition = 'transform 0.25s ease-in, opacity 0.25s ease-in';
+              oldEl.style.transform = 'scale(0.3)';
+              oldEl.style.opacity = '0';
+              const oldPopup = self._activeWaterPopup;
+              setTimeout(() => oldPopup.remove(), 250);
+            } else {
+              self._activeWaterPopup.remove();
+            }
+          }
           const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
           const popupId = 'water-route-btn-' + Math.random().toString(36).substr(2,6);
           const popup = new maplibregl.Popup({ offset: 12, maxWidth: '220px' })
@@ -788,6 +801,15 @@ const PeakflowRoutes = {
               '</div>'
             )
             .addTo(this.map);
+          self._activeWaterPopup = popup;
+          // Animate popup opening
+          const popupEl = popup.getElement();
+          if (popupEl) {
+            popupEl.style.transform = 'scale(0.3)';
+            popupEl.style.opacity = '0';
+            popupEl.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+            requestAnimationFrame(() => { popupEl.style.transform = 'scale(1)'; popupEl.style.opacity = '1'; });
+          }
           // Bind route button after popup is added to DOM
           setTimeout(() => {
             const btn = document.getElementById(popupId);
