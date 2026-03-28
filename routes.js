@@ -486,14 +486,13 @@ const PeakflowRoutes = {
         this.waypoints[i].lat, this.waypoints[i].lng
       );
     }
-    const MAX_DETOUR = 3.5; // reject route if > 3.5× sum of direct segments
+    const MAX_DETOUR = 6; // reject route if > 6× direct distance (mountains have switchbacks)
 
     // Non-round-trip or round-trip failed: normal routing
     if (coords.length === 0) {
-      // Route each segment independently (WP0→WP1, WP1→WP2, …) and concatenate.
-      // This is more robust than sending all waypoints at once: if one segment
-      // fails the others still render, and we can show a per-segment warning.
-      const profiles = ['hiking-mountain', 'hiking-beta'];
+      // Route each segment independently and concatenate.
+      // 3 profiles: hiking-mountain (prefers trails), hiking-beta (less restrictive), shortest (finds ALL paths including T4-T6 ridges)
+      const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
       const failedSegments = [];
 
       const routeSegment = async (from, to) => {
@@ -501,14 +500,14 @@ const PeakflowRoutes = {
         const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
         const results = await Promise.allSettled(
           profiles.map(profile => {
-            const tSig = AbortSignal.timeout(15000);
+            const tSig = AbortSignal.timeout(8000);
             const sig = (typeof AbortSignal.any === 'function')
               ? AbortSignal.any([routeSignal, tSig]) : tSig;
             return fetch(
               `${this.BROUTER_URL}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`,
               { signal: sig }
             )
-              .then(r => r.json())
+              .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
               .then(data => {
                 const rc = data.features?.[0]?.geometry?.coordinates;
                 if (!rc || rc.length === 0) throw new Error('No route');
@@ -519,15 +518,26 @@ const PeakflowRoutes = {
               });
           })
         );
+        // Prefer trail profiles over shortest (shortest may use roads)
         const valid = results
           .filter(r => r.status === 'fulfilled')
-          .map(r => r.value)
-          .sort((a, b) => a.dist - b.dist);
-        if (valid.length > 0) {
-          console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${valid[0].profile} ${valid[0].dist.toFixed(1)}km`);
-          return valid[0].coords;
+          .map(r => r.value);
+        if (valid.length === 0) return null;
+        // If hiking profiles found a route, prefer them. Only use shortest if hiking profiles failed or made huge detour.
+        const hiking = valid.filter(v => v.profile !== 'shortest');
+        const shortest = valid.filter(v => v.profile === 'shortest');
+        let best;
+        if (hiking.length > 0) {
+          best = hiking.sort((a, b) => a.dist - b.dist)[0];
+          // But if shortest is >30% shorter, it found a direct trail the hiking profiles missed
+          if (shortest.length > 0 && shortest[0].dist < best.dist * 0.7) {
+            best = shortest[0];
+          }
+        } else {
+          best = shortest[0] || valid[0];
         }
-        return null;
+        console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
+        return best.coords;
       };
 
       try {
