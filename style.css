@@ -1127,8 +1127,8 @@ a:hover { text-decoration: underline; }
 
 /* Danger blink animation - color flashes between marker color and white */
 @keyframes dangerBlink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px currentColor; }
-  50% { opacity: 0.2; box-shadow: 0 0 16px currentColor; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.9); }
 }
 @keyframes navPulse {
   0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); transform: scale(1); }

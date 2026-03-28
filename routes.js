@@ -765,11 +765,14 @@ const PeakflowRoutes = {
       sources.sort((a, b) => a.distKm - b.distKm);
 
       // Place blue water markers on map with info popup + route button
+      // Respect user's water toggle setting
+      const waterVisible = typeof Peakflow !== 'undefined' ? Peakflow._waterVisible : true;
       if (!this._waterMarkers) this._waterMarkers = [];
       const self = this;
       sources.forEach(src => {
         const el = document.createElement('div');
         el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 8px rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;z-index:40;';
+        if (!waterVisible) el.style.display = 'none';
         el.innerHTML = '\uD83D\uDCA7';
         el.title = src.name + ' (' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
@@ -1652,7 +1655,7 @@ const PeakflowRoutes = {
         el.innerHTML = '\u26A0';
         el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + pt.sacInfo.color +
           ';border:2px solid white;box-shadow:0 0 16px ' + pt.sacInfo.color +
-          ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;' +
+          ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
           'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
         el.title = pt.sacInfo.level + ' ' + pt.sacInfo.label + (pt.name ? ' - ' + pt.name : '');
         const marker = new maplibregl.Marker({ element: el }).setLngLat(pt.coord).addTo(this.map);
@@ -1816,7 +1819,7 @@ const PeakflowRoutes = {
       el.innerHTML = '\u26A0';
       el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + color +
         ';border:2px solid white;box-shadow:0 0 16px ' + color + ',0 0 8px rgba(0,0,0,0.5)' +
-        ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;' +
+        ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
         'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
       el.title = label;
 
