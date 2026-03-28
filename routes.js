@@ -773,7 +773,8 @@ const PeakflowRoutes = {
         el.innerHTML = '\uD83D\uDCA7';
         el.title = src.name + ' (km ' + src.distKm.toFixed(1) + ')';
         const marker = new maplibregl.Marker({ element: el }).setLngLat([src.lng, src.lat]).addTo(this.map);
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent map click from adding waypoint
           const typeIcon = src.type === 'Quelle' ? '🏔️ Natürliche Quelle' : src.type === 'Brunnen' ? '🪣 Brunnen' : '🚰 Trinkwasser';
           const popupId = 'water-route-btn-' + Math.random().toString(36).substr(2,6);
           const popup = new maplibregl.Popup({ offset: 12, maxWidth: '220px' })
