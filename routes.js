@@ -541,17 +541,20 @@ const PeakflowRoutes = {
       };
 
       try {
-        const allSegCoords = [];
+        // Route ALL segments in parallel (not sequentially!)
+        const segmentPromises = [];
         for (let i = 0; i < this.waypoints.length - 1; i++) {
-          if (routeSignal.aborted) return;
-          const segCoords = await routeSegment(this.waypoints[i], this.waypoints[i + 1]);
+          segmentPromises.push(routeSegment(this.waypoints[i], this.waypoints[i + 1]).then(c => ({ i, coords: c })));
+        }
+        const segResults = await Promise.all(segmentPromises);
+        if (routeSignal.aborted) return;
+        const allSegCoords = [];
+        for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
           if (segCoords) {
-            // Avoid duplicate junction point between segments
             if (allSegCoords.length > 0) allSegCoords.push(...segCoords.slice(1));
             else allSegCoords.push(...segCoords);
           } else {
             failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
-            console.warn(`[Peakflow] No trail found: WP${i+1} → WP${i+2}`);
           }
         }
         if (allSegCoords.length > 0) {
@@ -584,19 +587,13 @@ const PeakflowRoutes = {
     document.getElementById('elevationProfile').classList.remove('hidden');
     this.drawElevationProfile();
 
-    // PRIORITY 2: Gefahren zuerst (wichtigste Info für Sicherheit)
-    try { await this.loadSACDataForRoute(coords); } catch(e) { console.warn('[Peakflow] SAC:', e); }
-
-    // PRIORITY 3: Schnee + Wetter parallel (beide nutzen Open-Meteo)
-    await Promise.all([
-      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
-      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e))
-    ]);
-
-    // PRIORITY 4: Sonne + Wasser parallel (weniger kritisch)
+    // ALL secondary data loads in parallel (non-blocking)
     Promise.all([
+      this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e)),
+      this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
+      this.loadRouteWeather(coords).catch(e => console.warn('[Peakflow] Weather:', e)),
       this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e)),
-      this.loadSunAnalysis(coords, elevations)
+      this.loadSunAnalysis(coords, elevations).catch(e => console.warn('[Peakflow] Sun:', e))
     ]).then(() => console.log('[Peakflow] All route data loaded'));
   },
 
@@ -606,8 +603,8 @@ const PeakflowRoutes = {
   async loadWaterSources(coords) {
     if (!coords || coords.length < 2 || !this.map) return;
 
-    // Wait 3s to avoid Overpass rate limiting (SAC query runs first)
-    await new Promise(r => setTimeout(r, 3000));
+    // Small delay to stagger Overpass requests
+    await new Promise(r => setTimeout(r, 500));
 
     const lngs = coords.map(c => c[0]);
     const lats = coords.map(c => c[1]);
@@ -1494,7 +1491,7 @@ out body;`;
     }
 
     // METHOD 3: Always add steep-section markers from elevation data
-    this._placeSteepMarkers(coords);
+    this._placeSteepMarkers(coords, this.elevations || coords.map(c => c[2] || 0));
 
     if (trails.length === 0) {
       console.log('[Peakflow] No SAC trail data available');
