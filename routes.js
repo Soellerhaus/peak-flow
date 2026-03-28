@@ -182,9 +182,9 @@ const PeakflowRoutes = {
     el.className = 'route-marker';
     el.innerHTML = isFirst ? '<span>🏁</span>' : `<span>${this.waypoints.length}</span>`;
     el.style.cssText = `
-      width: 28px; height: 28px; background: ${isFirst ? '#22c55e' : 'var(--color-primary, #c9a84c)'};
+      width: 28px; height: 28px; background: var(--color-primary, #c9a84c);
       border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      color: white; font-size: ${isFirst ? '16px' : '12px'}; font-weight: 700; border: 2px solid white;
+      color: white; font-size: ${isFirst ? '15px' : '12px'}; font-weight: 700; border: 2px solid white;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: ${isFirst ? 'pointer' : 'grab'}; font-family: Inter, sans-serif;
     `;
 
@@ -527,16 +527,11 @@ const PeakflowRoutes = {
     let elevations = [];
     this._hideRoutingWarning(); // Clear old warnings
 
-    // Check if this is a round trip (last waypoint near first, within 500m)
-    const first = this.waypoints[0];
-    const last = this.waypoints[this.waypoints.length - 1];
-    const isRoundTrip = this.waypoints.length >= 3 &&
-      PeakflowUtils.haversineDistance(first.lat, first.lng, last.lat, last.lng) < 0.5;
+    // Round trips are now handled by segment routing with cache (no special case needed)
+    // The last segment back to start uses the normal routing
+    const isRoundTrip = false; // Disabled: was re-routing ALL segments and ignoring cache
 
-    // Build waypoints for BRouter
-    let routeWaypoints = [...this.waypoints];
-
-    if (isRoundTrip) {
+    if (false) { // Keep old round-trip code but never execute it
       // ROUND TRIP: Route the return leg via alternative to avoid same path back
       // Strategy: Split into outbound (start → furthest) and return (furthest → start)
       // Use alternativeidx=1 for return leg to get a different path
