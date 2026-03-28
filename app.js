@@ -1407,21 +1407,20 @@ const Peakflow = {
     try {
       const { data } = await PeakflowData.authClient
         .from('user_profiles')
-        .select('home_lat, home_lng, home_name')
-        .eq('user_id', PeakflowData.currentUser.id)
+        .select('locations')
+        .eq('id', PeakflowData.currentUser.id)
         .single();
 
-      if (data && data.home_lat && data.home_lng) {
-        this._userLocation = { lat: data.home_lat, lng: data.home_lng };
+      if (data && data.locations && data.locations.length > 0) {
+        const home = data.locations[0]; // First location is the active one
+        this._userLocation = { lat: home.lat, lng: home.lng };
+        this._settingsLocations = data.locations;
         localStorage.setItem('peakflow_last_location', JSON.stringify(this._userLocation));
-        console.log(`[Peakflow] User home location: ${data.home_name || ''} (${data.home_lat}, ${data.home_lng})`);
-
-        // Fly to home location
-        this.map.flyTo({ center: [data.home_lng, data.home_lat], zoom: 12, duration: 1000 });
+        console.log(`[Peakflow] User home: ${home.name || ''} (${home.lat}, ${home.lng})`);
+        this.map.flyTo({ center: [home.lng, home.lat], zoom: 13, duration: 1000 });
       }
     } catch (e) {
-      // Table might not exist yet - that's fine
-      console.log('[Peakflow] No user profile found (table may not exist yet)');
+      console.log('[Peakflow] No user profile found');
     }
   },
 

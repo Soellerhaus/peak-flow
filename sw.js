@@ -1,4 +1,4 @@
-const CACHE_NAME = 'peakflow-v2';
+const CACHE_NAME = 'peakflow-v3';
 const TILE_CACHE = 'peakflow-tiles-v1';
 const MAX_TILE_CACHE_SIZE = 2000; // Max 2000 tiles (~100MB)
 
