@@ -333,9 +333,15 @@ const PeakflowRoutes = {
     }
 
     container.classList.remove('hidden');
+    const MAX_VISIBLE = 5;
+    const collapsed = this.waypoints.length > MAX_VISIBLE && !this._wpExpanded;
     let html = '';
     this.waypoints.forEach((wp, i) => {
-      html += `<div class="waypoint-item" data-index="${i}">
+      const hidden = collapsed && i >= 3 && i < this.waypoints.length - 2 ? ' style="display:none;" data-wp-hidden="1"' : '';
+      if (collapsed && i === 3) {
+        html += `<div class="waypoint-expand" id="wpExpandBtn" style="text-align:center;padding:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--color-primary);border:1px dashed var(--border-color);border-radius:6px;margin:2px 0;">▼ Alle ${this.waypoints.length} Wegpunkte anzeigen</div>`;
+      }
+      html += `<div class="waypoint-item" data-index="${i}"${hidden}>
         <div class="waypoint-item__num">${i + 1}</div>
         <div class="waypoint-item__coords" id="wp-name-${i}">${wp.name || wp.lat.toFixed(4) + ', ' + wp.lng.toFixed(4)}</div>
         <button class="waypoint-item__delete" data-index="${i}" title="Wegpunkt löschen">✕</button>
@@ -363,6 +369,15 @@ const PeakflowRoutes = {
         this.removeWaypoint(parseInt(btn.dataset.index));
       });
     });
+
+    // Expand collapsed waypoints
+    const expandBtn = document.getElementById('wpExpandBtn');
+    if (expandBtn) {
+      expandBtn.addEventListener('click', () => {
+        this._wpExpanded = true;
+        this.updateWaypointList();
+      });
+    }
 
     // Insert waypoint buttons
     container.querySelectorAll('.waypoint-insert__btn').forEach(btn => {
@@ -1906,6 +1921,7 @@ const PeakflowRoutes = {
     this.waypoints = [];
     this.routeCoords = [];
     this._segmentCache = {}; // Clear route cache
+    this._wpExpanded = false;
     this.elevations = [];
     this.clearRouteLine();
     this._clearDangerMarkers();
