@@ -1165,8 +1165,9 @@ const PeakflowRoutes = {
     document.getElementById('statAscent').textContent = `${ascent} m ↑`;
     document.getElementById('statDescent').textContent = `${descent} m ↓`;
 
-    // Store difficulty for SAC title integration
+    // Store for nutrition calculator
     this._currentDifficulty = difficulty;
+    this._lastDurationH = time.hours + time.minutes / 60;
     const badge = document.getElementById('difficultyBadge');
     badge.className = `difficulty-badge ${difficulty.class}`;
     badge.querySelector('.difficulty-badge__text').textContent = difficulty.label;
@@ -1538,6 +1539,7 @@ const PeakflowRoutes = {
       const itemsEl = document.getElementById('packingItems');
       if (itemsEl) itemsEl.innerHTML = items.map(function(item) { return '<li style="padding:3px 10px;background:var(--bg-secondary);border-radius:6px;font-size:12px;">' + item + '</li>'; }).join('');
       if (packAccordion) packAccordion.classList.remove('hidden');
+      this._updateNutritionPanel(temp);
     } else {
       document.getElementById('snowWarning').classList.add('hidden');
 
@@ -1550,6 +1552,7 @@ const PeakflowRoutes = {
         const itemsEl = document.getElementById('packingItems');
         if (itemsEl) itemsEl.innerHTML = items.map(function(item) { return '<li style="padding:3px 10px;background:var(--bg-secondary);border-radius:6px;font-size:12px;">' + item + '</li>'; }).join('');
         if (packAccordion) packAccordion.classList.remove('hidden');
+        this._updateNutritionPanel(10); // default 10°C if no weather
       }
     }
   },
@@ -1910,6 +1913,64 @@ const PeakflowRoutes = {
   /**
    * Generate a basic packing list from route stats (no API needed)
    */
+  _updateNutritionPanel(tempC) {
+    try {
+      const panel = document.getElementById('nutritionPanel');
+      const grid = document.getElementById('nutritionGrid');
+      const tip = document.getElementById('nutritionTip');
+      const title = document.getElementById('packAccordionTitle');
+      if (!panel || !grid) return;
+
+      const { ascent, descent } = PeakflowUtils.calculateElevationGain(this.elevations);
+      const distKm = PeakflowUtils.routeDistance(this.routeCoords);
+      const durationH = this._lastDurationH || (distKm / 4); // fallback 4km/h
+
+      // Get profile from select
+      var profile = 'hiker';
+      var profileSelect = document.getElementById('profileSelect');
+      if (profileSelect) profile = profileSelect.value;
+
+      var temp = typeof tempC === 'number' ? tempC : 10;
+      var n = PeakflowUtils.calculateNutrition(distKm, ascent, descent, durationH, temp, profile);
+      if (!n) { panel.classList.add('hidden'); return; }
+
+      // Update title with summary
+      if (title) title.innerHTML = '🎒 Packliste · 💧' + n.waterL + 'L · ⚡' + n.calories + ' kcal';
+
+      // Render grid
+      grid.innerHTML =
+        '<div style="padding:8px;border-radius:6px;background:rgba(59,130,246,0.1);text-align:center;">' +
+          '<div style="font-size:18px;font-weight:800;color:#3b82f6;">💧 ' + n.waterL + 'L</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);">' + n.mlPerHour + ' ml/Std</div>' +
+        '</div>' +
+        '<div style="padding:8px;border-radius:6px;background:rgba(249,115,22,0.1);text-align:center;">' +
+          '<div style="font-size:18px;font-weight:800;color:#f97316;">⚡ ' + n.calories + '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);">kcal gesamt</div>' +
+        '</div>' +
+        '<div style="padding:8px;border-radius:6px;background:rgba(34,197,94,0.1);text-align:center;">' +
+          '<div style="font-size:15px;font-weight:700;">🍌 ' + n.bananas + ' · 🍫 ' + n.bars + '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);">Obst · Riegel</div>' +
+        '</div>' +
+        '<div style="padding:8px;border-radius:6px;background:rgba(168,85,247,0.1);text-align:center;">' +
+          '<div style="font-size:15px;font-weight:700;">⚡ ' + n.gels + (n.electroTabs > 0 ? ' · 💊 ' + n.electroTabs : '') + '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);">Gels' + (n.electroTabs > 0 ? ' · Elektrolyt' : '') + '</div>' +
+        '</div>';
+
+      // Tip
+      var tipText = '';
+      if (durationH > 4) tipText = '💡 Ultradistanz: Alle 30 Min essen, alle 15 Min trinken. Feste Nahrung bevorzugen.';
+      else if (durationH > 2) tipText = '💡 Alle 30-45 Min einen Snack + regelmäßig trinken, nicht erst bei Durst.';
+      else tipText = '💡 Ausreichend vor dem Start frühstücken. Trinkflasche mitnehmen.';
+      if (temp > 25) tipText += ' ☀️ Hitze: Extra Elektrolyte einplanen!';
+      if (temp < 0) tipText += ' ❄️ Kälte: Warmes Getränk in Thermosflasche.';
+      if (tip) tip.textContent = tipText;
+
+      panel.classList.remove('hidden');
+    } catch (e) {
+      console.log('[Peakflow] Nutrition calc error:', e);
+    }
+  },
+
   generateBasicPackingList() {
     if (this.elevations.length === 0) return;
     const maxElev = Math.max(...this.elevations);
@@ -1918,6 +1979,7 @@ const PeakflowRoutes = {
     const packingEl = document.getElementById('packingList');
     const itemsEl = document.getElementById('packingItems');
     itemsEl.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+    this._updateNutritionPanel(10); // default temp if no weather data
     packingEl.classList.remove('hidden');
   },
 

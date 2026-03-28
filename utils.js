@@ -227,6 +227,66 @@ const PeakflowUtils = {
   },
 
   /**
+   * Nutrition & Hydration calculator for trail activities
+   * Based on sports science: ~500-800 kcal/h hiking, 600-1000 kcal/h running
+   * Hydration: 500-1000ml/h depending on temp, intensity, altitude
+   */
+  calculateNutrition(distanceKm, ascentM, descentM, durationH, tempC, profile) {
+    if (!distanceKm || !durationH || durationH <= 0) return null;
+
+    // Base calorie burn per hour by profile
+    const calPerHour = {
+      'hiker_slow': 400, 'hiker': 500, 'hiker_fast': 600,
+      'runner': 750, 'runner_fast': 900
+    };
+    const baseCal = calPerHour[profile] || 500;
+
+    // Extra calories for elevation (1 Hm up ≈ 1 kcal, 1 Hm down ≈ 0.3 kcal)
+    const elevCal = (ascentM || 0) * 1.0 + (descentM || 0) * 0.3;
+
+    // Total calories
+    const totalCal = Math.round(baseCal * durationH + elevCal);
+
+    // Hydration: base 500ml/h + temperature adjustment + altitude adjustment
+    var mlPerHour = 500;
+    if (tempC > 20) mlPerHour += (tempC - 20) * 30; // +30ml per degree above 20°C
+    if (tempC > 30) mlPerHour += (tempC - 30) * 50; // extra above 30°C
+    if (tempC < 5) mlPerHour -= 100; // less in cold
+    const maxElev = (ascentM || 0) > 1500 ? 3000 : 2000; // rough estimate
+    if (maxElev > 2500) mlPerHour += 150; // altitude increases fluid loss
+    mlPerHour = Math.max(300, mlPerHour); // minimum 300ml/h
+
+    const totalMl = Math.round(mlPerHour * durationH);
+    const totalL = (totalMl / 1000).toFixed(1);
+
+    // Food items (1 gel ≈ 100kcal, 1 bar ≈ 250kcal, 1 banana ≈ 100kcal)
+    // Rule: eat 200-300 kcal/h for efforts > 2h
+    const eatableCalPerH = durationH > 2 ? 250 : 150;
+    const foodCal = Math.round(eatableCalPerH * durationH);
+    const gels = Math.ceil(foodCal * 0.4 / 100); // 40% from gels
+    const bars = Math.ceil(foodCal * 0.4 / 250); // 40% from bars
+    const bananas = Math.ceil(foodCal * 0.2 / 100); // 20% from fruit
+
+    // Electrolyte tabs (1 per 500ml above 1L in warm weather)
+    var electroTabs = 0;
+    if (totalMl > 1000 && tempC > 15) {
+      electroTabs = Math.ceil((totalMl - 1000) / 500);
+    }
+
+    return {
+      calories: totalCal,
+      waterL: parseFloat(totalL),
+      waterMl: totalMl,
+      gels: gels,
+      bars: bars,
+      bananas: bananas,
+      electroTabs: electroTabs,
+      mlPerHour: Math.round(mlPerHour),
+      calPerHour: Math.round(baseCal + elevCal / durationH)
+    };
+  },
+
+  /**
    * Calculate slope steepness between two points
    * @returns {number} Slope in degrees
    */
