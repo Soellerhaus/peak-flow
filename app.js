@@ -2006,11 +2006,16 @@ const Peakflow = {
     // Search with debounce + dropdown
     let searchTimeout = null;
     const searchInput = document.getElementById('searchInput');
-    // Clear any browser autofill (email etc.)
-    setTimeout(() => { if (searchInput.value.includes('@')) searchInput.value = ''; }, 100);
+    // Clear any browser autofill (email etc.) - multiple attempts
+    const clearAutofill = () => { if (searchInput.value.includes('@')) searchInput.value = ''; };
+    setTimeout(clearAutofill, 100);
+    setTimeout(clearAutofill, 500);
+    setTimeout(clearAutofill, 1000);
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => this.showSearchResults(e.target.value), 400);
+      const q = e.target.value.trim();
+      if (q.includes('@')) return; // Ignore email autofill
+      searchTimeout = setTimeout(() => this.showSearchResults(q), 400);
     });
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
