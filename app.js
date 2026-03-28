@@ -1045,6 +1045,22 @@ const Peakflow = {
     if (!stage.coords || stage.coords.length < 2) return;
 
     const R = PeakflowRoutes;
+    // Clear ALL previous race map overlays
+    if (this._raceMapLayers) {
+      Object.keys(this._raceMapLayers).forEach(key => {
+        (this._raceMapLayers[key] || []).forEach(id => {
+          try { R.map.removeLayer(id); } catch(e) {}
+          try { R.map.removeSource(id); } catch(e) {}
+        });
+        this._raceMapVisible[key] = false;
+      });
+      this._raceMapLayers = {};
+      // Reset all "Auf Karte" buttons
+      document.querySelectorAll('.race-map-btn.active').forEach(b => {
+        b.classList.remove('active');
+        b.textContent = '🗺 Auf Karte';
+      });
+    }
     R.clearRoute();
     R.isPlanning = false;
     R.routeCoords = stage.coords;
