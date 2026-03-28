@@ -593,7 +593,17 @@ const PeakflowRoutes = {
       const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
       const failedSegments = [];
 
+      // Cache segments so adding new waypoints doesn't re-route existing segments
+      if (!this._segmentCache) this._segmentCache = {};
+
       const routeSegment = async (from, to) => {
+        // Check cache: same start+end coords → reuse result
+        const cacheKey = from.lat.toFixed(5) + ',' + from.lng.toFixed(5) + '→' + to.lat.toFixed(5) + ',' + to.lng.toFixed(5);
+        if (this._segmentCache[cacheKey]) {
+          console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: cached`);
+          return this._segmentCache[cacheKey];
+        }
+
         const segDirect = PeakflowUtils.haversineDistance(from.lat, from.lng, to.lat, to.lng);
         const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
 
@@ -633,6 +643,7 @@ const PeakflowRoutes = {
         try {
           const best = await Promise.any(profiles.map(p => fetchProfile(p)));
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
+          this._segmentCache[cacheKey] = best.coords; // Cache for reuse
           return best.coords;
         } catch(e) {
           console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}:`, e.errors?.map(x=>x.message) || e.message);
@@ -1880,6 +1891,7 @@ const PeakflowRoutes = {
     this.markers = [];
     this.waypoints = [];
     this.routeCoords = [];
+    this._segmentCache = {}; // Clear route cache
     this.elevations = [];
     this.clearRouteLine();
     this._clearDangerMarkers();
