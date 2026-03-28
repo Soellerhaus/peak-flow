@@ -540,5 +540,85 @@ const PeakflowData = {
       description: 'Das Timmelsjoch verbindet das Ötztal in Tirol mit dem Passeiertal in Südtirol. Die Hochalpenstraße bietet grandiose Ausblicke und führt durch eine beeindruckende Hochgebirgslandschaft.',
       connects_from: 'Ötztal (Tirol)', connects_to: 'Passeiertal (Südtirol)'
     }
-  ]
+  ],
+
+  // ============================================
+  // COMMUNITY RACES
+  // ============================================
+
+  async getCommunityRaces() {
+    if (!this.authClient) return [];
+    try {
+      const { data, error } = await this.authClient
+        .from('community_races')
+        .select('*')
+        .eq('is_public', true)
+        .order('race_date', { ascending: true });
+      if (!error && data) return data;
+    } catch (e) { console.warn('[Peakflow] Load races failed', e); }
+    return [];
+  },
+
+  async saveCommunityRace(race) {
+    if (!this.authClient || !this.currentUser) return { error: 'Nicht angemeldet' };
+    try {
+      const { data, error } = await this.authClient
+        .from('community_races')
+        .insert([{
+          user_id: this.currentUser.id,
+          race_name: race.race_name,
+          race_date: race.race_date || null,
+          start_time: race.start_time || null,
+          start_name: race.start_name || null,
+          finish_name: race.finish_name || null,
+          distance: race.distance || null,
+          ascent: race.ascent || null,
+          descent: race.descent || null,
+          coords: race.coords,
+          waypoints: race.waypoints || null,
+          description: race.description || null,
+          logo_url: race.logo_url || null,
+          is_public: true
+        }])
+        .select()
+        .single();
+      if (error) return { error: error.message };
+      return { data };
+    } catch (e) { return { error: e.message }; }
+  },
+
+  async deleteCommunityRace(id) {
+    if (!this.authClient || !this.currentUser) return;
+    await this.authClient.from('community_races').delete().eq('id', id);
+  },
+
+  async toggleRacePeak(raceId) {
+    if (!this.authClient || !this.currentUser) return { error: 'Nicht angemeldet' };
+    // Check if already peaked
+    const { data: existing } = await this.authClient
+      .from('race_peaks')
+      .select('id')
+      .eq('race_id', raceId)
+      .eq('user_id', this.currentUser.id)
+      .maybeSingle();
+    if (existing) {
+      // Remove peak
+      await this.authClient.from('race_peaks').delete().eq('id', existing.id);
+      return { peaked: false };
+    } else {
+      // Add peak
+      await this.authClient.from('race_peaks').insert([{ race_id: raceId, user_id: this.currentUser.id }]);
+      return { peaked: true };
+    }
+  },
+
+  async getUserPeaks(raceIds) {
+    if (!this.authClient || !this.currentUser || !raceIds.length) return [];
+    const { data } = await this.authClient
+      .from('race_peaks')
+      .select('race_id')
+      .eq('user_id', this.currentUser.id)
+      .in('race_id', raceIds);
+    return (data || []).map(d => d.race_id);
+  }
 };

@@ -901,88 +901,104 @@ const Peakflow = {
     const list = document.getElementById('raceRoutesList');
     if (!list) return;
 
-    // Use cache if available
-    if (this._raceRoutesCache) {
-      this._renderRaceRoutes(this._raceRoutesCache);
-      return;
-    }
-
-    list.innerHTML = '<div class="race-loading">Lade Rennstrecken...</div>';
+    list.innerHTML = '<div class="race-loading">Lade Rennen...</div>';
 
     try {
-      const SUPABASE_URL = PeakflowData.SUPABASE_URL;
-      const SUPABASE_KEY = PeakflowData.SUPABASE_KEY;
-      const resp = await fetch(
-        `${SUPABASE_URL}/rest/v1/race_routes?select=*&order=race_date.desc,stage.asc`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      );
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const rows = await resp.json();
-
-      if (!Array.isArray(rows) || rows.length === 0) {
-        list.innerHTML = '<div class="race-loading">Noch keine Rennstrecken verfügbar.</div>';
+      const races = await PeakflowData.getCommunityRaces();
+      if (!races || races.length === 0) {
+        list.innerHTML = '<div class="race-loading" style="text-align:center;padding:20px;color:var(--text-tertiary);">Noch keine Rennen eingetragen.<br>Sei der Erste! 🏁</div>';
         return;
       }
-
-      this._raceRoutesCache = rows;
-      this._renderRaceRoutes(rows);
+      // Get user's peaks
+      const raceIds = races.map(r => r.id);
+      const userPeaks = await PeakflowData.getUserPeaks(raceIds);
+      this._renderCommunityRaces(races, userPeaks);
     } catch(e) {
-      console.warn('[Peakflow] Race routes load failed:', e);
-      list.innerHTML = '<div class="race-loading">Rennstrecken konnten nicht geladen werden.</div>';
+      console.warn('[Peakflow] Race load failed:', e);
+      list.innerHTML = '<div class="race-loading">Rennen konnten nicht geladen werden.</div>';
     }
   },
 
-  _renderRaceRoutes(rows) {
+  _handleLogoFile(file) {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this._raceLogoDataUrl = e.target.result;
+      const preview = document.getElementById('raceLogoPreview');
+      if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    };
+    reader.readAsDataURL(file);
+  },
+
+  _renderCommunityRaces(races, userPeaks) {
     const list = document.getElementById('raceRoutesList');
     if (!list) return;
 
-    // Group by race_slug + edition
-    const grouped = {};
-    for (const row of rows) {
-      const key = row.race_slug + '_' + row.edition;
-      if (!grouped[key]) grouped[key] = { ...row, stages: [] };
-      if (row.stage !== null) grouped[key].stages.push(row);
-    }
-
-    const now = new Date();
     let html = '';
-    for (const key of Object.keys(grouped)) {
-      const g = grouped[key];
-      // Skip races without any route data (no coords/stages)
-      if (g.stages.length === 0 && (!g.coords || g.coords.length < 2)) continue;
-      const raceDate = g.race_date ? new Date(g.race_date) : null;
-      const dateStr = raceDate ? raceDate.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' }) : '';
-      const isNew = raceDate && (now - raceDate) < 30 * 24 * 3600 * 1000;
-      const totalDist = g.stages.reduce((s, st) => s + (st.distance || 0), 0);
-      const totalAsc  = g.stages.reduce((s, st) => s + (st.ascent  || 0), 0);
-      const mapActive = this._raceMapVisible[key] ? 'active' : '';
+    for (const r of races) {
+      if (!r.coords || r.coords.length < 2) continue;
+      const d = r.race_date ? new Date(r.race_date) : null;
+      const dateStr = d ? d.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' }) : '';
+      const peaked = userPeaks.includes(r.id);
+      const dist = r.distance ? parseFloat(r.distance).toFixed(1) : '?';
+      const website = r.website_url ? `<a href="${r.website_url}" target="_blank" style="font-size:11px;color:var(--color-primary);">🔗 Website</a>` : '';
 
-      html += `<div class="race-card">
+      html += `<div class="race-card community-race" data-race-id="${r.id}" style="cursor:pointer;">
         <div class="race-card__header">
-          <div class="race-logo-placeholder">🏁</div>
+          <div class="race-logo-placeholder">${r.logo_url ? '<img src="'+r.logo_url+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">' : '🏁'}</div>
           <div class="race-card__meta">
-            <div class="race-card__title">${g.race_name} ${g.edition}</div>
-            <div class="race-card__subtitle">${dateStr} · ${g.stages.length} Etappen · ${totalDist.toFixed(0)}km · ${(totalAsc/1000).toFixed(1)}k Hm</div>
+            <div class="race-card__title">${r.race_name}</div>
+            <div class="race-card__subtitle">${dateStr}${r.start_time ? ' · '+r.start_time+' Uhr' : ''}</div>
+            <div style="font-size:11px;color:var(--text-tertiary);">${r.start_name||''}${r.finish_name ? ' → '+r.finish_name : ''} · ${dist}km${r.ascent ? ' · ⬆'+r.ascent+'m' : ''}</div>
           </div>
-          ${isNew ? '<span class="race-card__badge">NEU</span>' : ''}
         </div>
-        ${g.stages.map(st => `
-          <div class="race-stage-row" data-id="${st.id}" data-key="${key}" style="cursor:pointer;">
-            <div class="race-stage-dot" style="background:${st.stage_color||'#888'}"></div>
-            <div class="race-stage-name">E${st.stage} ${st.stage_name || ''}</div>
-            <div class="race-stage-stats">${st.distance ? st.distance.toFixed(0)+'km' : ''} ${st.ascent ? '⬆'+st.ascent+'m' : ''}</div>
-          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+          <button class="peak-btn ${peaked?'peaked':''}" data-race-id="${r.id}" title="Peak vergeben">
+            ⛰ <span class="peak-count">${r.peaks_count || 0}</span> ${r.peaks_count === 1 ? 'Peak' : 'Peaks'}
+          </button>
+          <div style="display:flex;gap:6px;align-items:center;">
+            ${website}
+            <button class="share-race-btn" data-token="${r.share_token}" title="Route teilen" style="background:none;border:none;cursor:pointer;font-size:14px;">📤</button>
+          </div>
+        </div>
       </div>`;
     }
 
     list.innerHTML = html;
 
-    // Stage click → load route
-    list.querySelectorAll('.race-stage-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const id = parseInt(row.dataset.id);
-        const stage = rows.find(r => r.id === id);
-        if (stage) this.loadRaceStage(stage);
+    // Race card click → load route
+    list.querySelectorAll('.community-race').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.peak-btn') || e.target.closest('.share-race-btn') || e.target.closest('a')) return;
+        const race = races.find(r => r.id === card.dataset.raceId);
+        if (race) this.loadRaceStage(race);
+      });
+    });
+
+    // Peak buttons
+    list.querySelectorAll('.peak-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!PeakflowData.currentUser) { document.getElementById('authModal').classList.remove('hidden'); return; }
+        const raceId = btn.dataset.raceId;
+        const result = await PeakflowData.toggleRacePeak(raceId);
+        if (result.error) return;
+        btn.classList.toggle('peaked', result.peaked);
+        const countEl = btn.querySelector('.peak-count');
+        let c = parseInt(countEl.textContent) || 0;
+        countEl.textContent = result.peaked ? c + 1 : Math.max(0, c - 1);
+      });
+    });
+
+    // Share buttons
+    list.querySelectorAll('.share-race-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const url = window.location.origin + '?race=' + btn.dataset.token;
+        navigator.clipboard.writeText(url).then(() => {
+          btn.textContent = '✅';
+          setTimeout(() => btn.textContent = '📤', 2000);
+        });
       });
     });
   },
@@ -1733,6 +1749,98 @@ const Peakflow = {
       // Show start picker again
       PeakflowRoutes._showStartPointPicker();
     });
+
+    // Routenvorschläge toggle
+    const rfToggleBtn = document.getElementById('routeFinderToggle');
+    if (rfToggleBtn) {
+      rfToggleBtn.addEventListener('click', () => {
+        const panel = document.getElementById('routeFinderPanel');
+        if (panel) panel.classList.toggle('hidden');
+      });
+    }
+
+    // Add Race Modal
+    const addRaceBtn = document.getElementById('addRaceBtn');
+    const addRaceModal = document.getElementById('addRaceModal');
+    const closeRaceModal = document.getElementById('closeRaceModal');
+    if (addRaceBtn && addRaceModal) {
+      addRaceBtn.addEventListener('click', () => {
+        if (!PeakflowData.currentUser) { document.getElementById('authModal').classList.remove('hidden'); return; }
+        addRaceModal.classList.remove('hidden');
+        // Pre-fill route stats if route exists
+        const stats = document.getElementById('raceRouteStats');
+        if (stats && PeakflowRoutes.routeCoords.length > 1) {
+          const dist = PeakflowUtils.routeDistance(PeakflowRoutes.routeCoords);
+          const { ascent } = PeakflowUtils.calculateElevationGain(PeakflowRoutes.elevations);
+          stats.textContent = `${dist.toFixed(1)} km · ${ascent} Hm Aufstieg`;
+        } else if (stats) {
+          stats.textContent = '⚠ Erst eine Route planen, dann hier eintragen';
+        }
+      });
+      closeRaceModal.addEventListener('click', () => addRaceModal.classList.add('hidden'));
+    }
+
+    // Logo upload + drag & drop
+    const logoArea = document.getElementById('raceLogoArea');
+    const logoInput = document.getElementById('raceLogoInput');
+    const logoPreview = document.getElementById('raceLogoPreview');
+    if (logoArea && logoInput) {
+      logoArea.addEventListener('click', () => logoInput.click());
+      logoArea.addEventListener('dragover', (e) => { e.preventDefault(); logoArea.style.borderColor = 'var(--color-primary)'; });
+      logoArea.addEventListener('dragleave', () => { logoArea.style.borderColor = 'var(--border-color)'; });
+      logoArea.addEventListener('drop', (e) => {
+        e.preventDefault(); logoArea.style.borderColor = 'var(--border-color)';
+        if (e.dataTransfer.files[0]) this._handleLogoFile(e.dataTransfer.files[0]);
+      });
+      logoInput.addEventListener('change', () => { if (logoInput.files[0]) this._handleLogoFile(logoInput.files[0]); });
+    }
+
+    // Publish race
+    const publishBtn = document.getElementById('publishRaceBtn');
+    if (publishBtn) {
+      publishBtn.addEventListener('click', async () => {
+        const name = document.getElementById('raceNameInput').value.trim();
+        const date = document.getElementById('raceDateInput').value;
+        const time = document.getElementById('raceTimeInput').value;
+        const start = document.getElementById('raceStartInput').value.trim();
+        const finish = document.getElementById('raceFinishInput').value.trim();
+        if (!name) { alert('Bitte Name eingeben'); return; }
+        if (!start) { alert('Bitte Start-Ort eingeben'); return; }
+        if (PeakflowRoutes.routeCoords.length < 2) { alert('Bitte zuerst eine Route planen'); return; }
+        // Confirmation dialog
+        const confirmMsg = `Bitte prüfe nochmal:\n\n🏁 ${name}\n📅 ${date || 'Kein Datum'} ${time ? '⏰ '+time+' Uhr' : ''}\n📍 ${start}${finish ? ' → '+finish : ''}\n\nStimmt alles?`;
+        if (!confirm(confirmMsg)) return;
+        publishBtn.textContent = 'Wird veröffentlicht...';
+        publishBtn.disabled = true;
+        const dist = PeakflowUtils.routeDistance(PeakflowRoutes.routeCoords);
+        const { ascent, descent } = PeakflowUtils.calculateElevationGain(PeakflowRoutes.elevations);
+        const result = await PeakflowData.saveCommunityRace({
+          race_name: name, race_date: date || null, start_time: time || null,
+          start_name: start, finish_name: finish || null,
+          distance: dist.toFixed(1), ascent, descent,
+          coords: PeakflowRoutes.routeCoords,
+          waypoints: PeakflowRoutes.waypoints.map(w => ({ lat: w.lat, lng: w.lng, name: w.name })),
+          description: document.getElementById('raceDescInput').value.trim() || null,
+          logo_url: this._raceLogoDataUrl || null
+        });
+        publishBtn.textContent = '🏁 Rennen veröffentlichen';
+        publishBtn.disabled = false;
+        if (result.error) { alert('Fehler: ' + result.error); return; }
+        addRaceModal.classList.add('hidden');
+        // Reset form
+        ['raceNameInput','raceDateInput','raceTimeInput','raceStartInput','raceFinishInput','raceDescInput','raceWebsiteInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        if (logoPreview) { logoPreview.style.display = 'none'; }
+        this._raceLogoDataUrl = null;
+        // Reload races
+        this.loadRaceRoutes();
+        // Switch to Entdecken → Rennen
+        document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('.sidebar__tab[data-tab="discover"]')?.classList.add('active');
+        document.getElementById('panel-discover')?.classList.add('active');
+        alert('🏁 Rennen veröffentlicht! Andere Trailrunner können es jetzt sehen.');
+      });
+    }
 
     // Save route - require login
     document.getElementById('saveRouteBtn').addEventListener('click', async () => {

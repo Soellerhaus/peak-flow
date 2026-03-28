@@ -1931,6 +1931,39 @@ a:hover { text-decoration: underline; }
   color: var(--color-danger);
 }
 
+/* Peak Button (Kudos for community races) */
+.peak-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.3s;
+}
+.peak-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.peak-btn.peaked {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  animation: peakPulse 0.4s ease-out;
+}
+@keyframes peakPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* Community Race Card */
+.community-race { transition: transform 0.15s; }
+.community-race:hover { transform: translateY(-1px); }
+
 /* Waypoint Insert Button (between waypoints) */
 .waypoint-insert {
   display: flex;
