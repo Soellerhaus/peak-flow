@@ -316,16 +316,13 @@
           <div class="route-planner__header">
             <h3 class="sidebar__heading">Route planen</h3>
             <div style="display:flex;gap:6px">
-              <button class="btn btn--sm btn--outline" id="clearRouteBtn">Neu starten</button>
               <button class="btn btn--sm btn--outline" id="routeFinderToggle" style="color:var(--color-primary);">🔍 Vorschläge</button>
+              <button class="btn btn--sm btn--outline" id="clearRouteBtn">Neu starten</button>
             </div>
           </div>
 
-          <!-- Route Finder -->
+          <!-- Route Finder (toggle via header button) -->
           <div class="route-finder" id="routeFinder">
-            <button class="route-finder__toggle" id="routeFinderToggle">
-              🔍 Routenvorschläge
-            </button>
             <div class="route-finder__panel hidden" id="routeFinderPanel">
               <p class="route-finder__label">Dauer</p>
               <div class="route-finder__chips" id="rfDuration">
@@ -710,33 +707,52 @@
 
   <!-- Add Race Modal -->
   <div class="modal hidden" id="addRaceModal">
-    <div class="modal__content" style="max-width:420px;max-height:90vh;overflow-y:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="modal__content" style="max-width:440px;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <h2 style="margin:0;font-size:18px;">🏁 Rennen eintragen</h2>
         <button id="closeRaceModal" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">✕</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <input type="text" id="raceNameInput" placeholder="Name des Rennens *" style="padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-        <div style="display:flex;gap:8px;">
-          <input type="date" id="raceDateInput" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-          <input type="time" id="raceTimeInput" placeholder="Startzeit" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-        </div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="raceStartInput" placeholder="Start-Ort *" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-          <input type="text" id="raceFinishInput" placeholder="Ziel-Ort *" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-        </div>
-        <input type="url" id="raceWebsiteInput" placeholder="Website Veranstalter (optional)" style="padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
-        <textarea id="raceDescInput" placeholder="Beschreibung (optional)" rows="2" style="padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;background:var(--bg-secondary);color:var(--text-primary);"></textarea>
-        <div id="raceLogoArea" style="border:2px dashed var(--border-color);border-radius:8px;padding:16px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-tertiary);">
-          <div>🖼️ Logo hochladen oder hierher ziehen</div>
+      <div style="display:flex;flex-direction:column;gap:8px;" class="race-form">
+        <!-- Veranstalter -->
+        <label style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;">Veranstalter</label>
+        <input type="text" id="raceOrganizerInput" placeholder="z.B. Plan B Event Company *" style="padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+        <input type="url" id="raceWebsiteInput" placeholder="Website Veranstalter (optional)" style="padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+        <div id="raceLogoArea" style="border:2px dashed var(--border-color);border-radius:8px;padding:12px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-tertiary);">
+          <span>🖼️ Logo hochladen oder hierher ziehen</span>
           <input type="file" id="raceLogoInput" accept="image/*" style="display:none;">
-          <img id="raceLogoPreview" style="display:none;max-height:60px;margin-top:8px;border-radius:4px;">
+          <img id="raceLogoPreview" style="display:none;max-height:50px;margin-top:6px;border-radius:4px;">
         </div>
-        <div id="raceRouteInfo" style="padding:10px;background:var(--bg-tertiary);border-radius:8px;font-size:12px;color:var(--text-secondary);">
-          📍 Aktuelle Route wird übernommen
-          <div id="raceRouteStats" style="font-weight:600;margin-top:4px;"></div>
+
+        <hr style="border:none;border-top:1px solid var(--border-color);margin:4px 0;">
+
+        <!-- Rennen-Details -->
+        <label style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;">Renndetails</label>
+        <input type="text" id="raceNameInput" placeholder="Name des Rennens / der Strecke *" style="padding:10px;border:1px solid var(--border-color);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+        <div style="display:flex;gap:6px;">
+          <input type="date" id="raceDateInput" style="flex:1;padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+          <input type="time" id="raceTimeInput" style="width:100px;padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
         </div>
-        <button id="publishRaceBtn" style="padding:12px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🏁 Rennen veröffentlichen</button>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="raceStartInput" placeholder="Start *" style="flex:1;padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+          <input type="text" id="raceFinishInput" placeholder="Ziel" style="flex:1;padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);">
+        </div>
+        <textarea id="raceDescInput" placeholder="Beschreibung (optional)" rows="2" style="padding:9px;border:1px solid var(--border-color);border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;background:var(--bg-secondary);color:var(--text-primary);"></textarea>
+
+        <hr style="border:none;border-top:1px solid var(--border-color);margin:4px 0;">
+
+        <!-- Route -->
+        <label style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;">Strecke</label>
+        <div style="display:flex;gap:6px;">
+          <button id="raceUseCurrentRoute" class="btn btn--sm" style="flex:1;padding:8px;font-size:12px;">📍 Aktuelle Route</button>
+          <label id="raceUploadGPX" class="btn btn--sm btn--outline" style="flex:1;padding:8px;font-size:12px;text-align:center;cursor:pointer;">📂 GPX hochladen
+            <input type="file" id="raceGPXInput" accept=".gpx" style="display:none;">
+          </label>
+        </div>
+        <div id="raceRouteInfo" style="padding:8px;background:var(--bg-tertiary);border-radius:8px;font-size:12px;color:var(--text-secondary);display:none;">
+          <div id="raceRouteStats"></div>
+        </div>
+
+        <button id="publishRaceBtn" style="padding:12px;margin-top:4px;background:var(--color-primary,#c9a84c);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🏁 Rennen veröffentlichen</button>
       </div>
     </div>
   </div>
@@ -755,16 +771,16 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="utils.js?v=7"></script>
-  <script src="supabase.js?v=7"></script>
-  <script src="weather.js?v=7"></script>
-  <script src="snow.js?v=7"></script>
-  <script src="export.js?v=7"></script>
-  <script src="routes.js?v=7"></script>
-  <script src="walkthrough.js?v=7"></script>
-  <script src="route-finder.js?v=7"></script>
-  <script src="navigation.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="utils.js?v=8"></script>
+  <script src="supabase.js?v=8"></script>
+  <script src="weather.js?v=8"></script>
+  <script src="snow.js?v=8"></script>
+  <script src="export.js?v=8"></script>
+  <script src="routes.js?v=8"></script>
+  <script src="walkthrough.js?v=8"></script>
+  <script src="route-finder.js?v=8"></script>
+  <script src="navigation.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 
   <!-- PWA Install Banner -->
   <div id="pwaInstall" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#f0ece2;padding:12px 16px;z-index:900;box-shadow:0 -2px 12px rgba(0,0,0,0.4);font-family:Inter,sans-serif;">
