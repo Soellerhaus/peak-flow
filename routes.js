@@ -1575,55 +1575,77 @@ out body;`;
       }
     }
 
-    // METHOD 3: Always add steep-section markers from elevation data
-    this._placeSteepMarkers(coords, this.elevations || coords.map(c => c[2] || 0));
-
     if (trails.length === 0) {
       console.log('[Peakflow] No SAC trail data available');
       return;
     }
 
-    // Process trails - find which ones are near the route
-    const threshold = 0.002;
+    // Find T4+ SAC trails that intersect with our route — place markers ON the route
+    const threshold = 0.003; // ~300m
     const thresholdSq = threshold * threshold;
     let maxSac = null;
     let dangerCount = 0;
+    const dangerPoints = []; // {routeCoord, sacInfo, trailName}
 
     for (const trail of trails) {
       const geom = trail.geometry;
       if (!geom || geom.length < 2) continue;
-
       const sacInfo = sacMap[trail.sac_scale];
       if (!sacInfo) continue;
 
-      // Check if trail is near route
-      let hasNearNode = false;
-      const nearNodes = [];
-
+      // Find the closest route point to this trail
       for (const node of geom) {
         const nLng = Array.isArray(node) ? node[0] : node.lon;
         const nLat = Array.isArray(node) ? node[1] : node.lat;
-        for (let ci = 0; ci < coords.length; ci += 2) {
+        let bestDist = Infinity, bestIdx = -1;
+        for (let ci = 0; ci < coords.length; ci += 3) {
           const dLat = coords[ci][1] - nLat;
           const dLng = coords[ci][0] - nLng;
-          if (dLat * dLat + dLng * dLng < thresholdSq) {
-            hasNearNode = true;
-            nearNodes.push([nLng, nLat]);
-            break;
+          const d = dLat * dLat + dLng * dLng;
+          if (d < bestDist) { bestDist = d; bestIdx = ci; }
+        }
+        if (bestDist < thresholdSq && bestIdx >= 0) {
+          if (!maxSac || sacInfo.level > (maxSac.level || '')) maxSac = sacInfo;
+          if (sacInfo.blink) {
+            dangerCount++;
+            dangerPoints.push({
+              coord: [coords[bestIdx][0], coords[bestIdx][1]], // ON the route, not on the trail
+              sacInfo, name: trail.name, idx: bestIdx
+            });
           }
+          break; // one match per trail is enough
         }
       }
+    }
 
-      if (!hasNearNode) continue;
-
-      if (!maxSac || sacInfo.level > (maxSac.level || '')) {
-        maxSac = sacInfo;
+    // Place max 8 markers ON the route at T4+ danger zones
+    if (dangerPoints.length > 0) {
+      // Sort by route position, spread evenly, max 8
+      dangerPoints.sort((a, b) => a.idx - b.idx);
+      let markers = dangerPoints;
+      if (markers.length > 8) {
+        const step = Math.ceil(markers.length / 8);
+        markers = markers.filter((_, i) => i % step === 0);
       }
-
-      // Count danger zones for sidebar info (no map markers from SAC - only _placeSteepMarkers does that)
-      if (sacInfo.blink) {
-        dangerCount++;
-      }
+      if (!this._dangerMarkers) this._dangerMarkers = [];
+      markers.forEach(pt => {
+        const el = document.createElement('div');
+        el.innerHTML = '\u26A0';
+        el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + pt.sacInfo.color +
+          ';border:2px solid white;box-shadow:0 0 16px ' + pt.sacInfo.color +
+          ';animation:dangerBlink 0.8s ease-in-out infinite;cursor:pointer;z-index:50;' +
+          'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
+        el.title = pt.sacInfo.level + ' ' + pt.sacInfo.label + (pt.name ? ' - ' + pt.name : '');
+        const marker = new maplibregl.Marker({ element: el }).setLngLat(pt.coord).addTo(this.map);
+        el.addEventListener('click', () => {
+          new maplibregl.Popup({ offset: 10 }).setLngLat(pt.coord)
+            .setHTML('<strong style="color:' + pt.sacInfo.color + ';">⚠ SAC ' + pt.sacInfo.level + ' ' + pt.sacInfo.label + '</strong>' +
+              (pt.name ? '<div style="font-size:12px;">' + pt.name + '</div>' : ''))
+            .addTo(this.map);
+        });
+        this._dangerMarkers.push(marker);
+      });
+      console.log('[Peakflow] Placed ' + markers.length + ' SAC danger markers ON route');
     }
 
     console.log('[Peakflow] SAC results: maxSac=' + (maxSac ? maxSac.level : 'none') + ', dangerCount=' + dangerCount);
@@ -1638,8 +1660,7 @@ out body;`;
         var diffLabel = this._currentDifficulty ? this._currentDifficulty.label : '';
         sacTitle.innerHTML = '<span style="color:' + (maxSac.color || '#e67e22') + ';">⚠ ' + diffLabel + ' • SAC ' + maxSac.level + ' ' + maxSac.label + ' • ' + dangerCount + ' Gefahrenstellen</span>';
         sacBody.innerHTML += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);font-size:12px;">' +
-          levelEmoji + ' <strong>' + dangerCount + '</strong> gefährliche Abschnitte erkannt.<br>' +
-          '<span style="color:' + (maxSac.color || '#e67e22') + ';">' + levelEmoji + ' Blinkende Marker zeigen Gefahrenstellen.</span></div>';
+          levelEmoji + ' <strong>' + dangerCount + '</strong> gefährliche Abschnitte (SAC-bestätigt).</div>';
         sacAccordion.classList.remove('hidden');
       }
     }
