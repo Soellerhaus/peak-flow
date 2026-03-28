@@ -1,0 +1,91 @@
+Peakflow Peak Reachability Analyzer
+====================================
+
+Batch: 1 - 5
+  ✅ Col des Confins (nullm) - T1
+  ✅ 405 (nullm) - T1
+  ✅ Pas de la Rochelle (nullm) - T3
+  ✅ Col de la Cochette (nullm) - T2
+  ✅ Passage de Plan Molard (nullm) - T1
+  Processed: 5 | Updated: 5
+  Waiting 30s...
+
+Batch: 6 - 10
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col du Pré de la Roche (nullm) - skipped (error)
+  ✅ Col du Taccon (nullm) - T2
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de la Tulle   ✅ Col du Passet (nullm  ✅ C  ✅ Col de la Tulle (nullm)  ✅ Col du Passet (nullm) - T4
+  Processed: 10 | Updated: 8
+  Waiting 30s...
+
+Batch: 11 - 15
+  ✅ Passage du Père (nullm) -  ✅ Col de la Clusaz (nullm) - T2
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Passage du Massoly (nullm) - skipped (error)
+  Processed: 5 | Updated: 3
+  Waiting 30s...
+
+Batch: 6 - 10
+  ✅ La Flégère (nullm) - T3
+  ✅ Col de l'Arpette (nullm) - T1
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de Véry  Overpass error: 502 (serv  Overpass error: 502 (server 0)
+  ⏭ Col de Forclaz  Overpass error: 403 (serv  Overpass error: 403 (server 1)
+  ⏭ Col des Glaciers (nullm) - skipped (error)
+  Processed: 10 
+Batch: 21 - 25
+  Overpass error: 504 (server   �  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Auberge Nordique (nullm) - skipped (error)
+  ❌ Col des Glaciers (nullm) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de Véry (nullm) - skipped (error)
+  ✅ Col de Forclaz (nullm) - T3
+  ✅ Refuge du Fioux (nullm) - T2
+  Processed: 25 | Updated: 18
+  Waiting 30s...
+
+Batch: 26 - 30
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de Charbonnière (nullm) - skipped (error)
+  ❌ Col de l'Argentière (nullm) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de Véry (nullm) - skipped (error)
+  ✅ Col de Mya (nullm) - T1
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Refuge du Mont-Joly (nullm) - skipped (error)
+  Processed: 30 | Updated: 20
+  Waiting 30s...
+
+Batch: 31 - 35
+ON
+  ⏭ Refuge du Mont-Joly (nullm) - skipped (error)
+  Overpass error: 500 (server 0)
+  ⏭ Col de l'Argentière (nullm) - skipped (error)
+  Overpass error: 403 (server 1)
+  ⏭ Col de Véry (nullm) - skipped (error)
+  ✅ Col de Mya (nullm) - T1
+  Rate limited, waiting 30s...
+  ❌ Passage des Trois Moines (nullm) - no trail
+  Processed: 25 | Updated: 13
+  Waiting 30s...
+
+Batch: 26 - 30
+  Overpass error: 504 (server 2)
+  Error: fetch failed
+  ⏭ Col de l'Arpette (nullm) - skipped (error)
+  Error: fetch failed
+  ⏭ Passage de Bellefrée (nullm) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de Véry (nullm) - skipped (error)
+  Overpass error: 502 (server 0)
+  ⏭ Refuge du Mont-Joly (nullm) - skipped (error)
+  Overpass error: 403 (server 1)
+  ⏭ Refuge de Tré la Tête (nullm) - skipped (error)
+  Processed: 30 | Updated: 13
+  Waiting 30s...
+
+Batch: 31 - 35
+  Overpass error: 504 (server 2)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Col de l'Arpette (nullm) - skipped (error)

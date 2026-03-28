@@ -12,11 +12,21 @@
  */
 
 const SUPABASE_URL = 'https://wbrvkweezbeakfphssxp.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indicndya3dlZXpiZWFrZnBoc3N4cCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM5MjA5NjU2LCJleHAiOjIwNTQ3ODU2NTZ9.ODoaruVivTl5Rbb3MUPHIjR2RDwaj8CVxbHsMncwLT0';
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE';
+// Use alternative Overpass server (less congested)
+const OVERPASS_SERVERS = [
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass-api.de/api/interpreter'
+];
+let serverIndex = 0;
+function getOverpassUrl() {
+  return OVERPASS_SERVERS[serverIndex % OVERPASS_SERVERS.length];
+}
 
-const BATCH_SIZE = 10;
-const DELAY_BETWEEN_BATCHES_MS = 12000; // 12 seconds between batches of 10
+const BATCH_SIZE = 5;
+const DELAY_BETWEEN_BATCHES_MS = 30000; // 30 seconds between batches
+const DELAY_BETWEEN_REQUESTS_MS = 6000; // 6 seconds between individual requests
 const SEARCH_RADIUS_M = 300;
 
 async function checkPeakReachability(peak) {
@@ -29,7 +39,7 @@ async function checkPeakReachability(peak) {
   `;
 
   try {
-    const resp = await fetch(OVERPASS_URL, {
+    const resp = await fetch(getOverpassUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'data=' + encodeURIComponent(query)
@@ -42,7 +52,12 @@ async function checkPeakReachability(peak) {
     }
 
     if (!resp.ok) {
-      console.warn('  Overpass error:', resp.status);
+      console.warn(`  Overpass error: ${resp.status} (server ${serverIndex % OVERPASS_SERVERS.length})`);
+      serverIndex++; // Try next server
+      if (resp.status === 504 || resp.status === 503) {
+        await sleep(5000);
+        return checkPeakReachability(peak); // Retry with different server
+      }
       return null;
     }
 
@@ -57,7 +72,7 @@ async function checkPeakReachability(peak) {
           ["highway"~"path|track|footway"];
         out tags;
       `;
-      const resp2 = await fetch(OVERPASS_URL, {
+      const resp2 = await fetch(getOverpassUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(query2)
@@ -139,7 +154,9 @@ async function main() {
 
     console.log(`\nBatch: ${totalProcessed + 1} - ${totalProcessed + peaks.length}`);
 
-    for (const peak of peaks) {
+    for (let pi = 0; pi < peaks.length; pi++) {
+      const peak = peaks[pi];
+      if (pi > 0) await sleep(DELAY_BETWEEN_REQUESTS_MS);
       const result = await checkPeakReachability(peak);
       totalProcessed++;
 

@@ -1,0 +1,127 @@
+=== Peakflow Race Route Importer ===
+2026-03-28T14:40:02.516Z
+
+🏁 Transalpine Run
+
+  📅 Edition 2022 (2022-09-04)
+  → Fetching Komoot tour 494808700...
+  ✅ Stage 1 (Garmisch → Lermoos): 42km, 2182Hm ⬆, 413 pts
+  ⏭ Stage 2 (Lermoos → Imst) — no source, skipping
+  → Fetching Komoot tour 533027287...
+  ✅ Stage 3 (Imst → Mandarfen): 52.7km, 2692Hm ⬆, 447 pts
+  → Fetching Komoot tour 495000890...
+  ✅ Stage 4 (Mandarfen → Rifflsee): 10.5km, 921Hm ⬆, 303 pts
+  ⏭ Stage 5 (Ischgl → Scuol) — no source, skipping
+  → Fetching Komoot tour 495602967...
+  ✅ Stage 6 (Scuol → Livigno): 24.2km, 1983Hm ⬆, 411 pts
+  ⏭ Stage 7 (Livigno → Bormio) — no source, skipping
+  ⏭ Stage 8 (Bormio → Glorenza) — no source, skipping
+
+  📅 Edition 2023 (2023-09-10)
+  → Fetching Komoot tour 972883234...
+  ✅ Stage 1 (Lech → St. Anton): 32.4km, 1792Hm ⬆, 340 pts
+  ⏭ Stage 2 (St. Anton → Ischgl) — no source, skipping
+  → Fetching Komoot tour 972943580...
+  ✅ Stage 3 (Ischgl → Galtür): 41.5km, 2547Hm ⬆, 408 pts
+  ⏭ Stage 4 (Galtür → Klosters) — no source, skipping
+  → Fetching Komoot tour 975054618...
+  ✅ Stage 5 (Klosters → Scuol): 47.8km, 2298Hm ⬆, 347 pts
+  ⏭ Stage 6 (Scuol → St. Valentin) — no source, skipping
+  → Fetching Komoot tour 944029919...
+  ✅ Stage 7 (St. Valentin → Prad): 36.1km, 1876Hm ⬆, 347 pts
+  ⏭ Stage 8 (Prad → Glorenza) — no source, skipping
+
+  📅 Edition 2026 (2026-08-29)
+  ⏭ Stage 1 (Lenzerheide → Vals) — no source, skipping
+  ⏭ Stage 2 (Vals → Splügen) — no source, skipping
+  ⏭ Stage 3 (Splügen → Chiavenna) — no source, skipping
+  ⏭ Stage 4 (Chiavenna → Menaggio) — no source, skipping
+  ⏭ Stage 5 (Menaggio → Lugano) — no source, skipping
+  ⏭ Stage 6 (Lugano → Locarno) — no source, skipping
+
+🏁 Zugspitz Ultratrail
+
+  📅 Edition 2025 (2025-06-13)
+  → Fetching GPX https://tracedetrail.fr/en/trace/276812/gpx...
+  ❌ Stage 1 (Zugspitz Ultratrail (107km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276776/gpx...
+  ❌ Stage 2 (ZUT100 (165km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276813/gpx...
+  ❌ Stage 3 (Ehrwald Trail (84km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276814/gpx...
+  ❌ Stage 4 (Leutasch Trail (67km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276811/gpx...
+  ❌ Stage 5 (Mittenwald Trail (43km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276816/gpx...
+  ❌ Stage 6 (GaPa Trail (28km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/276818/gpx...
+  ❌ Stage 7 (Grainau Trail (15km)): No trkpt coordinates found in GPX
+
+🏁 UTMB Mont-Blanc
+
+  📅 Edition 2025 (2025-08-25)
+  → Fetching GPX https://tracedetrail.fr/en/trace/310891/gpx...
+  ❌ Stage 1 (UTMB (171km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/311036/gpx...
+  ❌ Stage 2 (MCC (40km)): No trkpt coordinates found in GPX
+  ⏭ Stage 3 (CCC (101km)) — no source, skipping
+  ⏭ Stage 4 (TDS (145km)) — no source, skipping
+  ⏭ Stage 5 (OCC (56km)) — no source, skipping
+
+🏁 Lavaredo Ultra Trail
+
+  📅 Edition 2025 (2025-06-26)
+  → Fetching GPX https://tracedetrail.fr/en/trace/304391/gpx...
+  ❌ Stage 1 (Lavaredo 120km): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/304389/gpx...
+  ❌ Stage 2 (Lavaredo 80km): No trkpt coordinates found in GPX
+
+🏁 Eiger Ultra Trail
+
+  📅 Edition 2025 (2025-07-19)
+  → Fetching GPX https://tracedetrail.fr/en/trace/305188/gpx...
+  ❌ Stage 1 (E101 (100km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/305189/gpx...
+  ❌ Stage 2 (E51 (52km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/305190/gpx...
+  ❌ Stage 3 (E35 (36km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/305206/gpx...
+  ❌ Stage 4 (E16 (16km)): No trkpt coordinates found in GPX
+
+🏁 Stubai Ultratrail
+
+  📅 Edition 2025 (2025-06-28)
+  → Fetching GPX https://tracedetrail.fr/en/trace/268366/gpx...
+  ❌ Stage 1 (High Trail (79km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/268365/gpx...
+  ❌ Stage 2 (Ultra (60km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/268364/gpx...
+  ❌ Stage 3 (Classic (32km)): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/268363/gpx...
+  ❌ Stage 4 (Express (24km)): No trkpt coordinates found in GPX
+
+🏁 Grossglockner Ultra Trail
+
+  📅 Edition 2025 (2025-07-25)
+  → Fetching GPX https://tracedetrail.fr/en/trace/242008/gpx...
+  ❌ Stage 1 (GGUT 110km): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/306977/gpx...
+  ❌ Stage 2 (Osttirol Trail 84km): No trkpt coordinates found in GPX
+
+  📅 Edition 2026 (2026-07-24)
+  → Fetching GPX https://tracedetrail.fr/en/trace/318452/gpx...
+  ❌ Stage 1 (GGUT 110km): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/318454/gpx...
+  ❌ Stage 2 (Osttirol Trail 83km): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/318453/gpx...
+  ❌ Stage 3 (Grossglockner Trail 57km): No trkpt coordinates found in GPX
+  → Fetching GPX https://tracedetrail.fr/en/trace/318455/gpx...
+  ❌ Stage 4 (Weissee Trail 35km): No trkpt coordinates found in GPX
+
+🏁 Sierre-Zinal
+
+  📅 Edition 2025 (2025-08-09)
+  → Fetching GPX https://tracedetrail.fr/en/trace/284999/gpx...
+  ❌ Stage 1 (Sierre → Zinal (32km)): No trkpt coordinates found in GPX
+
+=== Done: 8 imported, 43 skipped ===

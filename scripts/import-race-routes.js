@@ -35,10 +35,13 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const STAGE_COLORS = ['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#a8dadc','#6a4c93','#43aa8b','#ff6b6b','#4ecdc4'];
 
+// GPX-URL Muster für tracedetrail.fr (confirmed working):
+// https://tracedetrail.fr/en/trace/TRACE_ID/gpx
+const TDT = id => `https://tracedetrail.fr/en/trace/${id}/gpx`;
+
 // ─── Race Definitions ───────────────────────────────────────────────────────
-// Each stage can have: komoot_id (Komoot tour) OR gpx_url (direct GPX download)
-// Stages with both null are skipped — add source later and re-run.
 const RACES = [
+
   // ── Transalpine Run ──────────────────────────────────────────────────────
   {
     race_slug: 'transalpine-run',
@@ -74,154 +77,165 @@ const RACES = [
         ]
       },
       {
-        edition: 2024,
-        race_date: '2024-09-07',
-        stages: [
-          { stage: 1, stage_name: 'Garmisch → Nassereith', komoot_id: null },
-          { stage: 2, stage_name: 'Nassereith → Imst',     komoot_id: null },
-          { stage: 3, stage_name: 'Imst → See',            komoot_id: null },
-          { stage: 4, stage_name: 'See → Ischgl',          komoot_id: null },
-          { stage: 5, stage_name: 'Ischgl → Samnaun',      komoot_id: null },
-          { stage: 6, stage_name: 'Samnaun → Nauders',     komoot_id: null },
-        ]
-      },
-      {
         edition: 2026,
-        race_date: '2026-08-29',  // Lenzerheide → Locarno, 29 Aug – 5 Sep 2026
+        race_date: '2026-08-29',  // Lenzerheide → Locarno, Aug 29 – Sep 5, 2026
         stages: [
-          { stage: 1, stage_name: 'Lenzerheide → Vals',        komoot_id: null },
-          { stage: 2, stage_name: 'Vals → Splügen',            komoot_id: null },
-          { stage: 3, stage_name: 'Splügen → Chiavenna',       komoot_id: null },
-          { stage: 4, stage_name: 'Chiavenna → Menaggio',      komoot_id: null },
-          { stage: 5, stage_name: 'Menaggio → Lugano',         komoot_id: null },
-          { stage: 6, stage_name: 'Lugano → Locarno',          komoot_id: null },
+          // Offizielle Route wird ca. April/Mai 2026 veröffentlicht
+          { stage: 1, stage_name: 'Lenzerheide → Vals',   komoot_id: null },
+          { stage: 2, stage_name: 'Vals → Splügen',       komoot_id: null },
+          { stage: 3, stage_name: 'Splügen → Chiavenna',  komoot_id: null },
+          { stage: 4, stage_name: 'Chiavenna → Menaggio', komoot_id: null },
+          { stage: 5, stage_name: 'Menaggio → Lugano',    komoot_id: null },
+          { stage: 6, stage_name: 'Lugano → Locarno',     komoot_id: null },
         ]
-        // Note: Official route published ~April/May 2026 — add Komoot IDs then
       }
     ]
   },
 
   // ── Zugspitz Ultratrail (ZUT) ────────────────────────────────────────────
+  // Quelle: tracedetrail.fr/fr/event/salomon-zugspitz-ultratrail-powered-by-ledlenser-2025
   {
     race_slug: 'zugspitz-ultratrail',
     race_name: 'Zugspitz Ultratrail',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-06-18',  // Jun 18–20, 2026, Garmisch-Partenkirchen
+        edition: 2025,
+        race_date: '2025-06-13',  // Jun 12–14, 2025, Garmisch-Partenkirchen
         stages: [
-          // Stage numbers used as distance labels (not chronological stages)
-          { stage: 1, stage_name: 'K42',  gpx_url: 'https://tracedetrail.fr/en/trace/243487/gpx' },
-          { stage: 2, stage_name: 'K75',  gpx_url: null },
-          { stage: 3, stage_name: 'K100', gpx_url: null },
+          { stage: 1, stage_name: 'Zugspitz Ultratrail (107km)', gpx_url: TDT(276812) },
+          { stage: 2, stage_name: 'ZUT100 (165km)',              gpx_url: TDT(276776) },
+          { stage: 3, stage_name: 'Ehrwald Trail (84km)',        gpx_url: TDT(276813) },
+          { stage: 4, stage_name: 'Leutasch Trail (67km)',       gpx_url: TDT(276814) },
+          { stage: 5, stage_name: 'Mittenwald Trail (43km)',     gpx_url: TDT(276811) },
+          { stage: 6, stage_name: 'GaPa Trail (28km)',           gpx_url: TDT(276816) },
+          { stage: 7, stage_name: 'Grainau Trail (15km)',        gpx_url: TDT(276818) },
         ]
       }
     ]
   },
 
-  // ── UTMB (Ultra-Trail du Mont-Blanc) ────────────────────────────────────
+  // ── UTMB Mont-Blanc ──────────────────────────────────────────────────────
+  // Quelle: tracedetrail.fr
   {
     race_slug: 'utmb',
     race_name: 'UTMB Mont-Blanc',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-08-24',  // Aug 24–30, 2026, Chamonix
+        edition: 2025,
+        race_date: '2025-08-25',  // Aug 24–30, 2025, Chamonix
         stages: [
-          { stage: 1, stage_name: 'UTMB 170km',   gpx_url: null },
-          { stage: 2, stage_name: 'CCC 101km',     gpx_url: null },
-          { stage: 3, stage_name: 'OCC 56km',      gpx_url: null },
-          { stage: 4, stage_name: 'MCC 40km',      gpx_url: null },
-          { stage: 5, stage_name: 'TDS 150km',     gpx_url: null },
+          { stage: 1, stage_name: 'UTMB (171km)',  gpx_url: TDT(310891) },
+          { stage: 2, stage_name: 'MCC (40km)',    gpx_url: TDT(311036) },
+          // CCC, TDS, OCC: Traces noch nicht auf tracedetrail.fr für 2025 — add later
+          { stage: 3, stage_name: 'CCC (101km)',   gpx_url: null },
+          { stage: 4, stage_name: 'TDS (145km)',   gpx_url: null },
+          { stage: 5, stage_name: 'OCC (56km)',    gpx_url: null },
         ]
-        // Official GPX: https://utmb.world/races/utmb — add gpx_url when published
       }
     ]
   },
 
   // ── Lavaredo Ultra Trail ─────────────────────────────────────────────────
+  // Quelle: tracedetrail.fr/en/trace/304391 (120km), 304389 (80km)
   {
     race_slug: 'lavaredo-ultra-trail',
     race_name: 'Lavaredo Ultra Trail',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-06-25',  // Jun 24–28, 2026, Cortina d'Ampezzo
+        edition: 2025,
+        race_date: '2025-06-26',  // Jun 24–28, 2025, Cortina d'Ampezzo
         stages: [
-          { stage: 1, stage_name: 'LUT 120km',   gpx_url: null },
-          { stage: 2, stage_name: 'Cortina 30km', gpx_url: null },
+          { stage: 1, stage_name: 'Lavaredo 120km', gpx_url: TDT(304391) },
+          { stage: 2, stage_name: 'Lavaredo 80km',  gpx_url: TDT(304389) },
         ]
       }
     ]
   },
 
   // ── Eiger Ultra Trail ────────────────────────────────────────────────────
+  // Quelle: tracedetrail.fr/fr/event/eiger-ultra-trail-2025
   {
     race_slug: 'eiger-ultra-trail',
     race_name: 'Eiger Ultra Trail',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-07-17',  // Jul 15–19, 2026, Grindelwald
+        edition: 2025,
+        race_date: '2025-07-19',  // Jul 15–19, 2025, Grindelwald
         stages: [
-          { stage: 1, stage_name: 'E101',  gpx_url: null },
-          { stage: 2, stage_name: 'E51',   gpx_url: null },
-          { stage: 3, stage_name: 'E16',   gpx_url: null },
+          { stage: 1, stage_name: 'E101 (100km)', gpx_url: TDT(305188) },
+          { stage: 2, stage_name: 'E51 (52km)',   gpx_url: TDT(305189) },
+          { stage: 3, stage_name: 'E35 (36km)',   gpx_url: TDT(305190) },
+          { stage: 4, stage_name: 'E16 (16km)',   gpx_url: TDT(305206) },
         ]
       }
     ]
   },
 
   // ── Stubai Ultratrail ─────────────────────────────────────────────────────
+  // Quelle: tracedetrail.fr/en/event/stubai-ultratrail-2025
   {
     race_slug: 'stubai-ultratrail',
     race_name: 'Stubai Ultratrail',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-07-03',  // Jul 3–4, 2026, Neustift im Stubaital
+        edition: 2025,
+        race_date: '2025-06-28',  // Jun 28, 2025, Neustift im Stubaital
         stages: [
-          { stage: 1, stage_name: 'SUT 105km',  gpx_url: null },
-          { stage: 2, stage_name: 'SUT 55km',   gpx_url: null },
+          { stage: 1, stage_name: 'High Trail (79km)', gpx_url: TDT(268366) },
+          { stage: 2, stage_name: 'Ultra (60km)',      gpx_url: TDT(268365) },
+          { stage: 3, stage_name: 'Classic (32km)',    gpx_url: TDT(268364) },
+          { stage: 4, stage_name: 'Express (24km)',    gpx_url: TDT(268363) },
         ]
       }
     ]
   },
 
   // ── Grossglockner Ultra Trail ─────────────────────────────────────────────
+  // 2025: tracedetrail.fr/en/trace/242008 (108km Hauptstrecke)
+  // 2026: tracedetrail.fr/fr/event/grossglockner-ultra-trail-2026
   {
     race_slug: 'grossglockner-ultra-trail',
     race_name: 'Grossglockner Ultra Trail',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-07-23',  // Jul 23–26, 2026, Kaprun / Zell am See
+        edition: 2025,
+        race_date: '2025-07-25',  // Jul 24–27, 2025, Kaprun
         stages: [
-          { stage: 1, stage_name: 'GGUT 110km', gpx_url: null },
-          { stage: 2, stage_name: 'GGUT 55km',  gpx_url: null },
+          { stage: 1, stage_name: 'GGUT 110km',       gpx_url: TDT(242008) },
+          { stage: 2, stage_name: 'Osttirol Trail 84km', gpx_url: TDT(306977) },
+        ]
+      },
+      {
+        edition: 2026,
+        race_date: '2026-07-24',  // Jul 24–25, 2026, Kaprun
+        stages: [
+          { stage: 1, stage_name: 'GGUT 110km',              gpx_url: TDT(318452) },
+          { stage: 2, stage_name: 'Osttirol Trail 83km',     gpx_url: TDT(318454) },
+          { stage: 3, stage_name: 'Grossglockner Trail 57km',gpx_url: TDT(318453) },
+          { stage: 4, stage_name: 'Weissee Trail 35km',      gpx_url: TDT(318455) },
         ]
       }
     ]
   },
 
   // ── Sierre-Zinal ──────────────────────────────────────────────────────────
+  // Quelle: tracedetrail.fr/fr/trace/284999
   {
     race_slug: 'sierre-zinal',
     race_name: 'Sierre-Zinal',
     logo_url: null,
     editions: [
       {
-        edition: 2026,
-        race_date: '2026-08-08',  // Aug 8, 2026, Sierre → Zinal (Wallis)
+        edition: 2025,
+        race_date: '2025-08-09',  // Aug 9, 2025, Sierre → Zinal, Wallis
         stages: [
-          // Single-stage race, 31km / 2200Hm
-          { stage: 1, stage_name: 'Sierre → Zinal (31km)', gpx_url: null },
+          { stage: 1, stage_name: 'Sierre → Zinal (32km)', gpx_url: TDT(284999) },
         ]
       }
     ]
