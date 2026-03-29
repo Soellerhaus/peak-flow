@@ -2434,14 +2434,18 @@ const Peakflow = {
     setTimeout(() => { searchInput.value = ''; }, 100);
     setTimeout(() => { searchInput.value = ''; }, 500);
     setTimeout(() => { searchInput.value = ''; }, 1000);
-    // Expand search on focus (covers activity select on mobile)
+    // Expand search on focus — hide activity select to make room
     var searchContainer = document.querySelector('.header__search');
+    var _profSel = document.getElementById('profileSelect');
     searchInput.addEventListener('focus', () => {
       searchContainer.classList.add('header__search--expanded');
+      if (_profSel) _profSel.style.display = 'none';
     });
     searchInput.addEventListener('blur', () => {
-      // Delay to allow click on dropdown results
-      setTimeout(() => searchContainer.classList.remove('header__search--expanded'), 200);
+      setTimeout(() => {
+        searchContainer.classList.remove('header__search--expanded');
+        if (_profSel) _profSel.style.display = '';
+      }, 200);
     });
 
     searchInput.addEventListener('input', (e) => {

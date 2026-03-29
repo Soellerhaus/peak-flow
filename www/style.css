@@ -160,10 +160,8 @@ a:hover { text-decoration: underline; }
   z-index: 10;
 }
 .header__search--expanded {
-  position: absolute;
-  left: 50px;
-  right: 44px;
   max-width: none;
+  flex: 3;
   z-index: 100;
 }
 
