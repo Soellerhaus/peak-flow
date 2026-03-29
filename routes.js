@@ -16,8 +16,8 @@ const PeakflowRoutes = {
   _routingController: null,  // AbortController for cancelling in-flight requests
   _routeDebounce: null,      // Debounce timer
 
-  // BRouter public (until HTTPS proxy is set up on private server)
-  BROUTER_URL: 'https://brouter.de/brouter',
+  // BRouter private server via HTTPS (Contabo VPS, fast & reliable)
+  BROUTER_URL: 'https://routing.peak-flow.app/brouter',
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   // OSRM fallback
   OSRM_URL: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
