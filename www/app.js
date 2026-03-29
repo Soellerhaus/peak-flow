@@ -2321,10 +2321,12 @@ const Peakflow = {
     if (profileSelect) {
       profileSelect.addEventListener('change', () => {
         PeakflowUtils.currentProfile = profileSelect.value;
-        // Recalculate stats if route exists
-        if (PeakflowRoutes.waypoints.length >= 2) {
+        // Recalculate stats + redraw elevation profile if route exists
+        if (PeakflowRoutes.routeCoords && PeakflowRoutes.routeCoords.length >= 2) {
           PeakflowRoutes.updateStats();
+          PeakflowRoutes.drawElevationProfile();
         }
+        console.log('[Peakflow] Activity changed to:', profileSelect.value);
       });
     }
 
