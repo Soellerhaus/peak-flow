@@ -31,6 +31,10 @@ const PeakflowRoutes = {
     if (this.elevationCanvas) {
       this.elevationCtx = this.elevationCanvas.getContext('2d');
     }
+    // On mobile, hide elevation profile by default (saves screen space)
+    if (window.innerWidth <= 768) {
+      this._elevationHidden = true;
+    }
     this.setupElevationHover();
   },
 
