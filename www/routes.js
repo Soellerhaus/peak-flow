@@ -786,27 +786,7 @@ const PeakflowRoutes = {
               }
             } catch (_) { /* public also failed */ }
 
-            // Last resort: try nudging coordinates to nearest trail (~500m grid)
-            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}, trying nudge...`);
-            const nudgeOffsets = [0.003, -0.003, 0.005, -0.005];
-            for (const dlat of nudgeOffsets) {
-              for (const dlng of nudgeOffsets) {
-                try {
-                  const nudgeUrl = `${this.BROUTER_URL}?lonlats=${(from.lng+dlng).toFixed(6)},${(from.lat+dlat).toFixed(6)}|${(to.lng+dlng).toFixed(6)},${(to.lat+dlat).toFixed(6)}&profile=hiking-mountain&alternativeidx=0&format=geojson`;
-                  const nr = await fetch(nudgeUrl, { signal: AbortSignal.timeout(5000) });
-                  if (nr.ok) {
-                    const nj = await nr.json();
-                    const nc = nj.features?.[0]?.geometry?.coordinates;
-                    if (nc && nc.length > 1) {
-                      console.log(`[Peakflow] Nudge success with offset ${dlat},${dlng}`);
-                      this._segmentCache[cacheKey] = nc;
-                      return nc;
-                    }
-                  }
-                } catch(_) {}
-              }
-            }
-            // True last resort: skip segment (don't draw straight line)
+            // All nudging already tried above — skip segment (no straight line)
             console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
             return null;
           }
