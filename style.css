@@ -1195,18 +1195,17 @@ a:hover { text-decoration: underline; }
   left: 0;
   right: 0;
   height: var(--elevation-height);
-  background: var(--bg-glass);
+  background: rgba(26, 26, 26, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--border-color);
   z-index: 10;
   padding: 8px 16px;
   animation: slideUp var(--transition-base);
-  opacity: 0.75;
-  transition: opacity 0.3s;
+  transition: background 0.3s;
 }
 .elevation-profile:hover {
-  opacity: 1;
+  background: rgba(26, 26, 26, 0.95);
 }
 
 @keyframes slideUp {
@@ -1694,7 +1693,7 @@ a:hover { text-decoration: underline; }
   .elevation-profile {
     bottom: 48px;
     z-index: 45;
-    opacity: 1;
+    background: rgba(26, 26, 26, 0.92);
     border-radius: 12px 12px 0 0;
   }
 
