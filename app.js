@@ -2283,88 +2283,90 @@ const Peakflow = {
 
     const q = query.toLowerCase();
     const results = [];
+    const icons = { summit: '⛰️', hut: '🏠', pass: '🔀' };
 
-    // 1. Local POI results
-    const localResults = this.allPOIs
-      .filter(poi => poi.name.toLowerCase().includes(q))
-      .slice(0, 5);
+    // 1. Local POI results (instant)
+    if (this.allPOIs) {
+      this.allPOIs
+        .filter(poi => poi.name && poi.name.toLowerCase().includes(q))
+        .slice(0, 5)
+        .forEach(poi => {
+          results.push({
+            type: 'poi', icon: icons[poi.type] || '📍',
+            name: poi.name, detail: `${poi.elevation}m`, data: poi
+          });
+        });
+    }
 
-    localResults.forEach(poi => {
-      const icons = { summit: '⛰️', hut: '🏠', pass: '🔀' };
+    // Show local results immediately
+    if (results.length > 0) this.renderSearchDropdown(results);
+    else this.renderSearchDropdown([{ type: 'loading', icon: '⏳', name: 'Suche...', detail: '', data: {} }]);
+
+    // 2. Supabase peaks + Nominatim + Sightseeing IN PARALLEL
+    const safeQuery = query.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '');
+    const [peakResults, nominatimResults, sightseeingResults] = await Promise.allSettled([
+      // Supabase peaks
+      fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      }).then(r => r.json()).catch(() => []),
+      // Nominatim
+      fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
+        q: query, format: 'json', limit: 5, addressdetails: 1,
+        viewbox: '5.5,44.0,17.0,48.5', bounded: 0, 'accept-language': 'de'
+      })).then(r => r.json()).catch(() => []),
+      // Supabase sightseeing/POIs
+      fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,type&limit=3', {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      }).then(r => r.json()).catch(() => [])
+    ]);
+
+    // Add peaks
+    const peaks = peakResults.status === 'fulfilled' ? peakResults.value : [];
+    peaks.forEach(p => {
+      if (!p.name || results.some(r => r.name === p.name)) return;
       results.push({
-        type: 'poi',
-        icon: icons[poi.type] || '📍',
-        name: poi.name,
-        detail: `${poi.elevation}m`,
-        data: poi
+        type: 'poi', icon: '⛰️', name: p.name,
+        detail: Math.round(p.elevation) + 'm',
+        data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
       });
     });
 
-    // 2. Supabase peaks search (fast, reliable)
-    if (query.length >= 2) {
-      try {
-        var searchUrl = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + query.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '') + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5';
-        const peakResp = await fetch(searchUrl, {
-          headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
-        });
-        if (peakResp.ok) {
-          const peaks = await peakResp.json();
-          peaks.forEach(p => {
-            if (!p.name || results.some(r => r.name === p.name)) return;
-            results.push({
-              type: 'poi',
-              icon: '⛰️',
-              name: p.name,
-              detail: Math.round(p.elevation) + 'm',
-              data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
-            });
-          });
-        }
-      } catch(e) {}
-    }
+    // Add Nominatim places
+    const places = nominatimResults.status === 'fulfilled' ? nominatimResults.value : [];
+    var typeLabels = {
+      'village': 'Dorf', 'town': 'Stadt', 'city': 'Stadt', 'hamlet': 'Weiler',
+      'peak': 'Gipfel', 'saddle': 'Pass', 'hotel': 'Hotel', 'hostel': 'Hostel',
+      'alpine_hut': 'Hütte', 'restaurant': 'Restaurant', 'station': 'Bahnhof',
+      'bus_stop': 'Bushaltestelle', 'parking': 'Parkplatz', 'waterfall': 'Wasserfall'
+    };
+    places.forEach(place => {
+      if (place.class === 'boundary' && place.type === 'administrative') return;
+      var placeName = place.display_name.split(',')[0].trim();
+      if (results.some(r => r.name.startsWith(placeName))) return;
+      var detail = typeLabels[place.type] || place.type || '';
+      var region = place.address ? (place.address.county || place.address.state || '') : '';
+      if (region) detail += ' • ' + region;
+      results.push({
+        type: 'place',
+        icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
+        name: place.display_name.split(',').slice(0, 2).join(', '),
+        detail: detail,
+        data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
+      });
+    });
 
-    // 3. Nominatim results (places, villages, towns)
-    if (query.length >= 2) {
-      try {
-        const params = new URLSearchParams({
-          q: query, format: 'json', limit: 8, addressdetails: 1,
-          viewbox: '5.5,44.0,17.0,48.5', bounded: 0,
-          'accept-language': 'de'
-        });
-        const resp = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString());
-        const places = await resp.json();
+    // Add sightseeing POIs
+    const sights = sightseeingResults.status === 'fulfilled' ? sightseeingResults.value : [];
+    sights.forEach(s => {
+      if (!s.name || results.some(r => r.name === s.name)) return;
+      results.push({
+        type: 'poi', icon: '🏛️', name: s.name,
+        detail: s.type || 'Sehenswürdigkeit',
+        data: { lat: s.latitude, lng: s.longitude, name: s.name, type: 'sightseeing' }
+      });
+    });
 
-        places.forEach(place => {
-          // Skip boundaries but keep everything else
-          if (place.class === 'boundary' && place.type === 'administrative') return;
-          // Skip if already in results
-          var placeName = place.display_name.split(',')[0].trim();
-          if (results.some(r => r.name.startsWith(placeName))) return;
-
-          // Better type labels
-          var typeLabels = {
-            'village': 'Dorf', 'town': 'Stadt', 'city': 'Stadt', 'hamlet': 'Weiler',
-            'peak': 'Gipfel', 'saddle': 'Pass', 'hotel': 'Hotel', 'hostel': 'Hostel',
-            'alpine_hut': 'Hütte', 'restaurant': 'Restaurant', 'station': 'Bahnhof',
-            'bus_stop': 'Bushaltestelle', 'parking': 'Parkplatz', 'waterfall': 'Wasserfall'
-          };
-          var detail = typeLabels[place.type] || place.type || '';
-          var region = place.address ? (place.address.county || place.address.state || '') : '';
-          if (region) detail += ' • ' + region;
-
-          results.push({
-            type: 'place',
-            icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
-            name: place.display_name.split(',').slice(0, 2).join(', '),
-            detail: detail,
-            data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
-          });
-        });
-      } catch (e) { /* ignore */ }
-    }
-
-    console.log('[Search] "' + query + '": ' + results.length + ' results (local:' + localResults.length + ')');
-    // Render dropdown
+    console.log('[Search] "' + query + '": ' + results.length + ' results');
     this.renderSearchDropdown(results);
   },
 
