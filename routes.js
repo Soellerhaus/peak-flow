@@ -786,11 +786,29 @@ const PeakflowRoutes = {
               }
             } catch (_) { /* public also failed */ }
 
-            // Last resort: straight line so the route stays connected
-            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}, using straight line`);
-            const straightLine = [[from.lng, from.lat, 0], [to.lng, to.lat, 0]];
-            this._segmentCache[cacheKey] = straightLine;
-            return straightLine;
+            // Last resort: try nudging coordinates to nearest trail (~500m grid)
+            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}, trying nudge...`);
+            const nudgeOffsets = [0.003, -0.003, 0.005, -0.005];
+            for (const dlat of nudgeOffsets) {
+              for (const dlng of nudgeOffsets) {
+                try {
+                  const nudgeUrl = `${this.BROUTER_URL}?lonlats=${(from.lng+dlng).toFixed(6)},${(from.lat+dlat).toFixed(6)}|${(to.lng+dlng).toFixed(6)},${(to.lat+dlat).toFixed(6)}&profile=hiking-mountain&alternativeidx=0&format=geojson`;
+                  const nr = await fetch(nudgeUrl, { signal: AbortSignal.timeout(5000) });
+                  if (nr.ok) {
+                    const nj = await nr.json();
+                    const nc = nj.features?.[0]?.geometry?.coordinates;
+                    if (nc && nc.length > 1) {
+                      console.log(`[Peakflow] Nudge success with offset ${dlat},${dlng}`);
+                      this._segmentCache[cacheKey] = nc;
+                      return nc;
+                    }
+                  }
+                } catch(_) {}
+              }
+            }
+            // True last resort: skip segment (don't draw straight line)
+            console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
+            return null;
           }
           // Prefer hiking profiles over shortest (shortest follows roads)
           const hiking = valid.filter(v => v.profile !== 'shortest');
@@ -801,8 +819,9 @@ const PeakflowRoutes = {
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
         } catch(e) {
-          // Even on exception, return straight line
-          return [[from.lng, from.lat, 0], [to.lng, to.lat, 0]];
+          // On exception, skip segment instead of straight line
+          console.warn('[Peakflow] Route exception, skipping segment');
+          return null;
         }
       };
 
