@@ -16,8 +16,8 @@ const PeakflowRoutes = {
   _routingController: null,  // AbortController for cancelling in-flight requests
   _routeDebounce: null,      // Debounce timer
 
-  // BRouter public hiking routing (follows real trails, no API key!)
-  BROUTER_URL: 'https://brouter.de/brouter',
+  // BRouter private server (Contabo VPS, fast & reliable)
+  BROUTER_URL: 'http://62.171.161.55:17777/brouter',
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   // OSRM fallback
   OSRM_URL: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
