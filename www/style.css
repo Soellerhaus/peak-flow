@@ -1049,9 +1049,8 @@ a:hover { text-decoration: underline; }
 /* Route action buttons overlay on map */
 .map-route-actions {
   position: absolute;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 16px;
+  left: 56px;
   display: flex;
   gap: 4px;
   z-index: 10;

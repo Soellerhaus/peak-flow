@@ -439,10 +439,10 @@ const PeakflowRoutes = {
         target.classList.remove('hidden');
         if (mapOverlay) returnBtns.classList.add('hidden');
         target.innerHTML = `
-          <div style="display:flex;gap:4px;">
-            <button id="btnRoundTrip" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">🔄 Rundweg</button>
-            <button id="btnSameWayBack" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">↩️ Gleicher Weg</button>
-            <button id="btnRouteToStart" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">📍 Zum Start</button>
+          <div style="display:flex;gap:3px;">
+            <button id="btnRoundTrip" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">🔄 Rundweg</button>
+            <button id="btnSameWayBack" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
           </div>
         `;
 
