@@ -1690,10 +1690,10 @@ a:hover { text-decoration: underline; }
    Responsive (Mobile)
    ============================================ */
 @media (max-width: 768px) {
-  /* Elevation profile above bottom nav on mobile */
+  /* Elevation profile above map but below bottom nav on mobile */
   .elevation-profile {
     bottom: 48px;
-    z-index: 55;
+    z-index: 45;
     opacity: 1;
     border-radius: 12px 12px 0 0;
   }
