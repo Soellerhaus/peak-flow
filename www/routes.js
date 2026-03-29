@@ -438,8 +438,8 @@ const PeakflowRoutes = {
         target.innerHTML = `
           <div style="display:flex;gap:3px;${isMobile ? '' : 'margin:8px 0 4px 0;'}">
             <button id="btnRoundTrip" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.8);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">🔄 Rundweg</button>
-            <button id="btnSameWayBack" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid #cbd5e1;background:rgba(26,26,26,0.8);color:#94a3b8;border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
-            <button id="btnRouteToStart" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid #cbd5e1;background:rgba(26,26,26,0.8);color:#94a3b8;border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
+            <button id="btnSameWayBack" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.8);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.8);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
           </div>
         `;
 
