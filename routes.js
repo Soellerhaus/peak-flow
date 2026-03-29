@@ -690,9 +690,9 @@ const PeakflowRoutes = {
     if (coords.length === 0) {
       // Route each segment independently and concatenate.
       // Race: first valid response wins (fastest profile)
-      // ONLY hiking-mountain — routes on marked trails (T1-T6)
-      // hiking-beta removed: it routes over unmarked terrain which is dangerous!
-      const profiles = ['hiking-mountain'];
+      // hiking-mountain (marked trails T1-T6) + shortest (pure distance, goes over ridges)
+      // Compare both and pick the one that passes closest to the target waypoint
+      const profiles = ['hiking-mountain', 'shortest'];
       const failedSegments = [];
 
       // Cache segments so adding new waypoints doesn't re-route existing segments
@@ -774,8 +774,14 @@ const PeakflowRoutes = {
             console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
             return null;
           }
-          // Only use hiking-mountain results (marked trails only)
-          const best = valid[0];
+          // Pick the route that goes highest (= most likely follows ridge/trail the user intended)
+          // If hiking-mountain and shortest both work, prefer the one with higher max elevation
+          const best = valid.length === 1 ? valid[0] :
+            valid.reduce((a, b) => {
+              const maxA = Math.max(...a.coords.map(c => c[2] || 0));
+              const maxB = Math.max(...b.coords.map(c => c[2] || 0));
+              return maxA >= maxB ? a : b;
+            });
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
