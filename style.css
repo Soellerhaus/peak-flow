@@ -1690,6 +1690,14 @@ a:hover { text-decoration: underline; }
    Responsive (Mobile)
    ============================================ */
 @media (max-width: 768px) {
+  /* Elevation profile above bottom nav on mobile */
+  .elevation-profile {
+    bottom: 48px;
+    z-index: 55;
+    opacity: 1;
+    border-radius: 12px 12px 0 0;
+  }
+
   .header__search {
     max-width: 120px;
     font-size: 12px;
