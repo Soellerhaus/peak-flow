@@ -745,59 +745,81 @@ const PeakflowRoutes = {
           const results = await Promise.allSettled(profiles.map(p => fetchProfile(p)));
           const valid = results.filter(r => r.status === 'fulfilled').map(r => r.value);
           if (valid.length === 0) {
-            // Fallback 1: nudge unmapped coords to find nearest routable point
-            // Try nudging FROM only, TO only, then BOTH
-            const nudgeOffsets = [
-              [0.002, 0], [-0.002, 0], [0, 0.002], [0, -0.002],
-              [0.005, 0], [-0.005, 0], [0, 0.005], [0, -0.005],
-              [0.003, 0.003], [-0.003, -0.003], [0.003, -0.003], [-0.003, 0.003],
-              [0.01, 0], [-0.01, 0], [0, 0.01], [0, -0.01]
-            ];
-            // Try 3 strategies: nudge FROM, nudge TO, nudge BOTH
-            const strategies = [
-              (dl, dn) => `${from.lng+dn},${from.lat+dl}|${to.lng},${to.lat}`,
-              (dl, dn) => `${from.lng},${from.lat}|${to.lng+dn},${to.lat+dl}`,
-              (dl, dn) => `${from.lng+dn},${from.lat+dl}|${to.lng+dn},${to.lat+dl}`
-            ];
-            for (const strategy of strategies) {
-              for (const [dlat, dlng] of nudgeOffsets) {
-                const nudgedLonlats = strategy(dlat, dlng);
-                try {
-                  const sr = await fetch(
-                    `${this.BROUTER_URL}?lonlats=${nudgedLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
-                    { signal: AbortSignal.timeout(4000) }
-                  );
-                  if (sr.ok) {
-                    const sd = await sr.json();
-                    const rc = sd.features?.[0]?.geometry?.coordinates;
-                    if (rc && rc.length > 2) {
-                      const dist = PeakflowUtils.routeDistance(rc);
-                      console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged ${dist.toFixed(1)}km`);
-                      this._segmentCache[cacheKey] = rc;
-                      return rc;
-                    }
-                  }
-                } catch (_) {}
-              }
-            }
-
-            // Fallback 2: try public BRouter server
+            // Fallback 1: Public BRouter (has latest OSM data, most reliable)
             try {
               const pubUrl = `https://brouter.de/brouter?lonlats=${lonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`;
               const pubResp = await fetch(pubUrl, { signal: AbortSignal.timeout(10000) });
               if (pubResp.ok) {
                 const pubData = await pubResp.json();
                 const rc = pubData.features?.[0]?.geometry?.coordinates;
-                if (rc && rc.length > 1) {
+                if (rc && rc.length > 2) {
                   const dist = PeakflowUtils.routeDistance(rc);
-                  console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: public-fallback ${dist.toFixed(1)}km`);
+                  console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: public-brouter ${dist.toFixed(1)}km`);
                   this._segmentCache[cacheKey] = rc;
                   return rc;
                 }
               }
-            } catch (_) { /* public also failed */ }
+            } catch (_) {}
 
-            // All nudging already tried above — skip segment (no straight line)
+            // Fallback 2: Nudge on own server (few attempts, not spammy)
+            const nudgeOffsets = [
+              [0.003, 0], [-0.003, 0], [0, 0.003], [0, -0.003],
+              [0.006, 0], [-0.006, 0], [0, 0.006], [0, -0.006]
+            ];
+            for (const [dlat, dlng] of nudgeOffsets) {
+              // Nudge FROM only
+              try {
+                const sr = await fetch(
+                  `${this.BROUTER_URL}?lonlats=${from.lng+dlng},${from.lat+dlat}|${to.lng},${to.lat}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                  { signal: AbortSignal.timeout(3000) }
+                );
+                if (sr.ok) {
+                  const sd = await sr.json();
+                  const rc = sd.features?.[0]?.geometry?.coordinates;
+                  if (rc && rc.length > 2) {
+                    console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged-from ${PeakflowUtils.routeDistance(rc).toFixed(1)}km`);
+                    this._segmentCache[cacheKey] = rc;
+                    return rc;
+                  }
+                }
+              } catch (_) {}
+              // Nudge TO only
+              try {
+                const sr = await fetch(
+                  `${this.BROUTER_URL}?lonlats=${from.lng},${from.lat}|${to.lng+dlng},${to.lat+dlat}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                  { signal: AbortSignal.timeout(3000) }
+                );
+                if (sr.ok) {
+                  const sd = await sr.json();
+                  const rc = sd.features?.[0]?.geometry?.coordinates;
+                  if (rc && rc.length > 2) {
+                    console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged-to ${PeakflowUtils.routeDistance(rc).toFixed(1)}km`);
+                    this._segmentCache[cacheKey] = rc;
+                    return rc;
+                  }
+                }
+              } catch (_) {}
+            }
+
+            // Fallback 3: Public BRouter with nudging
+            for (const [dlat, dlng] of nudgeOffsets.slice(0, 4)) {
+              try {
+                const sr = await fetch(
+                  `https://brouter.de/brouter?lonlats=${from.lng+dlng},${from.lat+dlat}|${to.lng},${to.lat}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                  { signal: AbortSignal.timeout(8000) }
+                );
+                if (sr.ok) {
+                  const sd = await sr.json();
+                  const rc = sd.features?.[0]?.geometry?.coordinates;
+                  if (rc && rc.length > 2) {
+                    console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: public-nudged ${PeakflowUtils.routeDistance(rc).toFixed(1)}km`);
+                    this._segmentCache[cacheKey] = rc;
+                    return rc;
+                  }
+                }
+              } catch (_) {}
+            }
+
             console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
             return null;
           }
