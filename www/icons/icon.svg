@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" fill="#1a1a1a"/>
+  <polygon points="256,65 440,380 72,380" fill="#c9a84c"/>
+  <polygon points="256,65 320,185 298,170 256,158 214,170 192,185" fill="#ffffff"/>
+  <text x="256" y="458" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="62"><tspan fill="#ffffff">Peak</tspan><tspan fill="#c9a84c">flow</tspan></text>
+</svg>
