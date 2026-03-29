@@ -819,9 +819,18 @@ const PeakflowRoutes = {
         let hasGap = false;
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
           if (segCoords && segCoords.length > 1) {
-            // Filter out segments that are basically straight lines (< 3 points over > 500m = likely no trail)
+            // Filter out segments that are basically straight lines (no real trail)
             const segDist = PeakflowUtils.routeDistance(segCoords);
-            const isLikelyStraightLine = segCoords.length <= 3 && segDist > 0.5;
+            const segDirect = PeakflowUtils.haversineDistance(
+              segCoords[0][1], segCoords[0][0],
+              segCoords[segCoords.length-1][1], segCoords[segCoords.length-1][0]
+            );
+            // Straight line detection: few points, or route ≈ direct distance (no switchbacks)
+            const pointsPerKm = segDist > 0 ? segCoords.length / segDist : 0;
+            const sinuosity = segDirect > 0.01 ? segDist / segDirect : 1;
+            const isLikelyStraightLine = (segCoords.length <= 3 && segDist > 0.3) ||
+              (pointsPerKm < 10 && segDist > 0.3) ||
+              (sinuosity < 1.05 && segDist > 0.5);
             if (isLikelyStraightLine) {
               console.warn(`[Peakflow] Segment ${i} looks like straight line (${segCoords.length} pts, ${segDist.toFixed(1)}km), skipping`);
               failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
