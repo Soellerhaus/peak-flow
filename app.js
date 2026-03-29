@@ -141,10 +141,7 @@ const Peakflow = {
       antialias: true
     });
 
-    // Navigation controls
-    this.map.addControl(new maplibregl.NavigationControl({
-      visualizePitch: true
-    }), 'bottom-right');
+    // Navigation controls removed - using custom toolbar buttons instead
 
     // Scale
     this.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
@@ -2064,9 +2061,20 @@ const Peakflow = {
       this.map.fitBounds(bounds, { padding: 60, duration: 1000 });
     });
 
+    // Save route from toolbar button (same as sidebar save)
+    document.getElementById('saveRouteToolbarBtn')?.addEventListener('click', () => {
+      document.getElementById('saveRouteBtn')?.click();
+    });
+
+    // Undo last waypoint
+    document.getElementById('undoWaypointBtn')?.addEventListener('click', () => {
+      PeakflowRoutes.undoLastWaypoint();
+    });
+
     // Close elevation profile
     document.getElementById('closeElevation').addEventListener('click', () => {
       document.getElementById('elevationProfile').classList.add('hidden');
+      PeakflowRoutes._elevationHidden = true;
       const toggleBtn = document.getElementById('elevationToggleBtn');
       if (toggleBtn) toggleBtn.classList.remove('active');
     });
@@ -2076,8 +2084,9 @@ const Peakflow = {
       const profile = document.getElementById('elevationProfile');
       const btn = document.getElementById('elevationToggleBtn');
       if (profile) {
-        profile.classList.toggle('hidden');
-        btn.classList.toggle('active', !profile.classList.contains('hidden'));
+        const isHidden = profile.classList.toggle('hidden');
+        PeakflowRoutes._elevationHidden = isHidden;
+        btn.classList.toggle('active', !isHidden);
       }
     });
 

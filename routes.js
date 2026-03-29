@@ -233,6 +233,7 @@ const PeakflowRoutes = {
     }
 
     this.updateWaypointList();
+    this._updateUndoButton();
 
     // Update route if we have 2+ waypoints
     if (this.waypoints.length >= 2) {
@@ -279,6 +280,19 @@ const PeakflowRoutes = {
         const idx = this.markers.indexOf(marker);
         if (idx >= 0) this.removeWaypoint(idx);
       });
+      // Long-press to delete on mobile
+      let longPressTimer;
+      el.addEventListener('touchstart', (e) => {
+        longPressTimer = setTimeout(() => {
+          const idx = this.markers.indexOf(marker);
+          if (idx >= 0) {
+            navigator.vibrate && navigator.vibrate(50);
+            this.removeWaypoint(idx);
+          }
+        }, 600);
+      }, { passive: true });
+      el.addEventListener('touchend', () => clearTimeout(longPressTimer));
+      el.addEventListener('touchmove', () => clearTimeout(longPressTimer));
       this.markers.push(marker);
     });
     this.updateWaypointList();
@@ -416,19 +430,28 @@ const PeakflowRoutes = {
       const isAlreadyLoop = PeakflowUtils.haversineDistance(first.lat, first.lng, last.lat, last.lng) < 0.5;
 
       if (!isAlreadyLoop && returnBtns) {
-        returnBtns.classList.remove('hidden');
-        returnBtns.innerHTML = `
-          <div style="display:flex;gap:4px;margin:8px 0 4px 0;">
-            <button id="btnRoundTrip" style="flex:1;padding:7px 4px;border:1px solid var(--color-primary,#c9a84c);background:transparent;color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">🔄 Rundweg</button>
-            <button id="btnSameWayBack" style="flex:1;padding:7px 4px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">↩️ Gleicher Weg</button>
-            <button id="btnRouteToStart" style="flex:1;padding:7px 4px;border:1px solid #cbd5e1;background:transparent;color:#64748b;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;">📍 Zum Start</button>
+        const isMobile = window.innerWidth <= 768;
+        const mapOverlay = document.getElementById('mapRouteActions');
+        const target = isMobile && mapOverlay ? mapOverlay : returnBtns;
+        target.classList.remove('hidden');
+        if (isMobile && mapOverlay && target !== returnBtns) returnBtns.classList.add('hidden');
+        target.innerHTML = `
+          <div style="display:flex;gap:4px;${isMobile ? '' : 'margin:8px 0 4px 0;'}">
+            <button id="btnRoundTrip" style="padding:8px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.85);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);">🔄 Rundweg</button>
+            <button id="btnSameWayBack" style="padding:8px 10px;border:1px solid #cbd5e1;background:rgba(26,26,26,0.85);color:#94a3b8;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="padding:8px 10px;border:1px solid #cbd5e1;background:rgba(26,26,26,0.85);color:#94a3b8;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
           </div>
         `;
+
+        const hideRouteActions = () => {
+          returnBtns.classList.add('hidden');
+          if (mapOverlay) mapOverlay.classList.add('hidden');
+        };
 
         document.getElementById('btnRoundTrip').addEventListener('click', () => {
           this._fitAfterRoute = true;
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
-          returnBtns.classList.add('hidden');
+          hideRouteActions();
         });
 
         document.getElementById('btnSameWayBack').addEventListener('click', () => {
@@ -446,20 +469,22 @@ const PeakflowRoutes = {
           }
           this.updateWaypointList();
           this.updateRoute();
-          returnBtns.classList.add('hidden');
+          hideRouteActions();
         });
 
         document.getElementById('btnRouteToStart').addEventListener('click', () => {
           this._fitAfterRoute = true;
-          // Route directly back to start (BRouter finds best way)
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
-          returnBtns.classList.add('hidden');
+          hideRouteActions();
         });
       } else if (returnBtns) {
         returnBtns.classList.add('hidden');
+        if (typeof mapOverlay !== 'undefined' && mapOverlay) mapOverlay.classList.add('hidden');
       }
     } else if (returnBtns) {
       returnBtns.classList.add('hidden');
+      var mapOvl = document.getElementById('mapRouteActions');
+      if (mapOvl) mapOvl.classList.add('hidden');
     }
   },
 
@@ -541,6 +566,7 @@ const PeakflowRoutes = {
     });
 
     this.updateWaypointList();
+    this._updateUndoButton();
 
     if (this.waypoints.length >= 2) {
       await this.updateRoute();
@@ -553,6 +579,8 @@ const PeakflowRoutes = {
       document.getElementById('elevationProfile').classList.add('hidden');
       document.getElementById('snowWarning').classList.add('hidden');
       document.getElementById('packingList').classList.add('hidden');
+      var saveBtn = document.getElementById('saveRouteToolbarBtn');
+      if (saveBtn) saveBtn.classList.add('hidden');
     }
   },
 
@@ -808,8 +836,16 @@ const PeakflowRoutes = {
     // PRIORITY 1: Route sofort zeichnen (kein API-Call)
     this.drawRouteLine(coords);
     this.updateStats();
-    document.getElementById('elevationProfile').classList.remove('hidden');
+    // Only show elevation profile if user hasn't manually hidden it
+    if (!this._elevationHidden) {
+      document.getElementById('elevationProfile').classList.remove('hidden');
+      var elevBtn = document.getElementById('elevationToggleBtn');
+      if (elevBtn) elevBtn.classList.add('active');
+    }
     this.drawElevationProfile();
+    // Show save button in toolbar
+    var saveBtn = document.getElementById('saveRouteToolbarBtn');
+    if (saveBtn) saveBtn.classList.remove('hidden');
 
     // Auto-fit only when route is finalized (flag set by return-to-start buttons)
     if (this._fitAfterRoute && this.map && coords.length > 1) {
@@ -898,7 +934,7 @@ const PeakflowRoutes = {
       const self = this;
       sources.forEach(src => {
         const el = document.createElement('div');
-        el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 8px rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;z-index:40;';
+        el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 8px rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;z-index:5;';
         if (!waterVisible) el.style.display = 'none';
         el.innerHTML = '\uD83D\uDCA7';
         el.title = src.name + ' (' + (src.distKm < 0.1 ? Math.round(src.distKm * 1000) + 'm' : 'km ' + src.distKm.toFixed(1)) + ')';
@@ -1240,6 +1276,12 @@ const PeakflowRoutes = {
     document.getElementById('statDuration').textContent = PeakflowUtils.formatDuration(time.hours, time.minutes);
     document.getElementById('statAscent').textContent = `${ascent} m ↑`;
     document.getElementById('statDescent').textContent = `${descent} m ↓`;
+
+    // Update elevation profile header with duration
+    const elevDur = document.getElementById('elevationDuration');
+    if (elevDur) {
+      elevDur.textContent = `${ascent}m ↑  ${descent}m ↓  ${PeakflowUtils.formatDuration(time.hours, time.minutes)}`;
+    }
 
     // Store for nutrition calculator
     this._currentDifficulty = difficulty;
@@ -1791,7 +1833,7 @@ const PeakflowRoutes = {
         el.innerHTML = '\u26A0';
         el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + pt.sacInfo.color +
           ';border:2px solid white;box-shadow:0 0 16px ' + pt.sacInfo.color +
-          ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
+          ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:5;' +
           'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
 
         // EXACT same pattern as water source markers (line 829) which work correctly
@@ -1954,7 +1996,7 @@ const PeakflowRoutes = {
       el.innerHTML = '\u26A0';
       el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:' + color +
         ';border:2px solid white;box-shadow:0 0 16px ' + color + ',0 0 8px rgba(0,0,0,0.5)' +
-        ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:50;' +
+        ';animation:dangerBlink 2.5s ease-in-out infinite;cursor:pointer;z-index:5;' +
         'display:flex;align-items:center;justify-content:center;font-size:12px;color:white;';
       el.title = label;
 
@@ -2114,5 +2156,23 @@ const PeakflowRoutes = {
       this.routeCoords,
       this.elevations
     );
+  },
+
+  // Show/hide undo button based on waypoint count
+  _updateUndoButton() {
+    const btn = document.getElementById('undoWaypointBtn');
+    if (!btn) return;
+    if (this.waypoints.length > 0) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  },
+
+  // Remove last waypoint (undo)
+  undoLastWaypoint() {
+    if (this.waypoints.length > 0) {
+      this.removeWaypoint(this.waypoints.length - 1);
+    }
   }
 };

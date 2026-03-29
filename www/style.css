@@ -1019,6 +1019,43 @@ a:hover { text-decoration: underline; }
 /* ============================================
    Map Toolbar
    ============================================ */
+/* Undo waypoint button */
+.map-undo-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  transition: all var(--transition-fast);
+}
+.map-undo-btn:hover, .map-undo-btn:active {
+  background: #e74c3c;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Route action buttons overlay on map */
+.map-route-actions {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
 .map-toolbar {
   position: absolute;
   top: 12px;
@@ -1691,10 +1728,14 @@ a:hover { text-decoration: underline; }
 @media (max-width: 768px) {
   /* Elevation profile above map but below bottom nav on mobile */
   .elevation-profile {
-    bottom: 48px;
+    bottom: 52px;
     z-index: 45;
     background: rgba(26, 26, 26, 0.92);
     border-radius: 12px 12px 0 0;
+    height: 200px;
+  }
+  .elevation-profile #elevationCanvas {
+    height: 150px;
   }
 
   .header__search {
@@ -1781,6 +1822,7 @@ a:hover { text-decoration: underline; }
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     max-height: calc(100% - 76px); /* toggle + tabs */
+    padding-bottom: env(safe-area-inset-bottom, 20px); /* space for smartphone taskbar */
   }
 
   .app-layout {
