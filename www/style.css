@@ -1168,6 +1168,10 @@ a:hover { text-decoration: underline; }
   0%, 100% { opacity: 1; box-shadow: 0 0 12px currentColor; }
   50% { opacity: 0.5; box-shadow: 0 0 4px currentColor; }
 }
+@keyframes failedBlink {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(231,76,60,0.8); }
+  50% { transform: scale(1.3); box-shadow: 0 0 20px rgba(231,76,60,1); }
+}
 @keyframes navPulse {
   0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); }
   50% { box-shadow: 0 0 20px rgba(59,130,246,0.8); }

@@ -605,6 +605,9 @@ const PeakflowRoutes = {
   async updateRoute() {
     if (this.waypoints.length < 2) return;
 
+    // Reset any failed markers from previous routing
+    this._resetFailedMarkers();
+
     // Cancel any previous in-flight routing request
     if (this._routingController) this._routingController.abort();
     this._routingController = new AbortController();
@@ -822,6 +825,8 @@ const PeakflowRoutes = {
             if (isLikelyStraightLine) {
               console.warn(`[Peakflow] Segment ${i} looks like straight line (${segCoords.length} pts, ${segDist.toFixed(1)}km), skipping`);
               failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
+              this._markWaypointFailed(i);
+              this._markWaypointFailed(i + 1);
               hasGap = true;
             } else if (allSegCoords.length > 0 && !hasGap) {
               allSegCoords.push(...segCoords.slice(1));
@@ -834,6 +839,8 @@ const PeakflowRoutes = {
             }
           } else {
             failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
+            this._markWaypointFailed(i);
+            this._markWaypointFailed(i + 1);
             hasGap = true;
           }
         }
@@ -2202,5 +2209,31 @@ const PeakflowRoutes = {
     if (this.waypoints.length > 0) {
       this.removeWaypoint(this.waypoints.length - 1);
     }
+  },
+
+  // Mark a waypoint marker as failed (red blinking) and suggest moving it
+  _markWaypointFailed(index) {
+    if (!this.markers[index]) return;
+    const el = this.markers[index].getElement();
+    if (!el || el.dataset.failed) return;
+    el.dataset.failed = 'true';
+    el.style.background = '#e74c3c';
+    el.style.animation = 'failedBlink 1s ease-in-out infinite';
+    el.style.boxShadow = '0 0 12px rgba(231,76,60,0.8)';
+    el.title = '⚠️ Kein Wanderweg gefunden — Marker verschieben!';
+  },
+
+  // Reset failed state on all markers
+  _resetFailedMarkers() {
+    this.markers.forEach(m => {
+      const el = m.getElement();
+      if (el && el.dataset.failed) {
+        delete el.dataset.failed;
+        el.style.background = 'var(--color-primary,#c9a84c)';
+        el.style.animation = '';
+        el.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+        el.title = '';
+      }
+    });
   }
 };
