@@ -2376,7 +2376,17 @@ const Peakflow = {
     console.log('[Search] "' + query + '": ' + results.length + ' results');
   },
 
-  renderSearchDropdown(results) {
+  renderSearchDropdown(unsortedResults) {
+    // Sort: places first, then peaks/mountains, then sightseeing, then rest
+    const sortOrder = (r) => {
+      if (r.type === 'place') return 0;
+      if (r.type === 'loading') return 0;
+      if (r.data && r.data.type === 'summit') return 1;
+      if (r.data && (r.data.type === 'hut' || r.data.type === 'pass')) return 2;
+      if (r.data && r.data.type === 'sightseeing') return 3;
+      return 2;
+    };
+    const results = [...unsortedResults].sort((a, b) => sortOrder(a) - sortOrder(b));
     let dropdown = document.getElementById('searchDropdown');
     if (!dropdown) {
       dropdown = document.createElement('div');
