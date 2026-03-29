@@ -434,16 +434,15 @@ const PeakflowRoutes = {
       const isAlreadyLoop = PeakflowUtils.haversineDistance(first.lat, first.lng, last.lat, last.lng) < 0.5;
 
       if (!isAlreadyLoop && returnBtns) {
-        const isMobile = window.innerWidth <= 768;
         const mapOverlay = document.getElementById('mapRouteActions');
-        const target = isMobile && mapOverlay ? mapOverlay : returnBtns;
+        const target = mapOverlay || returnBtns;
         target.classList.remove('hidden');
-        if (isMobile && mapOverlay && target !== returnBtns) returnBtns.classList.add('hidden');
+        if (mapOverlay) returnBtns.classList.add('hidden');
         target.innerHTML = `
-          <div style="display:flex;gap:3px;${isMobile ? '' : 'margin:8px 0 4px 0;'}">
-            <button id="btnRoundTrip" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">🔄 Rundweg</button>
-            <button id="btnSameWayBack" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
-            <button id="btnRouteToStart" style="padding:${isMobile ? '5px 7px' : '7px 4px'};border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:${isMobile ? '10px' : '11px'};font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
+          <div style="display:flex;gap:4px;">
+            <button id="btnRoundTrip" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">🔄 Rundweg</button>
+            <button id="btnSameWayBack" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="padding:6px 10px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.7);color:var(--color-primary,#c9a84c);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.3);">📍 Zum Start</button>
           </div>
         `;
 
@@ -814,14 +813,28 @@ const PeakflowRoutes = {
         const segResults = await Promise.all(segmentPromises);
         if (routeSignal.aborted) return;
         const allSegCoords = [];
+        let hasGap = false;
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
           if (segCoords && segCoords.length > 1) {
-            if (allSegCoords.length > 0) allSegCoords.push(...segCoords.slice(1));
-            else allSegCoords.push(...segCoords);
+            // Filter out segments that are basically straight lines (< 3 points over > 500m = likely no trail)
+            const segDist = PeakflowUtils.routeDistance(segCoords);
+            const isLikelyStraightLine = segCoords.length <= 3 && segDist > 0.5;
+            if (isLikelyStraightLine) {
+              console.warn(`[Peakflow] Segment ${i} looks like straight line (${segCoords.length} pts, ${segDist.toFixed(1)}km), skipping`);
+              failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
+              hasGap = true;
+            } else if (allSegCoords.length > 0 && !hasGap) {
+              allSegCoords.push(...segCoords.slice(1));
+            } else if (allSegCoords.length > 0 && hasGap) {
+              // After gap: start fresh from this segment
+              allSegCoords.push(...segCoords);
+              hasGap = false;
+            } else {
+              allSegCoords.push(...segCoords);
+            }
           } else {
             failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
-            // DON'T connect the gap with a straight line - skip this segment entirely
-            // But we need to start the next segment fresh if there are coords after the gap
+            hasGap = true;
           }
         }
         if (allSegCoords.length > 0) {
