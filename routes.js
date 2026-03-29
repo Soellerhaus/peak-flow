@@ -1539,7 +1539,7 @@ const PeakflowRoutes = {
       const itemsEl = document.getElementById('packingItems');
       if (itemsEl) itemsEl.innerHTML = items.map(function(item) { return '<li style="padding:3px 10px;background:var(--bg-secondary);border-radius:6px;font-size:12px;">' + item + '</li>'; }).join('');
       if (packAccordion) packAccordion.classList.remove('hidden');
-      this._updateNutritionPanel(temp);
+      this._updateNutritionPanel(weather ? weather.temperature : 10);
     } else {
       document.getElementById('snowWarning').classList.add('hidden');
 
