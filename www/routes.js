@@ -450,6 +450,18 @@ const PeakflowRoutes = {
 
         document.getElementById('btnRoundTrip').addEventListener('click', () => {
           this._fitAfterRoute = true;
+          // For a real round trip, add an offset waypoint to force BRouter to use a different path back
+          const midLat = (first.lat + last.lat) / 2;
+          const midLng = (first.lng + last.lng) / 2;
+          // Calculate perpendicular offset (~300m to the side)
+          const dLat = last.lat - first.lat;
+          const dLng = last.lng - first.lng;
+          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+          const offsetScale = dist > 0 ? 0.003 / dist : 0.003; // ~300m perpendicular
+          const offLat = midLat + dLng * offsetScale;
+          const offLng = midLng - dLat * offsetScale;
+          // Add offset point + return to start
+          this.addWaypoint({ lng: offLng, lat: offLat, name: 'Rundweg' });
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
           hideRouteActions();
         });
