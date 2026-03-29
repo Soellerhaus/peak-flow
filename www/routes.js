@@ -690,7 +690,8 @@ const PeakflowRoutes = {
     if (coords.length === 0) {
       // Route each segment independently and concatenate.
       // Race: first valid response wins (fastest profile)
-      const profiles = ['hiking-mountain', 'hiking-beta', 'shortest'];
+      // hiking-mountain first (supports T1-T6 trails), fallbacks only if it fails
+      const profiles = ['hiking-mountain', 'hiking-beta'];
       const failedSegments = [];
 
       // Cache segments so adding new waypoints doesn't re-route existing segments
@@ -792,11 +793,11 @@ const PeakflowRoutes = {
             console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
             return null;
           }
-          // Prefer hiking profiles over shortest (shortest follows roads)
-          const hiking = valid.filter(v => v.profile !== 'shortest');
-          const best = hiking.length > 0
-            ? hiking.sort((a, b) => a.dist - b.dist)[0]  // shortest hiking route
-            : valid[0]; // fallback to shortest if no hiking profile works
+          // Prefer hiking-mountain (uses all trails T1-T6), then hiking-beta
+          const preferred = valid.find(v => v.profile === 'hiking-mountain') ||
+            valid.find(v => v.profile === 'hiking-beta') ||
+            valid[0];
+          const best = preferred;
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
@@ -819,20 +820,9 @@ const PeakflowRoutes = {
         let hasGap = false;
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
           if (segCoords && segCoords.length > 1) {
-            // Filter out segments that are basically straight lines (no real trail)
-            const segDist = PeakflowUtils.routeDistance(segCoords);
-            const segDirect = PeakflowUtils.haversineDistance(
-              segCoords[0][1], segCoords[0][0],
-              segCoords[segCoords.length-1][1], segCoords[segCoords.length-1][0]
-            );
-            // Straight line detection: few points, or route ≈ direct distance (no switchbacks)
-            const pointsPerKm = segDist > 0 ? segCoords.length / segDist : 0;
-            const sinuosity = segDirect > 0.01 ? segDist / segDirect : 1;
-            const isLikelyStraightLine = (segCoords.length <= 3 && segDist > 0.3) ||
-              (pointsPerKm < 10 && segDist > 0.3) ||
-              (sinuosity < 1.05 && segDist > 0.5);
-            if (isLikelyStraightLine) {
-              console.warn(`[Peakflow] Segment ${i} looks like straight line (${segCoords.length} pts, ${segDist.toFixed(1)}km), skipping`);
+            // Only reject true BRouter failures (2 points = just start+end, no real route)
+            if (segCoords.length <= 2) {
+              console.warn(`[Peakflow] Segment ${i} has only ${segCoords.length} points, skipping`);
               failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
               this._markWaypointFailed(i);
               this._markWaypointFailed(i + 1);
