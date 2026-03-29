@@ -2336,43 +2336,42 @@ const Peakflow = {
       });
     } catch(e) {}
 
-    // Show Supabase results immediately
-    this.renderSearchDropdown(results);
-
-    // 3. Nominatim (slow, rate-limited) — fire and update when ready
+    // 3. Nominatim (with 3s timeout) — wait for it so places come first
     var typeLabels = {
       'village': 'Dorf', 'town': 'Stadt', 'city': 'Stadt', 'hamlet': 'Weiler',
       'peak': 'Gipfel', 'saddle': 'Pass', 'hotel': 'Hotel', 'hostel': 'Hostel',
       'alpine_hut': 'Hütte', 'restaurant': 'Restaurant', 'station': 'Bahnhof',
       'bus_stop': 'Bushaltestelle', 'parking': 'Parkplatz', 'waterfall': 'Wasserfall'
     };
-    fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
-      q: query, format: 'json', limit: 5, addressdetails: 1,
-      viewbox: '5.5,44.0,17.0,48.5', bounded: 0, 'accept-language': 'de'
-    }), { headers: { 'User-Agent': 'PeakFlow/1.0 (https://www.peak-flow.app)' } })
-    .then(r => r.json())
-    .then(places => {
-      // Only update if search input still matches
-      if (document.getElementById('searchInput').value.trim() !== query) return;
-      places.forEach(place => {
-        // Keep towns/cities even if they're boundary/administrative
-        if (place.class === 'boundary' && place.type === 'administrative' && !place.address?.town && !place.address?.city && !place.address?.village) return;
-        var placeName = place.display_name.split(',')[0].trim();
-        if (results.some(r => r.name.startsWith(placeName))) return;
-        var detail = typeLabels[place.type] || place.type || '';
-        var region = place.address ? (place.address.county || place.address.state || '') : '';
-        if (region) detail += ' • ' + region;
-        results.push({
-          type: 'place',
-          icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
-          name: place.display_name.split(',').slice(0, 2).join(', '),
-          detail: detail,
-          data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
-        });
-      });
-      this.renderSearchDropdown(results);
-    }).catch(() => {});
+    try {
+      const nominatimPromise = fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
+        q: query, format: 'json', limit: 5, addressdetails: 1,
+        viewbox: '5.5,44.0,17.0,48.5', bounded: 0, 'accept-language': 'de'
+      }), { headers: { 'User-Agent': 'PeakFlow/1.0 (https://www.peak-flow.app)' } }).then(r => r.json());
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([]), 3000));
+      const places = await Promise.race([nominatimPromise, timeoutPromise]);
 
+      if (document.getElementById('searchInput').value.trim() === query) {
+        (places || []).forEach(place => {
+          if (place.class === 'boundary' && place.type === 'administrative' && !place.address?.town && !place.address?.city && !place.address?.village) return;
+          var placeName = place.display_name.split(',')[0].trim();
+          if (results.some(r => r.name.startsWith(placeName))) return;
+          var detail = typeLabels[place.type] || place.type || '';
+          var region = place.address ? (place.address.county || place.address.state || '') : '';
+          if (region) detail += ' • ' + region;
+          results.push({
+            type: 'place',
+            icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
+            name: place.display_name.split(',').slice(0, 2).join(', '),
+            detail: detail,
+            data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
+          });
+        });
+      }
+    } catch(e) {}
+
+    // Final render with all results (sorted by renderSearchDropdown)
+    this.renderSearchDropdown(results);
     console.log('[Search] "' + query + '": ' + results.length + ' results');
   },
 
