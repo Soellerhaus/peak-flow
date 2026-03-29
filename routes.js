@@ -698,7 +698,35 @@ const PeakflowRoutes = {
           const results = await Promise.allSettled(profiles.map(p => fetchProfile(p)));
           const valid = results.filter(r => r.status === 'fulfilled').map(r => r.value);
           if (valid.length === 0) {
-            // Fallback: try public BRouter server
+            // Fallback 1: nudge unmapped coords to find nearest routable point
+            // Try small offsets in 4 cardinal directions + diagonals
+            const nudgeOffsets = [
+              [0.005, 0], [-0.005, 0], [0, 0.005], [0, -0.005],
+              [0.01, 0], [-0.01, 0], [0, 0.01], [0, -0.01],
+              [0.005, 0.005], [-0.005, -0.005], [0.01, 0.01], [-0.01, -0.01]
+            ];
+            for (const [dlat, dlng] of nudgeOffsets) {
+              // Try nudging both from and to
+              const nudgedLonlats = `${from.lng + dlng},${from.lat + dlat}|${to.lng + dlng},${to.lat + dlat}`;
+              try {
+                const sr = await fetch(
+                  `${this.BROUTER_URL}?lonlats=${nudgedLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                  { signal: AbortSignal.timeout(4000) }
+                );
+                if (sr.ok) {
+                  const sd = await sr.json();
+                  const rc = sd.features?.[0]?.geometry?.coordinates;
+                  if (rc && rc.length > 1) {
+                    const dist = PeakflowUtils.routeDistance(rc);
+                    console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged ${dist.toFixed(1)}km`);
+                    this._segmentCache[cacheKey] = rc;
+                    return rc;
+                  }
+                }
+              } catch (_) {}
+            }
+
+            // Fallback 2: try public BRouter server
             try {
               const pubUrl = `https://brouter.de/brouter?lonlats=${lonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`;
               const pubResp = await fetch(pubUrl, { signal: AbortSignal.timeout(10000) });
