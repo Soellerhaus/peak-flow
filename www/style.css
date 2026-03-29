@@ -1049,10 +1049,10 @@ a:hover { text-decoration: underline; }
 /* Route action buttons overlay on map */
 .map-route-actions {
   position: absolute;
-  top: 64px;
-  left: 12px;
+  top: 16px;
+  left: 60px;
   display: flex;
-  gap: 6px;
+  gap: 4px;
   z-index: 10;
 }
 
@@ -1232,7 +1232,7 @@ a:hover { text-decoration: underline; }
   left: 0;
   right: 0;
   height: var(--elevation-height);
-  background: rgba(26, 26, 26, 0.85);
+  background: rgba(26, 26, 26, 0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--border-color);
@@ -1242,7 +1242,7 @@ a:hover { text-decoration: underline; }
   transition: background 0.3s;
 }
 .elevation-profile:hover {
-  background: rgba(26, 26, 26, 0.95);
+  background: rgba(26, 26, 26, 0.85);
 }
 
 @keyframes slideUp {
@@ -1730,7 +1730,7 @@ a:hover { text-decoration: underline; }
   .elevation-profile {
     bottom: 52px;
     z-index: 45;
-    background: rgba(26, 26, 26, 0.92);
+    background: rgba(26, 26, 26, 0.55);
     border-radius: 12px 12px 0 0;
     height: 200px;
   }
