@@ -2203,10 +2203,11 @@ const Peakflow = {
     // Search with debounce + dropdown
     let searchTimeout = null;
     const searchInput = document.getElementById('searchInput');
-    // Clear any browser autofill (email etc.) - multiple attempts
     // Aggressively prevent Chrome email autofill
-    searchInput.setAttribute('readonly', true);
-    setTimeout(() => { searchInput.removeAttribute('readonly'); searchInput.value = ''; }, 300);
+    searchInput.value = '';
+    setTimeout(() => { searchInput.value = ''; }, 100);
+    setTimeout(() => { searchInput.value = ''; }, 500);
+    setTimeout(() => { searchInput.value = ''; }, 1000);
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       const q = e.target.value.trim();
