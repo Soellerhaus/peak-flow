@@ -2381,7 +2381,8 @@ const Peakflow = {
       dropdown = document.createElement('div');
       dropdown.id = 'searchDropdown';
       dropdown.style.cssText = `
-        position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+        position: absolute; top: 100%; left: 0; margin-top: 4px;
+        min-width: 320px; width: max-content; max-width: 90vw;
         background: var(--bg-card, white); border-radius: 12px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.15); max-height: 300px;
         overflow-y: auto; z-index: 1000;
