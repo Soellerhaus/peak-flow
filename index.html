@@ -79,8 +79,8 @@
       </button>
       <div class="hidden" id="userMenu">
         <button class="header__user-icon header__user-icon--active" id="userMenuBtn" title="Einstellungen">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor"/><circle cx="12" cy="7" r="4" stroke="currentColor"/>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </button>
       </div>
@@ -316,9 +316,17 @@
           <div class="route-planner__header">
             <h3 class="sidebar__heading">Route planen</h3>
             <div style="display:flex;gap:6px">
+              <button class="btn btn--sm btn--outline" id="importGpxBtn" title="GPX importieren" style="padding:4px 8px;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                GPX
+              </button>
               <button class="btn btn--sm btn--outline" id="routeFinderToggle" style="color:var(--color-primary);">🔍 Vorschläge</button>
               <button class="btn btn--sm btn--outline" id="clearRouteBtn">Neu starten</button>
             </div>
+            <input type="file" id="gpxFileInput" accept=".gpx" style="display:none;">
           </div>
 
           <!-- Route Finder (toggle via header button) -->
@@ -795,16 +803,16 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="utils.js?v=19"></script>
-  <script src="supabase.js?v=19"></script>
-  <script src="weather.js?v=19"></script>
-  <script src="snow.js?v=19"></script>
-  <script src="export.js?v=19"></script>
-  <script src="routes.js?v=19"></script>
-  <script src="walkthrough.js?v=19"></script>
-  <script src="route-finder.js?v=19"></script>
-  <script src="navigation.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <script src="utils.js?v=20"></script>
+  <script src="supabase.js?v=20"></script>
+  <script src="weather.js?v=20"></script>
+  <script src="snow.js?v=20"></script>
+  <script src="export.js?v=20"></script>
+  <script src="routes.js?v=20"></script>
+  <script src="walkthrough.js?v=20"></script>
+  <script src="route-finder.js?v=20"></script>
+  <script src="navigation.js?v=20"></script>
+  <script src="app.js?v=20"></script>
 
   <!-- PWA Install Banner -->
   <div id="pwaInstall" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#f0ece2;padding:12px 16px;z-index:900;box-shadow:0 -2px 12px rgba(0,0,0,0.4);font-family:Inter,sans-serif;">

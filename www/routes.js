@@ -903,6 +903,47 @@ const PeakflowRoutes = {
         Promise.resolve().then(() => this.loadSunAnalysis(coords, elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
       ]).then(() => console.log('[Peakflow] All route data loaded'));
     }, 2000);
+
+    // Auto-cache tiles along route for offline use (logged-in users only)
+    this._autoCacheRouteTiles(coords);
+  },
+
+  /**
+   * Auto-cache map tiles along route for offline use (only for logged-in users)
+   * Debounced — only fires 3s after last route update to avoid caching intermediate states
+   */
+  _autoCacheRouteTiles(coords) {
+    clearTimeout(this._autoCacheTilesTimer);
+    this._autoCacheTilesTimer = setTimeout(() => {
+      // Only for logged-in users
+      if (!PeakflowData.currentUser) return;
+      if (!coords || coords.length < 2) return;
+      if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+
+      const lngs = coords.map(c => c[0]);
+      const lats = coords.map(c => c[1]);
+      const pad = 0.01;
+      const bounds = {
+        minLng: Math.min(...lngs) - pad, maxLng: Math.max(...lngs) + pad,
+        minLat: Math.min(...lats) - pad, maxLat: Math.max(...lats) + pad
+      };
+
+      const tileUrls = [];
+      for (var z = 12; z <= 15; z++) {
+        var minX = Math.floor((bounds.minLng + 180) / 360 * Math.pow(2, z));
+        var maxX = Math.floor((bounds.maxLng + 180) / 360 * Math.pow(2, z));
+        var minY = Math.floor((1 - Math.log(Math.tan(bounds.maxLat * Math.PI / 180) + 1 / Math.cos(bounds.maxLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        var maxY = Math.floor((1 - Math.log(Math.tan(bounds.minLat * Math.PI / 180) + 1 / Math.cos(bounds.minLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        for (var x = minX; x <= maxX; x++) {
+          for (var y = minY; y <= maxY; y++) {
+            tileUrls.push('https://tile.opentopomap.org/' + z + '/' + x + '/' + y + '.png');
+          }
+        }
+      }
+
+      console.log('[Peakflow] Auto-caching ' + tileUrls.length + ' route tiles for offline use');
+      navigator.serviceWorker.controller.postMessage({ type: 'CACHE_TILES', urls: tileUrls });
+    }, 3000);
   },
 
   /**
@@ -2179,6 +2220,144 @@ const PeakflowRoutes = {
     // Hide route weather
     const weatherEl = document.getElementById('routeWeather');
     if (weatherEl) weatherEl.classList.add('hidden');
+  },
+
+  /**
+   * Load route from parsed GPX data
+   * @param {Object} gpxData - from PeakflowExport.parseGPX()
+   */
+  loadFromGPX(gpxData) {
+    // Clear existing route
+    this.clearRoute();
+
+    // Ensure planning mode
+    if (!this.isPlanning) this.togglePlanning();
+
+    // Set route data directly from GPX track
+    this.routeCoords = gpxData.coords;
+    this.elevations = gpxData.coords.map(c => c[2] || 0);
+
+    // Create waypoints from start + end (+ any GPX waypoints in between)
+    const startCoord = gpxData.coords[0];
+    const endCoord = gpxData.coords[gpxData.coords.length - 1];
+
+    // Build waypoint list: start, optional GPX waypoints, end
+    const wpList = [{ lng: startCoord[0], lat: startCoord[1], name: gpxData.waypoints[0]?.name || 'Start' }];
+
+    // Add GPX waypoints that are between start and end (skip if they match start/end)
+    if (gpxData.waypoints.length > 0) {
+      for (const wpt of gpxData.waypoints) {
+        const distToStart = Math.abs(wpt.lat - startCoord[1]) + Math.abs(wpt.lng - startCoord[0]);
+        const distToEnd = Math.abs(wpt.lat - endCoord[1]) + Math.abs(wpt.lng - endCoord[0]);
+        if (distToStart > 0.001 && distToEnd > 0.001) {
+          wpList.push({ lng: wpt.lng, lat: wpt.lat, name: wpt.name });
+        }
+      }
+    }
+
+    // Check if it's a round trip (start ≈ end)
+    const isLoop = Math.abs(startCoord[0] - endCoord[0]) < 0.001 && Math.abs(startCoord[1] - endCoord[1]) < 0.001;
+    if (!isLoop) {
+      wpList.push({ lng: endCoord[0], lat: endCoord[1], name: gpxData.waypoints[gpxData.waypoints.length - 1]?.name || 'Ziel' });
+    }
+
+    // Add markers for each waypoint
+    for (let i = 0; i < wpList.length; i++) {
+      const wp = wpList[i];
+      wp.index = i;
+      this.waypoints.push(wp);
+
+      const isFirst = i === 0;
+      const el = document.createElement('div');
+      el.className = 'route-marker';
+      el.innerHTML = isFirst ? '<span>🏁</span>' : `<span>${i + 1}</span>`;
+      el.style.cssText = `
+        width: 28px; height: 28px; background: var(--color-primary, #c9a84c);
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        color: white; font-size: ${isFirst ? '15px' : '12px'}; font-weight: 700; border: 2px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: ${isFirst ? 'pointer' : 'grab'}; font-family: Inter, sans-serif;
+      `;
+
+      const marker = new maplibregl.Marker({ element: el, draggable: !isFirst })
+        .setLngLat([wp.lng, wp.lat])
+        .addTo(this.map);
+
+      // First marker: click to close loop
+      if (isFirst) {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.waypoints.length < 3) return;
+          const start = this.waypoints[0];
+          this._fitAfterRoute = true;
+          this.addWaypoint({ lng: start.lng, lat: start.lat, name: start.name || '🏁 Ziel' });
+        });
+      }
+
+      // Drag → re-route via BRouter for that segment
+      if (!isFirst) {
+        marker.on('dragend', () => {
+          const pos = marker.getLngLat();
+          this.waypoints[wp.index].lng = pos.lng;
+          this.waypoints[wp.index].lat = pos.lat;
+          this._segmentCache = {}; // Clear cache so BRouter re-routes
+          this.updateRoute();
+        });
+      }
+
+      // Right-click to remove
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.removeWaypoint(wp.index);
+      });
+
+      this.markers.push(marker);
+    }
+
+    // If loop, add start as final waypoint marker
+    if (isLoop) {
+      const start = this.waypoints[0];
+      const loopWp = { lng: start.lng, lat: start.lat, index: this.waypoints.length, name: '🏁 Ziel' };
+      this.waypoints.push(loopWp);
+    }
+
+    // Draw route and show stats
+    this.drawRouteLine(gpxData.coords);
+    this.updateStats();
+    this.updateWaypointList();
+    this._updateUndoButton();
+
+    // Show elevation profile
+    if (!this._elevationHidden) {
+      document.getElementById('elevationProfile').classList.remove('hidden');
+      var elevBtn = document.getElementById('elevationToggleBtn');
+      if (elevBtn) elevBtn.classList.add('active');
+    }
+    this.drawElevationProfile();
+
+    // Show save button
+    var saveBtn = document.getElementById('saveRouteToolbarBtn');
+    if (saveBtn) saveBtn.classList.remove('hidden');
+
+    // Fit map to imported route
+    if (this.map && gpxData.coords.length > 1) {
+      const bounds = new maplibregl.LngLatBounds();
+      gpxData.coords.forEach(c => bounds.extend([c[0], c[1]]));
+      this.map.fitBounds(bounds, { padding: 60, duration: 800 });
+    }
+
+    // Load secondary data (SAC, water, weather)
+    this.loadSACDataForRoute(gpxData.coords).catch(e => console.warn('[Peakflow] SAC:', e));
+    this.loadWaterSources(gpxData.coords).catch(e => console.warn('[Peakflow] Water:', e));
+    clearTimeout(this._secondaryDataTimer);
+    this._secondaryDataTimer = setTimeout(() => {
+      Promise.all([
+        this.analyzeSnowOnRoute().catch(e => console.warn('[Peakflow] Snow:', e)),
+        this.loadRouteWeather(gpxData.coords).catch(e => console.warn('[Peakflow] Weather:', e)),
+        Promise.resolve().then(() => this.loadSunAnalysis(gpxData.coords, this.elevations)).catch(e => console.warn('[Peakflow] Sun:', e))
+      ]);
+    }, 1000);
+
+    console.log('[Peakflow] GPX imported: ' + gpxData.name + ' (' + gpxData.coords.length + ' points, ' + this.waypoints.length + ' waypoints)');
   },
 
   /**

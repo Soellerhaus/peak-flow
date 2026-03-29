@@ -278,16 +278,44 @@ const PeakflowData = {
   },
 
   /**
-   * Load all huts
+   * Load all huts (initial fallback)
    */
   async getHuts() {
-    // Huts table not in Supabase yet - use fallback data
     return this.FALLBACK_HUTS;
   },
 
   async getPasses() {
-    // Passes table not in Supabase yet - use fallback data
     return this.FALLBACK_PASSES;
+  },
+
+  /**
+   * Load huts for a specific map viewport (called on zoom/pan)
+   */
+  async getHutsInBounds(south, west, north, east) {
+    if (!this.isConnected) return [];
+    try {
+      const url = this.url + '/rest/v1/huts?lat=gte.' + south + '&lat=lte.' + north +
+        '&lng=gte.' + west + '&lng=lte.' + east +
+        '&select=osm_id,name,name_de,type,lat,lng,elevation,beds,website,phone,operator&limit=150';
+      const resp = await fetch(url, { headers: { 'apikey': this.key } });
+      if (resp.ok) return await resp.json();
+    } catch (e) { console.warn('[Peakflow] Viewport huts query failed', e); }
+    return [];
+  },
+
+  /**
+   * Load passes for a specific map viewport (called on zoom/pan)
+   */
+  async getPassesInBounds(south, west, north, east) {
+    if (!this.isConnected) return [];
+    try {
+      const url = this.url + '/rest/v1/passes?lat=gte.' + south + '&lat=lte.' + north +
+        '&lng=gte.' + west + '&lng=lte.' + east +
+        '&select=osm_id,name,name_de,lat,lng,elevation&limit=150';
+      const resp = await fetch(url, { headers: { 'apikey': this.key } });
+      if (resp.ok) return await resp.json();
+    } catch (e) { console.warn('[Peakflow] Viewport passes query failed', e); }
+    return [];
   },
 
   /**

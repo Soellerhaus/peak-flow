@@ -185,6 +185,67 @@ const PeakflowExport = {
   },
 
   /**
+   * Parse GPX XML text into route data
+   * @param {string} xmlText - GPX file contents
+   * @returns {Object} { name, coords: [[lng,lat,ele]...], waypoints: [{lat,lng,ele,name}...] }
+   */
+  parseGPX(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+
+    // Check for parse errors
+    if (doc.querySelector('parsererror')) {
+      throw new Error('Ungültige GPX-Datei');
+    }
+
+    // Extract route name
+    const trkName = doc.querySelector('trk > name');
+    const metaName = doc.querySelector('metadata > name');
+    const name = (trkName && trkName.textContent) || (metaName && metaName.textContent) || 'Importierte Route';
+
+    // Extract track points from all segments
+    const coords = [];
+    let trkpts = doc.querySelectorAll('trkpt');
+
+    // Fallback: try route points if no track
+    if (trkpts.length === 0) {
+      trkpts = doc.querySelectorAll('rtept');
+    }
+
+    for (const pt of trkpts) {
+      const lat = parseFloat(pt.getAttribute('lat'));
+      const lon = parseFloat(pt.getAttribute('lon'));
+      const eleEl = pt.querySelector('ele');
+      const ele = eleEl ? parseFloat(eleEl.textContent) : 0;
+      if (!isNaN(lat) && !isNaN(lon)) {
+        coords.push([lon, lat, ele]);
+      }
+    }
+
+    // Extract waypoints
+    const waypoints = [];
+    for (const wpt of doc.querySelectorAll('wpt')) {
+      const lat = parseFloat(wpt.getAttribute('lat'));
+      const lon = parseFloat(wpt.getAttribute('lon'));
+      const eleEl = wpt.querySelector('ele');
+      const nameEl = wpt.querySelector('name');
+      if (!isNaN(lat) && !isNaN(lon)) {
+        waypoints.push({
+          lat, lng: lon,
+          ele: eleEl ? parseFloat(eleEl.textContent) : 0,
+          name: nameEl ? nameEl.textContent : null
+        });
+      }
+    }
+
+    if (coords.length === 0) {
+      throw new Error('Keine Track-Punkte in der GPX-Datei gefunden');
+    }
+
+    return { name, coords, waypoints };
+  },
+
+  /**
    * Generate route data from current route state
    */
   buildRouteData(name, waypoints, routeCoords, elevations) {

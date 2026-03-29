@@ -92,6 +92,7 @@ const Peakflow = {
     this.map.once('idle', () => {
       this.updateDiscoverList();
       this.loadViewportPeaks();
+      this.loadViewportHutsAndPasses();
     });
 
     console.log('[Peakflow] Ready!');
@@ -295,10 +296,12 @@ const Peakflow = {
     this.map.on('zoomend', () => {
       this.updateMarkerVisibility();
       this.loadViewportPeaks();
+      this.loadViewportHutsAndPasses();
     });
     this.map.on('moveend', () => {
       this.updateMarkerVisibility();
       this.loadViewportPeaks();
+      this.loadViewportHutsAndPasses();
       this.updateDiscoverList();
     });
   },
@@ -421,6 +424,145 @@ const Peakflow = {
     }
 
     this._loadingPeaks = false;
+  },
+
+  /**
+   * Dynamically load huts and passes for current viewport from Supabase
+   */
+  async loadViewportHutsAndPasses() {
+    if (!PeakflowData.isConnected || this._loadingHutsPasses) return;
+    const zoom = this.map.getZoom();
+    if (zoom < 10) return;
+
+    const bounds = this.map.getBounds();
+    const key = `${bounds._sw.lat.toFixed(2)},${bounds._sw.lng.toFixed(2)},${bounds._ne.lat.toFixed(2)},${bounds._ne.lng.toFixed(2)}`;
+    if (this._loadedHutsPassesBounds === key) return;
+
+    this._loadingHutsPasses = true;
+    this._loadedHutsPassesBounds = key;
+
+    const iconMap = {
+      hut: '<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#2a2a2a" stroke="rgba(201,168,76,0.3)" stroke-width="0.5"/><path d="M6 18V11l6-5 6 5v7H6z" fill="#c9a84c"/></svg>',
+      pass: '<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#2a2a2a" stroke="rgba(201,168,76,0.3)" stroke-width="0.5"/><path d="M4 16L8 9l4 4 4-4 4 7H4z" fill="#c9a84c"/></svg>'
+    };
+
+    const [huts, passes] = await Promise.all([
+      PeakflowData.getHutsInBounds(bounds._sw.lat, bounds._sw.lng, bounds._ne.lat, bounds._ne.lng),
+      PeakflowData.getPassesInBounds(bounds._sw.lat, bounds._sw.lng, bounds._ne.lat, bounds._ne.lng)
+    ]);
+
+    const existingNames = new Set(this.allPOIs.map(p => p.name));
+    let added = 0;
+
+    // Helper to create a POI marker
+    const addPOI = (item, type, icon) => {
+      const name = item.name_de || item.name;
+      if (existingNames.has(name)) return;
+      existingNames.add(name);
+
+      const poi = {
+        name: name,
+        lat: item.lat,
+        lng: item.lng,
+        elevation: item.elevation || 0,
+        type: type,
+        beds: item.beds,
+        website: item.website,
+        phone: item.phone,
+        operator: item.operator,
+        description: type === 'hut'
+          ? (name + (item.elevation ? ' (' + item.elevation + 'm)' : '') + (item.beds ? ' • ' + item.beds + ' Betten' : ''))
+          : (name + (item.elevation ? ' (' + item.elevation + 'm)' : ''))
+      };
+
+      this.allPOIs.push(poi);
+
+      const el = document.createElement('div');
+      el.className = 'poi-marker';
+      el.dataset.type = type;
+      el.dataset.elevation = poi.elevation;
+      el.style.cssText = 'width:22px;height:22px;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4));transition:filter 0.15s ease;';
+      el.innerHTML = icon;
+      el.addEventListener('mouseenter', () => el.style.filter = 'drop-shadow(0 2px 6px rgba(201,168,76,0.6))');
+      el.addEventListener('mouseleave', () => el.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))');
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([poi.lng, poi.lat])
+        .addTo(this.map);
+
+      marker._peakflowPoi = poi;
+      this._poiMarkers.push(marker);
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.showPOIPopup(poi);
+        this.showPOIDetail(poi);
+      });
+
+      added++;
+    };
+
+    (huts || []).forEach(h => addPOI(h, 'hut', iconMap.hut));
+    (passes || []).forEach(p => addPOI(p, 'pass', iconMap.pass));
+
+    if (added > 0) {
+      console.log(`[Peakflow] Loaded ${added} new huts/passes for viewport (total: ${this.allPOIs.length})`);
+      this.updateMarkerVisibility();
+    }
+
+    this._loadingHutsPasses = false;
+  },
+
+  /**
+   * Fire confetti particles on the map
+   */
+  _fireConfetti() {
+    var container = this.map.getContainer();
+    var colors = ['#c9a84c', '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899'];
+    var particles = [];
+
+    for (var i = 0; i < 80; i++) {
+      var el = document.createElement('div');
+      var color = colors[Math.floor(Math.random() * colors.length)];
+      var size = 4 + Math.random() * 6;
+      var isRect = Math.random() > 0.5;
+      el.style.cssText = 'position:absolute;z-index:200;pointer-events:none;' +
+        'width:' + (isRect ? size * 2 : size) + 'px;height:' + size + 'px;' +
+        'background:' + color + ';border-radius:' + (isRect ? '2px' : '50%') + ';' +
+        'left:50%;top:40%;opacity:1;';
+      container.appendChild(el);
+      particles.push({
+        el: el, x: 0, y: 0,
+        vx: (Math.random() - 0.5) * 16,
+        vy: -8 - Math.random() * 12,
+        rotation: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 15,
+        gravity: 0.3 + Math.random() * 0.2
+      });
+    }
+
+    var frame = 0;
+    var maxFrames = 120;
+    function animate() {
+      frame++;
+      for (var j = 0; j < particles.length; j++) {
+        var p = particles[j];
+        p.vy += p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotSpeed;
+        p.vx *= 0.98;
+        var opacity = Math.max(0, 1 - frame / maxFrames);
+        p.el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px) rotate(' + p.rotation + 'deg)';
+        p.el.style.opacity = opacity;
+      }
+      if (frame < maxFrames) {
+        requestAnimationFrame(animate);
+      } else {
+        particles.forEach(function(p) { p.el.remove(); });
+      }
+    }
+    requestAnimationFrame(animate);
   },
 
   /**
@@ -1917,14 +2059,65 @@ const Peakflow = {
 
     // Finish route planning - switch back to Entdecken
     document.getElementById('finishRouteBtn').addEventListener('click', () => {
+      if (PeakflowRoutes.waypoints.length < 2) return;
+
       if (PeakflowRoutes.isPlanning) {
         PeakflowRoutes.togglePlanning();
       }
-      // Switch to Entdecken tab
-      document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
-      document.querySelector('.sidebar__tab[data-tab="discover"]').classList.add('active');
-      document.getElementById('panel-discover').classList.add('active');
+
+      // Calculate stats
+      const coords = PeakflowRoutes.routeCoords;
+      const elevs = PeakflowRoutes.elevations;
+      const distance = PeakflowUtils.routeDistance(coords);
+      const { ascent, descent } = PeakflowUtils.calculateElevationGain(elevs);
+      const time = PeakflowUtils.calculateTime(distance, ascent, descent);
+      const durationStr = PeakflowUtils.formatDuration(time.hours, time.minutes);
+
+      // Fit route on map
+      if (coords.length > 1) {
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach(c => bounds.extend([c[0], c[1]]));
+        this.map.fitBounds(bounds, { padding: { top: 80, bottom: 120, left: 60, right: 60 }, duration: 800 });
+      }
+
+      // Show route summary overlay on map
+      var existing = document.getElementById('routeSummaryOverlay');
+      if (existing) existing.remove();
+
+      var overlay = document.createElement('div');
+      overlay.id = 'routeSummaryOverlay';
+      overlay.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:rgba(26,26,26,0.92);backdrop-filter:blur(12px);border-radius:20px;padding:28px 36px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,0.5);border:1px solid rgba(201,168,76,0.3);pointer-events:auto;animation:summaryFadeIn 0.5s ease;';
+
+      overlay.innerHTML = '<style>@keyframes summaryFadeIn{from{opacity:0;transform:translate(-50%,-50%) scale(0.8);}to{opacity:1;transform:translate(-50%,-50%) scale(1);}}</style>' +
+        '<div style="font-size:14px;color:#94a3b8;margin-bottom:4px;">Route fertig! 🎉</div>' +
+        '<div style="display:flex;gap:24px;margin:16px 0;">' +
+          '<div><div style="font-size:28px;font-weight:800;color:#c9a84c;">' + distance.toFixed(1) + '</div><div style="font-size:11px;color:#94a3b8;">km</div></div>' +
+          '<div><div style="font-size:28px;font-weight:800;color:#f0ece2;">' + durationStr + '</div><div style="font-size:11px;color:#94a3b8;">Dauer</div></div>' +
+          '<div><div style="font-size:28px;font-weight:800;color:#22c55e;">' + ascent + '</div><div style="font-size:11px;color:#94a3b8;">m ↑</div></div>' +
+          '<div><div style="font-size:28px;font-weight:800;color:#ef4444;">' + descent + '</div><div style="font-size:11px;color:#94a3b8;">m ↓</div></div>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#64748b;margin-top:8px;">Tippe auf die Karte um fortzufahren</div>';
+
+      this.map.getContainer().appendChild(overlay);
+
+      // Confetti burst 🎊
+      this._fireConfetti();
+
+      // Remove overlay on click
+      var removeOverlay = () => {
+        if (overlay.parentNode) {
+          overlay.style.opacity = '0';
+          overlay.style.transition = 'opacity 0.3s';
+          setTimeout(() => overlay.remove(), 300);
+        }
+        this.map.getContainer().removeEventListener('click', removeOverlay);
+      };
+      setTimeout(() => {
+        this.map.getContainer().addEventListener('click', removeOverlay);
+      }, 500);
+
+      // Auto-remove after 8s
+      setTimeout(removeOverlay, 8000);
     });
 
     // GPX Export - requires login
@@ -1936,6 +2129,39 @@ const Peakflow = {
       }
       const routeData = PeakflowRoutes.getRouteData('Peakflow Route');
       PeakflowExport.downloadGPX(routeData);
+    });
+
+    // GPX Import
+    document.getElementById('importGpxBtn').addEventListener('click', () => {
+      document.getElementById('gpxFileInput').click();
+    });
+    document.getElementById('gpxFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      // Confirm if route exists
+      if (PeakflowRoutes.waypoints.length > 0) {
+        if (!confirm('Bestehende Route ersetzen?')) {
+          e.target.value = '';
+          return;
+        }
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const gpxData = PeakflowExport.parseGPX(evt.target.result);
+          PeakflowRoutes.loadFromGPX(gpxData);
+          // Switch to routes tab
+          document.querySelectorAll('.sidebar__tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.sidebar__panel').forEach(p => p.classList.remove('active'));
+          document.querySelector('[data-tab="routes"]')?.classList.add('active');
+          document.getElementById('panel-routes')?.classList.add('active');
+          console.log('[Peakflow] GPX file loaded: ' + file.name);
+        } catch (err) {
+          alert('GPX-Datei konnte nicht gelesen werden: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset so same file can be re-imported
     });
 
     // Share to watch - requires login
@@ -2208,6 +2434,16 @@ const Peakflow = {
     setTimeout(() => { searchInput.value = ''; }, 100);
     setTimeout(() => { searchInput.value = ''; }, 500);
     setTimeout(() => { searchInput.value = ''; }, 1000);
+    // Expand search on focus (covers activity select on mobile)
+    var searchContainer = document.querySelector('.header__search');
+    searchInput.addEventListener('focus', () => {
+      searchContainer.classList.add('header__search--expanded');
+    });
+    searchInput.addEventListener('blur', () => {
+      // Delay to allow click on dropdown results
+      setTimeout(() => searchContainer.classList.remove('header__search--expanded'), 200);
+    });
+
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       const q = e.target.value.trim();
@@ -2254,8 +2490,13 @@ const Peakflow = {
     // MapLibre doesn't support hot-swapping styles well, so we reconstruct
     this.map.setStyle(this.STYLES[styleName]);
 
-    this.map.once('style.load', () => {
-      if (this.terrainEnabled) this.enableTerrain();
+    // Re-add layers after style loads — use both event + delayed fallback for mobile reliability
+    var routeRedrawn = false;
+    var self = this;
+    var redrawAfterStyleChange = function() {
+      if (routeRedrawn) return;
+      routeRedrawn = true;
+      if (self.terrainEnabled) self.enableTerrain();
 
       // Re-add route if exists - force re-add by clearing source reference first
       if (PeakflowRoutes.routeCoords && PeakflowRoutes.routeCoords.length > 0) {
@@ -2264,10 +2505,13 @@ const Peakflow = {
       }
 
       // Re-add POI markers
-      if (typeof this.addPOIMarkers === 'function') {
-        this.addPOIMarkers();
+      if (typeof self.addPOIMarkers === 'function') {
+        self.addPOIMarkers();
       }
-    });
+    };
+    this.map.once('style.load', redrawAfterStyleChange);
+    // Fallback: if style.load doesn't fire within 2s (mobile issue), force redraw
+    setTimeout(redrawAfterStyleChange, 2000);
   },
 
   /**
@@ -2306,14 +2550,31 @@ const Peakflow = {
     const safeQuery = query.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '');
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE';
     try {
-      const [peakResults, sightseeingResults] = await Promise.all([
+      const [peakResults, sightseeingResults, placesResults] = await Promise.all([
         fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,lat,lng,elevation&order=elevation.desc&limit=5', {
           headers: { 'apikey': supabaseKey }
         }).then(r => r.json()).catch(() => []),
         fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,lat,lng,category&limit=3', {
           headers: { 'apikey': supabaseKey }
+        }).then(r => r.json()).catch(() => []),
+        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/places?or=(name.ilike.*' + encodeURIComponent(safeQuery) + '*,name_de.ilike.*' + encodeURIComponent(safeQuery) + '*)&select=name,name_de,lat,lng,type,population&order=population.desc.nullslast&limit=5', {
+          headers: { 'apikey': supabaseKey }
         }).then(r => r.json()).catch(() => [])
       ]);
+
+      // Add places (cities, towns, villages) — these show first in results
+      var placeTypeLabels = { 'city': 'Stadt', 'town': 'Stadt', 'village': 'Dorf', 'hamlet': 'Weiler', 'suburb': 'Ortsteil' };
+      (placesResults || []).forEach(p => {
+        if (!p.name || results.some(r => r.name === p.name)) return;
+        var displayName = p.name_de || p.name;
+        var detail = placeTypeLabels[p.type] || p.type || '';
+        if (p.population) detail += ' • ' + p.population.toLocaleString() + ' Einw.';
+        results.push({
+          type: 'place', icon: '📍', name: displayName,
+          detail: detail,
+          data: { lat: p.lat, lng: p.lng, placeType: p.type }
+        });
+      });
 
       // Add peaks
       (peakResults || []).forEach(p => {
