@@ -2306,10 +2306,10 @@ const Peakflow = {
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE';
     try {
       const [peakResults, sightseeingResults] = await Promise.all([
-        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
+        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,lat,lng,elevation&order=elevation.desc&limit=5', {
           headers: { 'apikey': supabaseKey }
         }).then(r => r.json()).catch(() => []),
-        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,type&limit=3', {
+        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,lat,lng,category&limit=3', {
           headers: { 'apikey': supabaseKey }
         }).then(r => r.json()).catch(() => [])
       ]);
@@ -2320,7 +2320,7 @@ const Peakflow = {
         results.push({
           type: 'poi', icon: '⛰️', name: p.name,
           detail: Math.round(p.elevation) + 'm',
-          data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
+          data: { lat: p.lat, lng: p.lng, elevation: p.elevation, name: p.name, type: 'summit' }
         });
       });
 
@@ -2329,8 +2329,8 @@ const Peakflow = {
         if (!s.name || results.some(r => r.name === s.name)) return;
         results.push({
           type: 'poi', icon: '🏛️', name: s.name,
-          detail: s.type || 'Sehenswürdigkeit',
-          data: { lat: s.latitude, lng: s.longitude, name: s.name, type: 'sightseeing' }
+          detail: s.category || 'Sehenswürdigkeit',
+          data: { lat: s.lat, lng: s.lng, name: s.name, type: 'sightseeing' }
         });
       });
     } catch(e) {}
@@ -2354,7 +2354,8 @@ const Peakflow = {
       // Only update if search input still matches
       if (document.getElementById('searchInput').value.trim() !== query) return;
       places.forEach(place => {
-        if (place.class === 'boundary' && place.type === 'administrative') return;
+        // Keep towns/cities even if they're boundary/administrative
+        if (place.class === 'boundary' && place.type === 'administrative' && !place.address?.town && !place.address?.city && !place.address?.village) return;
         var placeName = place.display_name.split(',')[0].trim();
         if (results.some(r => r.name.startsWith(placeName))) return;
         var detail = typeLabels[place.type] || place.type || '';
