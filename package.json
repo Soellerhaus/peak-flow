@@ -6,6 +6,31 @@
     "dev": "npx http-server -p 3000 -c-1",
     "start": "npx http-server -p 3000 -c-1"
   },
-  "keywords": ["hiking", "outdoor", "trail-running", "maps", "3d-terrain"],
-  "license": "MIT"
+  "keywords": [
+    "hiking",
+    "outdoor",
+    "trail-running",
+    "maps",
+    "3d-terrain"
+  ],
+  "license": "MIT",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Soellerhaus/peak-flow.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Soellerhaus/peak-flow/issues"
+  },
+  "homepage": "https://github.com/Soellerhaus/peak-flow#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
+  }
 }
