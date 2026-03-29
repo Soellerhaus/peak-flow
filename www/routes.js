@@ -746,31 +746,39 @@ const PeakflowRoutes = {
           const valid = results.filter(r => r.status === 'fulfilled').map(r => r.value);
           if (valid.length === 0) {
             // Fallback 1: nudge unmapped coords to find nearest routable point
-            // Try small offsets in 4 cardinal directions + diagonals
+            // Try nudging FROM only, TO only, then BOTH
             const nudgeOffsets = [
+              [0.002, 0], [-0.002, 0], [0, 0.002], [0, -0.002],
               [0.005, 0], [-0.005, 0], [0, 0.005], [0, -0.005],
-              [0.01, 0], [-0.01, 0], [0, 0.01], [0, -0.01],
-              [0.005, 0.005], [-0.005, -0.005], [0.01, 0.01], [-0.01, -0.01]
+              [0.003, 0.003], [-0.003, -0.003], [0.003, -0.003], [-0.003, 0.003],
+              [0.01, 0], [-0.01, 0], [0, 0.01], [0, -0.01]
             ];
-            for (const [dlat, dlng] of nudgeOffsets) {
-              // Try nudging both from and to
-              const nudgedLonlats = `${from.lng + dlng},${from.lat + dlat}|${to.lng + dlng},${to.lat + dlat}`;
-              try {
-                const sr = await fetch(
-                  `${this.BROUTER_URL}?lonlats=${nudgedLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
-                  { signal: AbortSignal.timeout(4000) }
-                );
-                if (sr.ok) {
-                  const sd = await sr.json();
-                  const rc = sd.features?.[0]?.geometry?.coordinates;
-                  if (rc && rc.length > 1) {
-                    const dist = PeakflowUtils.routeDistance(rc);
-                    console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged ${dist.toFixed(1)}km`);
-                    this._segmentCache[cacheKey] = rc;
-                    return rc;
+            // Try 3 strategies: nudge FROM, nudge TO, nudge BOTH
+            const strategies = [
+              (dl, dn) => `${from.lng+dn},${from.lat+dl}|${to.lng},${to.lat}`,
+              (dl, dn) => `${from.lng},${from.lat}|${to.lng+dn},${to.lat+dl}`,
+              (dl, dn) => `${from.lng+dn},${from.lat+dl}|${to.lng+dn},${to.lat+dl}`
+            ];
+            for (const strategy of strategies) {
+              for (const [dlat, dlng] of nudgeOffsets) {
+                const nudgedLonlats = strategy(dlat, dlng);
+                try {
+                  const sr = await fetch(
+                    `${this.BROUTER_URL}?lonlats=${nudgedLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                    { signal: AbortSignal.timeout(4000) }
+                  );
+                  if (sr.ok) {
+                    const sd = await sr.json();
+                    const rc = sd.features?.[0]?.geometry?.coordinates;
+                    if (rc && rc.length > 2) {
+                      const dist = PeakflowUtils.routeDistance(rc);
+                      console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: nudged ${dist.toFixed(1)}km`);
+                      this._segmentCache[cacheKey] = rc;
+                      return rc;
+                    }
                   }
-                }
-              } catch (_) {}
+                } catch (_) {}
+              }
             }
 
             // Fallback 2: try public BRouter server

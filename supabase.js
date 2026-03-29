@@ -294,10 +294,10 @@ const PeakflowData = {
   async getHutsInBounds(south, west, north, east) {
     if (!this.isConnected) return [];
     try {
-      const url = this.url + '/rest/v1/huts?lat=gte.' + south + '&lat=lte.' + north +
+      const url = this.SUPABASE_URL + '/rest/v1/huts?lat=gte.' + south + '&lat=lte.' + north +
         '&lng=gte.' + west + '&lng=lte.' + east +
         '&select=osm_id,name,name_de,type,lat,lng,elevation,beds,website,phone,operator&limit=150';
-      const resp = await fetch(url, { headers: { 'apikey': this.key } });
+      const resp = await fetch(url, { headers: { 'apikey': this.SUPABASE_KEY } });
       if (resp.ok) return await resp.json();
     } catch (e) { console.warn('[Peakflow] Viewport huts query failed', e); }
     return [];
@@ -309,10 +309,10 @@ const PeakflowData = {
   async getPassesInBounds(south, west, north, east) {
     if (!this.isConnected) return [];
     try {
-      const url = this.url + '/rest/v1/passes?lat=gte.' + south + '&lat=lte.' + north +
+      const url = this.SUPABASE_URL + '/rest/v1/passes?lat=gte.' + south + '&lat=lte.' + north +
         '&lng=gte.' + west + '&lng=lte.' + east +
         '&select=osm_id,name,name_de,lat,lng,elevation&limit=150';
-      const resp = await fetch(url, { headers: { 'apikey': this.key } });
+      const resp = await fetch(url, { headers: { 'apikey': this.SUPABASE_KEY } });
       if (resp.ok) return await resp.json();
     } catch (e) { console.warn('[Peakflow] Viewport passes query failed', e); }
     return [];
