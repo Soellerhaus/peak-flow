@@ -2067,6 +2067,18 @@ const Peakflow = {
     // Close elevation profile
     document.getElementById('closeElevation').addEventListener('click', () => {
       document.getElementById('elevationProfile').classList.add('hidden');
+      const toggleBtn = document.getElementById('elevationToggleBtn');
+      if (toggleBtn) toggleBtn.classList.remove('active');
+    });
+
+    // Toggle elevation profile button
+    document.getElementById('elevationToggleBtn')?.addEventListener('click', () => {
+      const profile = document.getElementById('elevationProfile');
+      const btn = document.getElementById('elevationToggleBtn');
+      if (profile) {
+        profile.classList.toggle('hidden');
+        btn.classList.toggle('active', !profile.classList.contains('hidden'));
+      }
     });
 
     // Profile selector (5 levels)
