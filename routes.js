@@ -698,8 +698,27 @@ const PeakflowRoutes = {
           const results = await Promise.allSettled(profiles.map(p => fetchProfile(p)));
           const valid = results.filter(r => r.status === 'fulfilled').map(r => r.value);
           if (valid.length === 0) {
-            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}`);
-            return null;
+            // Fallback: try public BRouter server
+            try {
+              const pubUrl = `https://brouter.de/brouter?lonlats=${lonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`;
+              const pubResp = await fetch(pubUrl, { signal: AbortSignal.timeout(10000) });
+              if (pubResp.ok) {
+                const pubData = await pubResp.json();
+                const rc = pubData.features?.[0]?.geometry?.coordinates;
+                if (rc && rc.length > 1) {
+                  const dist = PeakflowUtils.routeDistance(rc);
+                  console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: public-fallback ${dist.toFixed(1)}km`);
+                  this._segmentCache[cacheKey] = rc;
+                  return rc;
+                }
+              }
+            } catch (_) { /* public also failed */ }
+
+            // Last resort: straight line so the route stays connected
+            console.warn(`[Peakflow] All profiles failed for ${from.name||'WP'}→${to.name||'WP'}, using straight line`);
+            const straightLine = [[from.lng, from.lat, 0], [to.lng, to.lat, 0]];
+            this._segmentCache[cacheKey] = straightLine;
+            return straightLine;
           }
           // Prefer hiking profiles over shortest (shortest follows roads)
           const hiking = valid.filter(v => v.profile !== 'shortest');
@@ -710,7 +729,8 @@ const PeakflowRoutes = {
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
         } catch(e) {
-          return null;
+          // Even on exception, return straight line
+          return [[from.lng, from.lat, 0], [to.lng, to.lat, 0]];
         }
       };
 
