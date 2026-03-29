@@ -1214,16 +1214,34 @@ const PeakflowRoutes = {
 
     console.log(`[Peakflow] drawRouteLine: ${coords.length} points`);
 
+    // Split into separate line segments at gaps (avoid connecting non-adjacent segments with straight lines)
+    const lines = [];
+    let currentLine = [];
+    for (let i = 0; i < coords.length; i++) {
+      const c = coords[i];
+      if (currentLine.length > 0) {
+        const prev = currentLine[currentLine.length - 1];
+        const gapDist = Math.sqrt(Math.pow(c[0] - prev[0], 2) + Math.pow(c[1] - prev[1], 2));
+        // If gap > ~500m (~0.005 degrees), start new line segment
+        if (gapDist > 0.005) {
+          if (currentLine.length >= 2) lines.push(currentLine);
+          currentLine = [];
+        }
+      }
+      currentLine.push([c[0], c[1]]);
+    }
+    if (currentLine.length >= 2) lines.push(currentLine);
+
     const geojson = {
       type: 'FeatureCollection',
-      features: [{
+      features: lines.map(line => ({
         type: 'Feature',
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: coords.map(c => [c[0], c[1]])
+          coordinates: line
         }
-      }]
+      }))
     };
 
     // Try to update existing source first
