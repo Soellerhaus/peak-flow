@@ -2298,76 +2298,80 @@ const Peakflow = {
         });
     }
 
-    // Show local results immediately
+    // Show local results immediately, or loading indicator
     if (results.length > 0) this.renderSearchDropdown(results);
-    else this.renderSearchDropdown([{ type: 'loading', icon: '⏳', name: 'Suche...', detail: '', data: {} }]);
 
-    // 2. Supabase peaks + Nominatim + Sightseeing IN PARALLEL
+    // 2. Supabase peaks + sightseeing (fast, no rate limit)
     const safeQuery = query.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '');
-    const [peakResults, nominatimResults, sightseeingResults] = await Promise.allSettled([
-      // Supabase peaks
-      fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
-        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
-      }).then(r => r.json()).catch(() => []),
-      // Nominatim
-      fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
-        q: query, format: 'json', limit: 5, addressdetails: 1,
-        viewbox: '5.5,44.0,17.0,48.5', bounded: 0, 'accept-language': 'de'
-      })).then(r => r.json()).catch(() => []),
-      // Supabase sightseeing/POIs
-      fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,type&limit=3', {
-        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
-      }).then(r => r.json()).catch(() => [])
-    ]);
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE';
+    try {
+      const [peakResults, sightseeingResults] = await Promise.all([
+        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/peaks?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,elevation&order=elevation.desc&limit=5', {
+          headers: { 'apikey': supabaseKey }
+        }).then(r => r.json()).catch(() => []),
+        fetch('https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing?name=ilike.*' + encodeURIComponent(safeQuery) + '*&select=name,latitude,longitude,type&limit=3', {
+          headers: { 'apikey': supabaseKey }
+        }).then(r => r.json()).catch(() => [])
+      ]);
 
-    // Add peaks
-    const peaks = peakResults.status === 'fulfilled' ? peakResults.value : [];
-    peaks.forEach(p => {
-      if (!p.name || results.some(r => r.name === p.name)) return;
-      results.push({
-        type: 'poi', icon: '⛰️', name: p.name,
-        detail: Math.round(p.elevation) + 'm',
-        data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
+      // Add peaks
+      (peakResults || []).forEach(p => {
+        if (!p.name || results.some(r => r.name === p.name)) return;
+        results.push({
+          type: 'poi', icon: '⛰️', name: p.name,
+          detail: Math.round(p.elevation) + 'm',
+          data: { lat: p.latitude, lng: p.longitude, elevation: p.elevation, name: p.name, type: 'summit' }
+        });
       });
-    });
 
-    // Add Nominatim places
-    const places = nominatimResults.status === 'fulfilled' ? nominatimResults.value : [];
+      // Add sightseeing
+      (sightseeingResults || []).forEach(s => {
+        if (!s.name || results.some(r => r.name === s.name)) return;
+        results.push({
+          type: 'poi', icon: '🏛️', name: s.name,
+          detail: s.type || 'Sehenswürdigkeit',
+          data: { lat: s.latitude, lng: s.longitude, name: s.name, type: 'sightseeing' }
+        });
+      });
+    } catch(e) {}
+
+    // Show Supabase results immediately
+    this.renderSearchDropdown(results);
+
+    // 3. Nominatim (slow, rate-limited) — fire and update when ready
     var typeLabels = {
       'village': 'Dorf', 'town': 'Stadt', 'city': 'Stadt', 'hamlet': 'Weiler',
       'peak': 'Gipfel', 'saddle': 'Pass', 'hotel': 'Hotel', 'hostel': 'Hostel',
       'alpine_hut': 'Hütte', 'restaurant': 'Restaurant', 'station': 'Bahnhof',
       'bus_stop': 'Bushaltestelle', 'parking': 'Parkplatz', 'waterfall': 'Wasserfall'
     };
-    places.forEach(place => {
-      if (place.class === 'boundary' && place.type === 'administrative') return;
-      var placeName = place.display_name.split(',')[0].trim();
-      if (results.some(r => r.name.startsWith(placeName))) return;
-      var detail = typeLabels[place.type] || place.type || '';
-      var region = place.address ? (place.address.county || place.address.state || '') : '';
-      if (region) detail += ' • ' + region;
-      results.push({
-        type: 'place',
-        icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
-        name: place.display_name.split(',').slice(0, 2).join(', '),
-        detail: detail,
-        data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
+    fetch('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
+      q: query, format: 'json', limit: 5, addressdetails: 1,
+      viewbox: '5.5,44.0,17.0,48.5', bounded: 0, 'accept-language': 'de'
+    }), { headers: { 'User-Agent': 'PeakFlow/1.0 (https://www.peak-flow.app)' } })
+    .then(r => r.json())
+    .then(places => {
+      // Only update if search input still matches
+      if (document.getElementById('searchInput').value.trim() !== query) return;
+      places.forEach(place => {
+        if (place.class === 'boundary' && place.type === 'administrative') return;
+        var placeName = place.display_name.split(',')[0].trim();
+        if (results.some(r => r.name.startsWith(placeName))) return;
+        var detail = typeLabels[place.type] || place.type || '';
+        var region = place.address ? (place.address.county || place.address.state || '') : '';
+        if (region) detail += ' • ' + region;
+        results.push({
+          type: 'place',
+          icon: place.type === 'peak' ? '⛰️' : place.type === 'hotel' || place.type === 'hostel' ? '🏨' : place.type === 'alpine_hut' ? '🏔️' : '📍',
+          name: place.display_name.split(',').slice(0, 2).join(', '),
+          detail: detail,
+          data: { lat: parseFloat(place.lat), lng: parseFloat(place.lon), placeType: place.type }
+        });
       });
-    });
-
-    // Add sightseeing POIs
-    const sights = sightseeingResults.status === 'fulfilled' ? sightseeingResults.value : [];
-    sights.forEach(s => {
-      if (!s.name || results.some(r => r.name === s.name)) return;
-      results.push({
-        type: 'poi', icon: '🏛️', name: s.name,
-        detail: s.type || 'Sehenswürdigkeit',
-        data: { lat: s.latitude, lng: s.longitude, name: s.name, type: 'sightseeing' }
-      });
-    });
+      this.renderSearchDropdown(results);
+    }).catch(() => {});
 
     console.log('[Search] "' + query + '": ' + results.length + ' results');
-    this.renderSearchDropdown(results);
   },
 
   renderSearchDropdown(results) {
