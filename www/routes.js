@@ -111,13 +111,14 @@ const PeakflowRoutes = {
       html += '<div class="route-signup-card" id="routeStartCta">';
       html += '<div class="route-signup-card__title">Kostenlos registrieren</div>';
       html += '<ul class="route-signup-card__features">';
-      html += '<li><span class="route-signup-card__check">✓</span>Bis zu 5 Startpunkte speichern</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>5 Startpunkte speichern</li>';
       html += '<li><span class="route-signup-card__check">✓</span>Routenfarben anpassen</li>';
-      html += '<li><span class="route-signup-card__check">✓</span>Einstellungen & Profil speichern</li>';
-      html += '<li><span class="route-signup-card__check">✓</span>Bergkönig Gipfel tracken</li>';
-      html += '<li><span class="route-signup-card__check">✓</span>Routen exportieren & teilen</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Einstellungen speichern</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Bergkönig tracken</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>GPX exportieren & teilen</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Routen speichern</li>';
       html += '</ul>';
-      html += '<button class="route-signup-card__btn">Jetzt kostenlos anmelden</button>';
+      html += '<button class="route-signup-card__btn">Jetzt kostenlos anmelden →</button>';
       html += '</div>';
     }
 
@@ -473,11 +474,14 @@ const PeakflowRoutes = {
         const target = mapOverlay || returnBtns;
         target.classList.remove('hidden');
         if (mapOverlay) returnBtns.classList.add('hidden');
+        const btnStyle = 'padding:5px 8px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.72);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);white-space:nowrap;';
+        const resetStyle = 'padding:5px 8px;border:1px solid rgba(120,113,108,0.6);background:rgba(26,26,26,0.72);color:#a8a29e;border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);white-space:nowrap;';
         target.innerHTML = `
-          <div style="display:flex;gap:3px;">
-            <button id="btnRoundTrip" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">🔄 Rundweg</button>
-            <button id="btnSameWayBack" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">↩️ Gleicher Weg</button>
-            <button id="btnRouteToStart" style="padding:5px 7px;border:1px solid var(--color-primary,#c9a84c);background:rgba(26,26,26,0.55);color:var(--color-primary,#c9a84c);border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;backdrop-filter:blur(8px);">📍 Zum Start</button>
+          <div style="display:flex;gap:3px;flex-wrap:nowrap;">
+            <button id="btnRoundTrip" style="${btnStyle}">🔄 Rundweg</button>
+            <button id="btnSameWayBack" style="${btnStyle}">↩️ Gleicher Weg</button>
+            <button id="btnRouteToStart" style="${btnStyle}">📍 Zum Start</button>
+            <button id="btnNewRoute" style="${resetStyle}">✕ Neu</button>
           </div>
         `;
 
@@ -536,6 +540,14 @@ const PeakflowRoutes = {
           this._fitAfterRoute = true;
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
           hideRouteActions();
+        });
+
+        document.getElementById('btnNewRoute').addEventListener('click', () => {
+          hideRouteActions();
+          this.clearRoute();
+          // Trigger the clearRouteBtn logic (resets UI state)
+          const clearBtn = document.getElementById('clearRouteBtn');
+          if (clearBtn) clearBtn.click();
         });
       } else if (returnBtns) {
         returnBtns.classList.add('hidden');
