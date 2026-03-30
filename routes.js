@@ -847,38 +847,36 @@ const PeakflowRoutes = {
         }
         const segResults = await Promise.all(segmentPromises);
         if (routeSignal.aborted) return;
-        const allSegCoords = [];
-        let hasGap = false;
+        // Collect connected coordinate chains; start a new chain after each gap
+        // This prevents straight lines across failed segments
+        const lineChains = [[]]; // array of arrays
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
-          if (segCoords && segCoords.length > 1) {
-            // Only reject true BRouter failures (2 points = just start+end, no real route)
-            if (segCoords.length <= 2) {
-              console.warn(`[Peakflow] Segment ${i} has only ${segCoords.length} points, skipping`);
-              failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
-              this._markWaypointFailed(i);
-              this._markWaypointFailed(i + 1);
-              hasGap = true;
-            } else if (allSegCoords.length > 0 && !hasGap) {
-              allSegCoords.push(...segCoords.slice(1));
-            } else if (allSegCoords.length > 0 && hasGap) {
-              // After gap: start fresh from this segment
-              allSegCoords.push(...segCoords);
-              hasGap = false;
+          const currentChain = lineChains[lineChains.length - 1];
+          if (segCoords && segCoords.length > 2) {
+            // Valid BRouter segment (>2 pts = real trail, not degenerate start+end)
+            if (currentChain.length > 0) {
+              currentChain.push(...segCoords.slice(1)); // append, skip duplicate start
             } else {
-              allSegCoords.push(...segCoords);
+              currentChain.push(...segCoords);
             }
           } else {
+            // Failed or degenerate segment → start a new chain (no straight-line bridge!)
             failedSegments.push(`${this.waypoints[i].name || (i+1)} → ${this.waypoints[i+1].name || (i+2)}`);
             this._markWaypointFailed(i);
             this._markWaypointFailed(i + 1);
-            hasGap = true;
+            lineChains.push([]); // new chain starts after gap
           }
         }
-        if (allSegCoords.length > 0) {
+        const validChains = lineChains.filter(c => c.length > 1);
+        // Flatten all chains for elevation/stats; draw as MultiLineString to avoid gaps
+        const allSegCoords = validChains.flat();
+        if (validChains.length > 0) {
           coords = allSegCoords;
-          elevations = coords.map(c => c[2] || 0);
+          elevations = allSegCoords.map(c => c[2] || 0);
           const totalDist = PeakflowUtils.routeDistance(coords);
           this._analyzeRouteDanger(coords, elevations, totalDist);
+          // Draw each chain separately (MultiLineString) to avoid connecting across gaps
+          this._routeLineChains = validChains;
           if (failedSegments.length > 0) {
             this._showRoutingWarning(`⚠️ Kein Trail für: ${failedSegments.join(', ')}. Restliche Segmente wurden geroutet.`);
           }
@@ -901,13 +899,14 @@ const PeakflowRoutes = {
     // PRIORITY 1: Route sofort zeichnen (kein API-Call)
     this.drawRouteLine(coords);
     this.updateStats();
-    // Only show elevation profile if user hasn't manually hidden it
-    if (!this._elevationHidden) {
+    // Elevation profile: only show if user explicitly activated it
+    // Default = hidden; user opens it via the toggle button in the toolbar
+    this.drawElevationProfile();
+    if (this._elevationVisible) {
       document.getElementById('elevationProfile').classList.remove('hidden');
       var elevBtn = document.getElementById('elevationToggleBtn');
       if (elevBtn) elevBtn.classList.add('active');
     }
-    this.drawElevationProfile();
     // Show save button in toolbar
     var saveBtn = document.getElementById('saveRouteToolbarBtn');
     if (saveBtn) saveBtn.classList.remove('hidden');
@@ -1235,16 +1234,15 @@ const PeakflowRoutes = {
 
     console.log(`[Peakflow] drawRouteLine: ${coords.length} points`);
 
+    // Use MultiLineString if we have multiple disconnected chains (avoids straight-line bridges)
+    const chains = this._routeLineChains;
+    const geometry = (chains && chains.length > 1)
+      ? { type: 'MultiLineString', coordinates: chains.map(chain => chain.map(c => [c[0], c[1]])) }
+      : { type: 'LineString', coordinates: coords.map(c => [c[0], c[1]]) };
+
     const geojson = {
       type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: coords.map(c => [c[0], c[1]])
-        }
-      }]
+      features: [{ type: 'Feature', properties: {}, geometry }]
     };
 
     // Try to update existing source first
@@ -2356,13 +2354,13 @@ const PeakflowRoutes = {
     this.updateWaypointList();
     this._updateUndoButton();
 
-    // Show elevation profile
-    if (!this._elevationHidden) {
+    // Show elevation profile only if user has it enabled
+    this.drawElevationProfile();
+    if (this._elevationVisible) {
       document.getElementById('elevationProfile').classList.remove('hidden');
       var elevBtn = document.getElementById('elevationToggleBtn');
       if (elevBtn) elevBtn.classList.add('active');
     }
-    this.drawElevationProfile();
 
     // Show save button
     var saveBtn = document.getElementById('saveRouteToolbarBtn');

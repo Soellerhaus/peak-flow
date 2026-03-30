@@ -19,6 +19,7 @@ const Peakflow = {
           type: 'raster',
           tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
           tileSize: 256,
+          maxzoom: 17,
           attribution: '© OpenTopoMap, © OpenStreetMap contributors'
         }
       },
@@ -2458,18 +2459,18 @@ const Peakflow = {
     // Close elevation profile
     document.getElementById('closeElevation').addEventListener('click', () => {
       document.getElementById('elevationProfile').classList.add('hidden');
-      PeakflowRoutes._elevationHidden = true;
+      PeakflowRoutes._elevationVisible = false;
       const toggleBtn = document.getElementById('elevationToggleBtn');
       if (toggleBtn) toggleBtn.classList.remove('active');
     });
 
-    // Toggle elevation profile button
+    // Toggle elevation profile button — user explicitly shows/hides
     document.getElementById('elevationToggleBtn')?.addEventListener('click', () => {
       const profile = document.getElementById('elevationProfile');
       const btn = document.getElementById('elevationToggleBtn');
       if (profile) {
         const isHidden = profile.classList.toggle('hidden');
-        PeakflowRoutes._elevationHidden = isHidden;
+        PeakflowRoutes._elevationVisible = !isHidden;
         btn.classList.toggle('active', !isHidden);
       }
     });
