@@ -5566,3 +5566,361 @@ Batch: 2801 - 2805
   ✅ Westerfrölkekogel (2727m) - T3
   Processed: 2805 | Updated: 2308
   Waiting 30s...
+
+Batch: 2806 - 2810
+  ✅ Crena Martin (2726m) - T4
+  ✅ Kleinzirknitzscharte (2726m) - T2
+  ✅ Weissmieshütte SAC (2726m) - T4
+  ❌ La Fessura (2726m) - T6
+  ❌ Pyramides Calcaires - Punta Nord (2726m) - T5
+  Processed: 2810 | Updated: 2313
+  Waiting 30s...
+
+Batch: 2811 - 2815
+  ❌ Pizzo della Valletta (2726m) - no trail
+  ✅ Pointe de Toules (2726m) - T2
+  ❌ Leist (2726m) - no trail
+  ❌ Piz Piogn Crap (2726m) - no trail
+  ❌ Torre Chianevate / Kellerwandturm (2726m) - no trail
+  Processed: 2815 | Updated: 2318
+  Waiting 30s...
+
+Batch: 2816 - 2820
+  ❌ Pointe d'Ollomont Centrale (2725m) - no trail
+  ❌ Les Tours (2725m) - no trail
+  ✅ Fuorcla Spadla (2725m) - T3
+  ✅ Gamorscharte (2725m) - T3
+  ✅ Tête des Vaux (2725m) - T2
+  Processed: 2820 | Updated: 2323
+  Waiting 30s...
+
+Batch: 2821 - 2825
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Rotkofel (2725m) - skipped (error)
+  ✅ Pitla Piza de Puez (2725m) - T3
+  ❌ Cima degli Alli (2725m) - no trail
+  ❌ Egghorn (2725m) - no trail
+  ❌ Südlicher Schloßkopf (2725m) - no trail
+  Processed: 2825 | Updated: 2327
+  Waiting 30s...
+
+Batch: 2826 - 2830
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Hirzer (2725m) - skipped (error)
+  ✅ Äußerer Speikkofel (2725m) - T3
+  ❌ Großer Bettelwurf (2725m) - T5
+  ✅ Col du Baracon (2724m) - T2
+  ✅ Colletto Tailly (2724m) - T4
+  Processed: 2830 | Updated: 2331
+  Waiting 30s...
+
+Batch: 2831 - 2835
+  ✅ Pass d'Ela (2724m) - T3
+  ❌ Alte Gemmi (2724m) - T5
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Passo Prasgnola (2724m) - skipped (error)
+  ❌ Passo della Pioda (2724m) - T6
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Fuorcla Ftur (2724m) - skipped (error)
+  Processed: 2835 | Updated: 2334
+  Waiting 30s...
+
+Batch: 2836 - 2840
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Butzentörl (2724m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ La Roche Brune (2724m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Fuorcla Ftur (2724m) - skipped (error)
+  ✅ Gelenkscharte (2724m) - T3
+  ✅ Piz di Campedell (2724m) - T1
+  Processed: 2840 | Updated: 2336
+  Waiting 30s...
+
+Batch: 2841 - 2845
+  ❌ Bockastenhöhe (2724m) - no trail
+  ✅ Erste Kohlalpenspitze - Prima Cima Pra Brusa (2724m) - T2
+  ❌ Passo di Ricolonda (2723m) - no trail
+  ❌ Passo dei Laghi (2723m) - no trail
+  ❌ Bocchetta del Conco (2723m) - no trail
+  Processed: 2845 | Updated: 2341
+  Waiting 30s...
+
+Batch: 2846 - 2850
+  ❌ Fallenbacherspitze (2723m) - no trail
+  ✅ Jöriflüelafurgga (2723m) - T3
+  ❌ Bocchetta di Cavrel (2723m) - no trail
+  ❌ Forcella Colfiedo (2723m) - no trail
+  ❌ Pointe de Chardonnière (2723m) - no trail
+  Processed: 2850 | Updated: 2346
+  Waiting 30s...
+
+Batch: 2851 - 2855
+  ✅ Durlochhorn (2723m) - T1
+  ✅ Pizzo del Torto (2723m) - T4
+  ✅ Laityre (2723m) - T4
+  ✅ Mont Grand Pays (2723m) - T3
+  ❌ Pizzo Truzzo (2723m) - no trail
+  Processed: 2855 | Updated: 2351
+  Waiting 30s...
+
+Batch: 2856 - 2860
+  ✅ Griften (Zupalkogel) (2723m) - T3
+  ✅ Hintere Platteinspitze (2723m) - T1
+  ✅ Cima delle Donne (2723m) - T3
+  ❌ Geißwand - Croda delle Capre (2723m) - no trail
+  ✅ Der Hohe (2723m) - T3
+  Processed: 2860 | Updated: 2356
+  Waiting 30s...
+
+Batch: 2861 - 2865
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Schönjöchl (2722m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Tischlerkarscharte (2722m) - skipped (error)
+  ✅ Colle Sarezza (2722m) - T1
+  ❌ Bocchetta di Valle Piana (2722m) - T5
+  ❌ Satteinser Spitze (2722m) - no trail
+  Processed: 2865 | Updated: 2359
+  Waiting 30s...
+
+Batch: 2866 - 2870
+  ❌ Kellerkopf (2722m) - no trail
+  ✅ Arnoldhöhe (2722m) - T2
+  ✅ Schwarzkopf (2722m) - T3
+  ❌ Cime Di Valtana (2722m) - no trail
+  ❌ Vordri Sulzlicke (2721m) - no trail
+  Processed: 2870 | Updated: 2364
+  Waiting 30s...
+
+Batch: 2871 - 2875
+  ✅ Dent de Chamosentze (2721m) - T3
+  ✅ Campanile dei Lastei basso (2721m) - T3
+  ✅ Gugle (2721m) - T1
+  ✅ Corno di Sensìpie (2721m) - T3
+  ❌ Vajoletnadel - Torre Estrema (2721m) - T6
+  Processed: 2875 | Updated: 2369
+  Waiting 30s...
+
+Batch: 2876 - 2880
+  ✅ Tällilücke (2720m) - T3
+  ✅ Pass da le Pope (2720m) - T3
+  ✅ Fenêtre d'en Haut - Col de Fonteinte (2720m) - T4
+  ✅ Passo del Bondone (2720m) - T3
+  ✅ Bocchetta del Cantone (2720m) - T2
+  Processed: 2880 | Updated: 2374
+  Waiting 30s...
+
+Batch: 2881 - 2885
+  ✅ Pizzo Spadolazzo NW (2720m) - T3
+  ✅ Motto Alto (2720m) - T4
+  ❌ Trittkopf (2720m) - no trail
+  ✅ Punta della Scatta (2720m) - T2
+  ✅ Monte Aga (2720m) - T4
+  Processed: 2885 | Updated: 2379
+  Waiting 30s...
+
+Batch: 2886 - 2890
+  ✅ Guardaskopf (2720m) - T3
+  ✅ Hochegg (2720m) - T4
+  ❌ Hasenstöck (2720m) - no trail
+  ✅ Curvér Pintg da Neaza (2720m) - T1
+  ✅ Gamsköpfl (2720m) - T2
+  Processed: 2890 | Updated: 2384
+  Waiting 30s...
+
+Batch: 2891 - 2895
+  ✅ Grafmartspitze (2720m) - T3
+  ✅ Gaiskogel (2720m) - T3
+  ❌ Punta Intelvi (2719m) - no trail
+  ❌ Bocchetta del Camoscio (2719m) - T6
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Großzirknitzscharte (2719m) - skipped (error)
+  Processed: 2895 | Updated: 2388
+  Waiting 30s...
+
+Batch: 2896 - 2900
+  ❌ Wildkopf (2719m) - T5
+  ❌ Hohe Wand / Hochwand (2719m) - T5
+  ❌ Torrione Padeon (2719m) - no trail
+  ❌ Fuorcla Curnera (2718m) - no trail
+  ❌ Hürelilücka (2718m) - no trail
+  Processed: 2900 | Updated: 2393
+  Waiting 30s...
+
+Batch: 2901 - 2905
+  ✅ Mittelberg (2718m) - T4
+  ✅ Pizzo della Sancia (2718m) - T4
+  ✅ Pointe Motte (2718m) - T2
+  ❌ Becca Morion (2718m) - no trail
+  ✅ Cima d'Arcanzo (2718m) - T1
+  Processed: 2905 | Updated: 2398
+  Waiting 30s...
+
+Batch: 2906 - 2910
+  ❌ Piz Mez (2718m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Kleines Horn (2718m) - skipped (error)
+  ✅ Pizzo Uccello (2718m) - T3
+  ❌ Saage Zend (2718m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Gamsturm (2718m) - skipped (error)
+  Processed: 2910 | Updated: 2401
+  Waiting 30s...
+
+Batch: 2911 - 2915
+  ❌ Muttlerkopf (2718m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Sturpen (2718m) - skipped (error)
+  ❌ Nornspitz - Monte Domenar (2718m) - no trail
+  ❌ Kanzeln (2718m) - no trail
+  ❌ Kleiner Bärenkopf (2718m) - no trail
+  Processed: 2915 | Updated: 2405
+  Waiting 30s...
+
+Batch: 2916 - 2920
+  ❌ Nünihore (2717m) - no trail
+  ❌ Poncione di Vespero (2717m) - no trail
+  ❌ Monte Orso (2717m) - no trail
+  ✅ Illhorn (2717m) - T2
+  ✅ Monte Aga, cima Nord (2717m) - T4
+  Processed: 2920 | Updated: 2410
+  Waiting 30s...
+
+Batch: 2921 - 2925
+  ❌ Feldkopf (2717m) - no trail
+  ✅ Friedrichshöhe (2717m) - T4
+  ❌ Weiße Wand - Croda Bianca (2717m) - no trail
+  ❌ Spitzkofel (2717m) - T5
+  ❌ Serles (2717m) - T5
+  Processed: 2925 | Updated: 2415
+  Waiting 30s...
+
+Batch: 2926 - 2930
+  ✅ Fuorcla da Rasass (2716m) - T3
+  ✅ Schmiedingerscharte (2716m) - T1
+  ✅ Passo di Ghiacciaione (2716m) - T4
+  ❌ Bocchetta di Vicima (2716m) - no trail
+  ❌ Valisera (2716m) - no trail
+  Processed: 2930 | Updated: 2420
+  Waiting 30s...
+
+Batch: 2931 - 2935
+  ✅ Gran Laste (2716m) - T4
+  ❌ Cime Scotter (2716m) - no trail
+  ✅ Colma del Lago (2716m) - T4
+  ❌ Sur al Cant (2716m) - no trail
+  ✅ Ortstock (2716m) - T1
+  Processed: 2935 | Updated: 2425
+  Waiting 30s...
+
+Batch: 2936 - 2940
+  ✅ Testa di Pian Fret (2715m) - T4
+  ❌ Piz Papalin (2715m) - T5
+  ✅ Fuorcla digl Leget (2715m) - T2
+  ❌ Forcella Alta di Longeres (2715m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Cima de Lughezzasca (2715m) - skipped (error)
+  Processed: 2940 | Updated: 2429
+  Waiting 30s...
+
+Batch: 2941 - 2945
+  ✅ Torre di Valgrande (2715m) - T3
+  ✅ Nock - Cima del Dosso (2715m) - T2
+  ❌ Cima de Lughezzasca (2715m) - T5
+  ❌ Monte Colac (2715m) - T6
+  ❌ Fineilberg - Monte Finale (2715m) - no trail
+  Processed: 2945 | Updated: 2434
+  Waiting 30s...
+
+Batch: 2946 - 2950
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Scheuchenkopf (2715m) - skipped (error)
+  ❌ Äußere Höllentalspitze (2715m) - T6
+  ✅ Rotwandeck (2715m) - T4
+  ✅ Stanzling (2715m) - T3
+  ❌ Hohe Wand / Hochwand (Nebengipfel) (2715m) - T5
+  Processed: 2950 | Updated: 2438
+  Waiting 30s...
+
+Batch: 2951 - 2955
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Vordere Sommerwand (2715m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Scheuchenkopf (2715m) - skipped (error)
+  ❌ Forca del Giove (2714m) - no trail
+  ❌ Bocchetta del Castel (2714m) - no trail
+  ✅ Pas des Chevaux (2714m) - T2
+  Processed: 2955 | Updated: 2441
+  Waiting 30s...
+
+Batch: 2956 - 2960
+  ❌ Vordere Sommerwand (2715m) - T5
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Außere Gelenkscharte (2714m) - skipped (error)
+  ❌ Intaglio per Porcellizzo (2714m) - T5
+  ✅ Bocchetta Brescia (2714m) - T4
+  ✅ Schrimmennieder (2714m) - T3
+  Processed: 2960 | Updated: 2445
+  Waiting 30s...
+
+Batch: 2961 - 2965
+  ❌ Isenwegg (2714m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Pizzo Campolungo (2714m) - skipped (error)
+  ✅ Pierra Menta (2714m) - T4
+  ✅ Tête de Ferret (2714m) - T3
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Motta Grande (2714m) - skipped (error)
+  Processed: 2965 | Updated: 2448
+  Waiting 30s...
+
+Batch: 2966 - 2970
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Westliche Ödkarspitze (2714m) - skipped (error)
+  ❌ Rofelspitze (2714m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Weißspitze - Punta Bianca (2714m) - skipped (error)
+  ✅ Cima Antonio Giovanni (2714m) - T3
+  ❌ Stange (2714m) - no trail
+  Processed: 2970 | Updated: 2451
+  Waiting 30s...
+
+Batch: 2971 - 2975
+  ✅ Greppon Blanc (2713m) - T2
+  ✅ Hexensattel (2713m) - T4
+  ❌ Bocchetta della Rondadura (2713m) - no trail
+  ❌ Pointe Bourdillon (2713m) - no trail
+  ✅ Pizzo Straciugo (2713m) - T3
+  Processed: 2975 | Updated: 2456
+  Waiting 30s...
+
+Batch: 2976 - 2980
+  ✅ Spatlaskopf (2713m) - T1
+  ❌ Karnase (2713m) - no trail
+  ✅ Cima di Ghez (2713m) - T4
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Piz Starlera (2713m) - skipped (error)
+  ✅ Cima di Mezzo / Keller Warte (2713m) - T3
+  Processed: 2980 | Updated: 2460
+  Waiting 30s...
+
+Batch: 2981 - 2985
+  ❌ Watzmann-Mittelspitze (2713m) - T6
+  ❌ Gamsstetten - Crode dei Camosci (2713m) - no trail
+  ❌ Riegelkopf (2713m) - no trail
+  ❌ Monte del Sasso (2712m) - no trail
+  ✅ Ol Simàl (2712m) - T4
+  Processed: 2985 | Updated: 2465
+  Waiting 30s...
+
+Batch: 2986 - 2990
+  ❌ Kleine Keilspitze (2712m) - no trail
+  ✅ Croda da Campo (2712m) - T4
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Piz Stgir (2712m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Möselnock (2712m) - skipped (error)
+  ❌ Westlicher Schafhimmelkopf (2712m) - no trail
+  Processed: 2990 | Updated: 2468
+  Waiting 30s...

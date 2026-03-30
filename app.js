@@ -2308,13 +2308,7 @@ const Peakflow = {
       this.map.resetNorth({ duration: 500 });
     });
 
-    // Route start CTA — hide when logged in
-    const _hideCta = () => {
-      const cta = document.getElementById('routeStartCta');
-      if (cta && PeakflowData.currentUser) cta.classList.add('hidden');
-    };
-    document.addEventListener('peakflow:auth', _hideCta);
-    _hideCta();
+    // Route start CTA is rendered inside _showStartPointPicker() (routes.js)
 
     // Undo last waypoint
     document.getElementById('undoWaypointBtn')?.addEventListener('click', () => {

@@ -72,29 +72,59 @@ const PeakflowRoutes = {
     if (!info) return;
 
     const locs = (typeof Peakflow !== 'undefined' ? Peakflow._settingsLocations : null) || [];
-    let html = '<div style="padding:4px 0;">';
-    html += '<p style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text-primary);">Startpunkt w\u00e4hlen</p>';
+    const isLoggedIn = !!(typeof Peakflow !== 'undefined' && Peakflow.currentUser);
 
-    // Saved locations as buttons
+    let html = '<div class="route-start-screen">';
+
+    // Visual header
+    html += '<div class="route-start-screen__visual">';
+    html += '<svg viewBox="0 0 64 40" width="68" height="43" fill="none">';
+    html += '<path d="M0 38 L16 12 L28 26 L38 8 L52 28 L64 18 L64 40 Z" fill="var(--color-primary)" opacity="0.16"/>';
+    html += '<path d="M0 38 L16 12 L28 26 L38 8 L52 28 L64 18" stroke="var(--color-primary)" stroke-width="2" stroke-linejoin="round" fill="none" opacity="0.65"/>';
+    html += '<circle cx="38" cy="8" r="3" fill="var(--color-primary)" opacity="0.85"/>';
+    html += '<circle cx="16" cy="12" r="2" fill="var(--color-primary)" opacity="0.5"/>';
+    html += '</svg></div>';
+
+    html += '<h4 class="route-start-screen__title">Deine Route beginnt hier</h4>';
+
+    // Saved locations (if any)
     if (locs.length > 0) {
-      html += '<div style="margin-bottom:10px;">';
+      html += '<div style="width:100%;margin-bottom:8px;">';
       locs.forEach(function(loc, i) {
-        html += '<button class="start-loc-btn" data-index="' + i + '" style="display:block;width:100%;padding:10px 14px;margin-bottom:6px;border:1px solid var(--border-color);border-radius:8px;background:' + (i === 0 ? 'var(--color-primary,#c9a84c)' : 'var(--bg-tertiary)') + ';color:' + (i === 0 ? '#fff' : 'var(--text-primary)') + ';font-size:13px;font-weight:' + (i === 0 ? '700' : '500') + ';cursor:pointer;text-align:left;font-family:inherit;">\uD83C\uDFE0 ' + (loc.name || 'Standort ' + (i + 1)) + '</button>';
+        const isPrimary = i === 0;
+        html += '<button class="start-loc-btn" data-index="' + i + '" style="display:block;width:100%;padding:9px 12px;margin-bottom:5px;border:1px solid ' + (isPrimary ? 'var(--color-primary)' : 'var(--border-color)') + ';border-radius:8px;background:' + (isPrimary ? 'var(--color-primary)' : 'var(--bg-tertiary)') + ';color:' + (isPrimary ? '#fff' : 'var(--text-primary)') + ';font-size:12px;font-weight:' + (isPrimary ? '700' : '500') + ';cursor:pointer;text-align:left;font-family:inherit;">';
+        html += '<span style="margin-right:6px;">🏠</span>' + (loc.name || 'Standort ' + (i + 1));
+        html += '</button>';
       });
       html += '</div>';
     }
 
-    // Search field for custom start
-    html += '<div style="position:relative;margin-bottom:8px;">';
-    html += '<input type="text" id="startSearchInput" placeholder="Ort suchen als Startpunkt..." style="width:100%;padding:10px 12px;border:1px dashed var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">';
-    html += '<div id="startSearchResults" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:10;"></div>';
+    // Search field
+    html += '<div style="position:relative;width:100%;margin-bottom:6px;">';
+    html += '<input type="text" id="startSearchInput" placeholder="🔍 Ort als Startpunkt suchen..." style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">';
+    html += '<div id="startSearchResults" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:20;"></div>';
     html += '</div>';
 
-    // Or click on map
-    html += '<p style="font-size:12px;color:var(--text-tertiary);text-align:center;">\uD83D\uDCCD oder direkt auf die Karte klicken</p>';
-    html += '</div>';
+    // Map click hint
+    html += '<p class="route-start-screen__sub" style="margin-top:4px;">📍 oder direkt auf die Karte tippen</p>';
 
+    // Login CTA (only for guests)
+    if (!isLoggedIn) {
+      html += '<div class="route-start-screen__cta" id="routeStartCta">';
+      html += '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 100 10A5 5 0 0010 2zM2 18c0-3.3 3.6-6 8-6s8 2.7 8 6"/></svg>';
+      html += '<span>Kostenlos anmelden &amp; bis zu 5 Startpunkte speichern</span>';
+      html += '</div>';
+    }
+
+    html += '</div>';
     info.innerHTML = html;
+
+    // CTA click → open auth modal
+    const cta = info.querySelector('#routeStartCta');
+    if (cta) cta.addEventListener('click', () => {
+      const m = document.getElementById('authModal');
+      if (m) m.classList.remove('hidden');
+    });
 
     const self = this;
 
@@ -453,18 +483,28 @@ const PeakflowRoutes = {
 
         document.getElementById('btnRoundTrip').addEventListener('click', () => {
           this._fitAfterRoute = true;
-          // For a real round trip, add an offset waypoint to force BRouter to use a different path back
-          const midLat = (first.lat + last.lat) / 2;
-          const midLng = (first.lng + last.lng) / 2;
-          // Calculate perpendicular offset (~300m to the side)
+          const n = this.waypoints.length;
+
+          // Direction of overall route (first → last)
           const dLat = last.lat - first.lat;
           const dLng = last.lng - first.lng;
           const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-          const offsetScale = dist > 0 ? 0.003 / dist : 0.003; // ~300m perpendicular
-          const offLat = midLat + dLng * offsetScale;
-          const offLng = midLng - dLat * offsetScale;
-          // Add offset point + return to start
-          this.addWaypoint({ lng: offLng, lat: offLat, name: 'Rundweg' });
+
+          // Perpendicular offset: at least 1.2 km (~0.011°), or 40% of route span
+          const OFFSET = Math.max(0.011, dist * 0.4);
+          const perpLat = dist > 0 ? (-dLng / dist) * OFFSET : OFFSET;
+          const perpLng = dist > 0 ? (dLat / dist) * OFFSET : 0;
+
+          // Take existing waypoints at 2/3 and 1/3 of the route (reversed)
+          // and shift them perpendicularly → forces BRouter onto a different path
+          const idx2 = Math.min(n - 1, Math.max(1, Math.round(n * 0.66)));
+          const idx1 = Math.min(idx2 - 1, Math.max(1, Math.round(n * 0.33)));
+          const wpA = this.waypoints[idx2];
+          const wpB = this.waypoints[idx1];
+
+          // Route: existing path → offset-A → offset-B → start (proper loop)
+          this.addWaypoint({ lat: wpA.lat + perpLat, lng: wpA.lng + perpLng, name: 'Rundweg' });
+          this.addWaypoint({ lat: wpB.lat + perpLat, lng: wpB.lng + perpLng, name: 'Rundweg' });
           this.addWaypoint({ lng: first.lng, lat: first.lat, name: first.name || 'Start' });
           hideRouteActions();
         });
