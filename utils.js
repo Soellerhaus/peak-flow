@@ -4,16 +4,33 @@
 
 const PeakflowUtils = {
 
-  // Activity profiles - 5 levels for accurate time estimation
+  // Activity profiles - hiking, running & cycling
   PROFILES: {
-    hiker_slow:  { flatSpeed: 3,  ascentRate: 250, descentRate: 400, label: 'Gemütlich',  icon: '🚶' },
-    hiker:       { flatSpeed: 4,  ascentRate: 300, descentRate: 500, label: 'Normal',      icon: '🥾' },
-    hiker_fast:  { flatSpeed: 5,  ascentRate: 400, descentRate: 600, label: 'Zügig',       icon: '🥾' },
-    runner:      { flatSpeed: 8,  ascentRate: 500, descentRate: 800, label: 'Trailrunner',  icon: '🏃' },
-    runner_fast: { flatSpeed: 18, ascentRate: 1200, descentRate: 2000, label: 'Profi',       icon: '🏃' }
+    // Hiking
+    hiker_slow:  { flatSpeed: 3,  ascentRate: 250, descentRate: 400, label: 'Gemütlich',  icon: '🚶', type: 'hike', brouterProfile: 'hiking-mountain' },
+    hiker:       { flatSpeed: 4,  ascentRate: 300, descentRate: 500, label: 'Normal',      icon: '🥾', type: 'hike', brouterProfile: 'hiking-mountain' },
+    hiker_fast:  { flatSpeed: 5,  ascentRate: 400, descentRate: 600, label: 'Zügig',       icon: '🥾', type: 'hike', brouterProfile: 'hiking-mountain' },
+    // Trail Running
+    runner:      { flatSpeed: 8,  ascentRate: 500, descentRate: 800, label: 'Trail',       icon: '🏃', type: 'hike', brouterProfile: 'hiking-mountain' },
+    runner_fast: { flatSpeed: 18, ascentRate: 1200, descentRate: 2000, label: 'Profi',      icon: '🏃', type: 'hike', brouterProfile: 'hiking-mountain' },
+    // Cycling
+    bike_road:   { flatSpeed: 25, ascentRate: 600,  descentRate: 2500, label: 'Rennrad',  icon: '🚴', type: 'bike', brouterProfile: 'fastbike' },
+    bike_gravel: { flatSpeed: 20, ascentRate: 500,  descentRate: 2200, label: 'Gravel',   icon: '🚴', type: 'bike', brouterProfile: 'gravel' },
+    bike_mtb:    { flatSpeed: 15, ascentRate: 400,  descentRate: 1800, label: 'MTB',       icon: '🚵', type: 'bike', brouterProfile: 'mtb' },
+    bike_ebike:  { flatSpeed: 20, ascentRate: 800,  descentRate: 2000, label: 'E-Bike',   icon: '🔋', type: 'bike', brouterProfile: 'trekking' }
   },
 
   currentProfile: 'hiker',
+
+  isBikeProfile() {
+    const p = this.PROFILES[this.currentProfile];
+    return p && p.type === 'bike';
+  },
+
+  getBrouterProfile() {
+    const p = this.PROFILES[this.currentProfile];
+    return (p && p.brouterProfile) || 'hiking-mountain';
+  },
 
   /**
    * Calculate hiking/running time using DIN 33466 formula
@@ -34,11 +51,13 @@ const PeakflowUtils = {
     const timeVertical = timeAscent + timeDescent;
 
     // DIN 33466: larger value + (smaller value / 2)
-    // For runner profiles: use reduced DIN factor (runners ascend and move forward simultaneously)
+    // Runners: reduced DIN factor (ascend and move forward simultaneously)
+    // Bikes: minimal DIN factor (descent is nearly free, ascent dominates)
     const larger = Math.max(timeFlat, timeVertical);
     const smaller = Math.min(timeFlat, timeVertical);
+    const isBike = profile.type === 'bike';
     const isRunner = this.currentProfile === 'runner' || this.currentProfile === 'runner_fast';
-    const dinFactor = isRunner ? 0.25 : 0.5; // Runners overlap flat+vertical more
+    const dinFactor = isBike ? 0.1 : (isRunner ? 0.25 : 0.5);
     const totalHours = larger + (smaller * dinFactor);
 
     const totalMinutes = Math.round(totalHours * 60);
@@ -237,7 +256,8 @@ const PeakflowUtils = {
     // Base calorie burn per hour by profile
     const calPerHour = {
       'hiker_slow': 400, 'hiker': 500, 'hiker_fast': 600,
-      'runner': 750, 'runner_fast': 900
+      'runner': 750, 'runner_fast': 900,
+      'bike_road': 600, 'bike_gravel': 650, 'bike_mtb': 700, 'bike_ebike': 350
     };
     const baseCal = calPerHour[profile] || 500;
 

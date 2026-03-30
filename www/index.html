@@ -64,11 +64,21 @@
 
       <!-- Activity Profile (always visible, right side) -->
       <select class="profile-select" id="profileSelect" title="Aktivitätsprofil">
-        <option value="hiker_slow">🚶 Gemütlich</option>
-        <option value="hiker" selected>🥾 Normal</option>
-        <option value="hiker_fast">🥾 Zügig</option>
-        <option value="runner">🏃 Trail</option>
-        <option value="runner_fast">🏃 Profi</option>
+        <optgroup label="Wandern">
+          <option value="hiker_slow">🚶 Gemütlich</option>
+          <option value="hiker" selected>🥾 Normal</option>
+          <option value="hiker_fast">🥾 Zügig</option>
+        </optgroup>
+        <optgroup label="Trail Running">
+          <option value="runner">🏃 Trail</option>
+          <option value="runner_fast">🏃 Profi</option>
+        </optgroup>
+        <optgroup label="Radfahren">
+          <option value="bike_road">🚴 Rennrad</option>
+          <option value="bike_gravel">🚴 Gravel</option>
+          <option value="bike_mtb">🚵 MTB</option>
+          <option value="bike_ebike">🔋 E-Bike</option>
+        </optgroup>
       </select>
 
     </div>
@@ -162,11 +172,21 @@
     <div class="settings-section" style="margin-top:16px;">
       <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Tempo</label>
       <select id="settingsProfile" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-top:4px;font-size:14px;background:var(--bg-secondary);color:var(--text-primary);">
-        <option value="hiker_slow">&#128694; Gem&uuml;tlich (3 km/h)</option>
-        <option value="hiker">&#129458; Normal (4 km/h)</option>
-        <option value="hiker_fast">&#129458; Z&uuml;gig (5 km/h)</option>
-        <option value="runner">&#127939; Trailrunner (8 km/h)</option>
-        <option value="runner_fast">&#127939; Profi (14 km/h)</option>
+        <optgroup label="Wandern">
+          <option value="hiker_slow">&#128694; Gem&uuml;tlich (3 km/h)</option>
+          <option value="hiker">&#129458; Normal (4 km/h)</option>
+          <option value="hiker_fast">&#129458; Z&uuml;gig (5 km/h)</option>
+        </optgroup>
+        <optgroup label="Trail Running">
+          <option value="runner">&#127939; Trail (8 km/h)</option>
+          <option value="runner_fast">&#127939; Profi (18 km/h)</option>
+        </optgroup>
+        <optgroup label="Radfahren">
+          <option value="bike_road">&#128692; Rennrad (25 km/h)</option>
+          <option value="bike_gravel">&#128692; Gravel (20 km/h)</option>
+          <option value="bike_mtb">&#128693; MTB (15 km/h)</option>
+          <option value="bike_ebike">&#128267; E-Bike (20 km/h)</option>
+        </optgroup>
       </select>
     </div>
 

@@ -2525,15 +2525,36 @@ const Peakflow = {
       }
     });
 
-    // Profile selector (5 levels)
+    // Profile selector (hiking, running, cycling)
     const profileSelect = document.getElementById('profileSelect');
     if (profileSelect) {
+      // Restore saved profile from localStorage
+      const savedProfile = localStorage.getItem('peakflow_profile');
+      if (savedProfile && PeakflowUtils.PROFILES[savedProfile]) {
+        profileSelect.value = savedProfile;
+        PeakflowUtils.currentProfile = savedProfile;
+      }
+
       profileSelect.addEventListener('change', () => {
+        const oldType = PeakflowUtils.PROFILES[PeakflowUtils.currentProfile]?.type;
         PeakflowUtils.currentProfile = profileSelect.value;
-        // Recalculate stats + redraw elevation profile if route exists
+        const newType = PeakflowUtils.PROFILES[PeakflowUtils.currentProfile]?.type;
+        localStorage.setItem('peakflow_profile', profileSelect.value);
+
+        // Update route color
+        PeakflowRoutes.updateRouteColor();
+
         if (PeakflowRoutes.routeCoords && PeakflowRoutes.routeCoords.length >= 2) {
-          PeakflowRoutes.updateStats();
-          PeakflowRoutes.drawElevationProfile();
+          // If activity TYPE changed (hike↔bike), re-route with different BRouter profile
+          if (oldType !== newType) {
+            console.log('[Peakflow] Activity type changed:', oldType, '→', newType, '— re-routing');
+            PeakflowRoutes._segmentCache = {}; // Clear cache, different profile needs different routes
+            PeakflowRoutes.updateRoute();
+          } else {
+            // Same type, just recalculate stats (speed/time)
+            PeakflowRoutes.updateStats();
+            PeakflowRoutes.drawElevationProfile();
+          }
         }
         console.log('[Peakflow] Activity changed to:', profileSelect.value);
       });
@@ -3375,10 +3396,12 @@ const Peakflow = {
     if (!profile) return;
 
     // Activity profile
-    if (profile.activity_profile) {
+    if (profile.activity_profile && PeakflowUtils.PROFILES[profile.activity_profile]) {
       PeakflowUtils.currentProfile = profile.activity_profile;
       var profileSelect = document.getElementById('profileSelect');
       if (profileSelect) profileSelect.value = profile.activity_profile;
+      localStorage.setItem('peakflow_profile', profile.activity_profile);
+      PeakflowRoutes.updateRouteColor();
       // Recalculate stats if route exists
       if (PeakflowRoutes.waypoints.length >= 2) {
         PeakflowRoutes.updateStats();

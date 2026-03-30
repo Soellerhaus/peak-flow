@@ -12,7 +12,16 @@ const PeakflowRoutes = {
   isPlanning: false,
   elevationCanvas: null,
   elevationCtx: null,
-  routeColor: '#39ff14', // default neon green, overridden by profile
+  routeColor: '#39ff14', // neon green for hiking, blue for bike
+  ROUTE_COLORS: { hike: '#39ff14', bike: '#00b4d8' },
+
+  updateRouteColor() {
+    const isBike = PeakflowUtils.isBikeProfile();
+    this.routeColor = isBike ? this.ROUTE_COLORS.bike : this.ROUTE_COLORS.hike;
+    if (this.map && this.map.getLayer('route-line')) {
+      this.map.setPaintProperty('route-line', 'line-color', this.routeColor);
+    }
+  },
   _routingController: null,  // AbortController for cancelling in-flight requests
   _routeDebounce: null,      // Debounce timer
 
@@ -704,8 +713,8 @@ const PeakflowRoutes = {
         : routeSignal;
       try {
         const [outResp, retResp] = await Promise.all([
-          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: rtSig }),
-          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=1&format=geojson`, { signal: rtSig })
+          fetch(`${this.BROUTER_URL}?lonlats=${outLonlats}&profile=${PeakflowUtils.getBrouterProfile()}&alternativeidx=0&format=geojson`, { signal: rtSig }),
+          fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=${PeakflowUtils.getBrouterProfile()}&alternativeidx=1&format=geojson`, { signal: rtSig })
         ]);
         const [outData, retData] = await Promise.all([outResp.json(), retResp.json()]);
 
@@ -714,7 +723,7 @@ const PeakflowRoutes = {
 
         // Fallback: if alternative return failed, try normal return
         if (retCoords.length === 0) {
-          const fb = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=hiking-mountain&alternativeidx=0&format=geojson`, { signal: rtSig });
+          const fb = await fetch(`${this.BROUTER_URL}?lonlats=${retLonlats}&profile=${PeakflowUtils.getBrouterProfile()}&alternativeidx=0&format=geojson`, { signal: rtSig });
           retCoords = (await fb.json()).features?.[0]?.geometry?.coordinates || [];
         }
 
@@ -747,9 +756,10 @@ const PeakflowRoutes = {
     if (coords.length === 0) {
       // Route each segment independently and concatenate.
       // Race: first valid response wins (fastest profile)
-      // hiking-mountain (marked trails T1-T6) + shortest (pure distance, goes over ridges)
-      // Compare both and pick the one that passes closest to the target waypoint
-      const profiles = ['hiking-mountain', 'shortest'];
+      // Dynamic BRouter profile based on activity (hiking, bike, etc.)
+      // Compare with shortest and pick the one that passes closest to the target waypoint
+      const brouterProfile = PeakflowUtils.getBrouterProfile();
+      const profiles = [brouterProfile, 'shortest'];
       const failedSegments = [];
 
       // Cache segments so adding new waypoints doesn't re-route existing segments
@@ -812,7 +822,7 @@ const PeakflowRoutes = {
               for (const [dlat, dlng] of nudges) {
                 try {
                   const sr = await fetch(
-                    `${server}?lonlats=${from.lng+dlng},${from.lat+dlat}|${to.lng+dlng},${to.lat+dlat}&profile=hiking-mountain&alternativeidx=0&format=geojson`,
+                    `${server}?lonlats=${from.lng+dlng},${from.lat+dlat}|${to.lng+dlng},${to.lat+dlat}&profile=${PeakflowUtils.getBrouterProfile()}&alternativeidx=0&format=geojson`,
                     { signal: AbortSignal.timeout(timeout) }
                   );
                   if (sr.ok) {
@@ -939,7 +949,17 @@ const PeakflowRoutes = {
     // Debounce secondary data (weather/snow get 429'd if called every waypoint click)
     clearTimeout(this._secondaryDataTimer);
     // SAC + Water load immediately (from Supabase, no rate limit)
-    this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e));
+    // Skip SAC analysis for bike profiles (irrelevant for cycling)
+    if (!PeakflowUtils.isBikeProfile()) {
+      this.loadSACDataForRoute(coords).catch(e => console.warn('[Peakflow] SAC:', e));
+    } else {
+      // Clear SAC markers and accordion for bike mode
+      if (this._dangerMarkers) { this._dangerMarkers.forEach(m => m.remove()); this._dangerMarkers = []; }
+      const sacTitle = document.getElementById('sacAccordionTitle');
+      if (sacTitle) sacTitle.innerHTML = '';
+      const sacBody = document.getElementById('sacAccordionBody');
+      if (sacBody) sacBody.innerHTML = '';
+    }
     this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e));
     // Weather/Snow/Sun delayed 2s (only fires for the final route, not intermediate)
     this._secondaryDataTimer = setTimeout(() => {
