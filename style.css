@@ -1233,6 +1233,37 @@ a:hover { text-decoration: underline; }
 /* ============================================
    Layer Picker
    ============================================ */
+/* POI Filter Panel */
+.poi-filter {
+  position: absolute;
+  top: 12px;
+  right: 58px;
+  padding: 12px 14px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 10;
+  animation: fadeIn var(--transition-fast);
+  min-width: 180px;
+}
+.poi-filter__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.poi-filter__item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
 .layer-picker {
   position: absolute;
   top: 60px;

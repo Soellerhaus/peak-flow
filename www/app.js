@@ -304,6 +304,9 @@ const Peakflow = {
       this.loadViewportPeaks();
       this.loadViewportHutsAndPasses();
       this.updateDiscoverList();
+      // Refresh POI markers for active categories (debounced)
+      clearTimeout(this._poiRefreshTimer);
+      this._poiRefreshTimer = setTimeout(() => this._refreshPOIMarkers(), 500);
     });
   },
 
@@ -1855,6 +1858,42 @@ const Peakflow = {
       }
     });
 
+    // POI Filter button + panel
+    this._poiMarkers = {};
+    document.getElementById('poiFilterBtn')?.addEventListener('click', () => {
+      const panel = document.getElementById('poiFilter');
+      if (panel) panel.classList.toggle('hidden');
+    });
+    // Close POI filter on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#poiFilter') && !e.target.closest('#poiFilterBtn')) {
+        const panel = document.getElementById('poiFilter');
+        if (panel) panel.classList.add('hidden');
+      }
+    });
+    // Handle POI checkbox changes
+    document.querySelectorAll('#poiFilter input[data-poi]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const cat = cb.dataset.poi;
+        if (cb.checked) {
+          this._loadPOICategory(cat);
+        } else {
+          this._removePOICategory(cat);
+        }
+        // Save to localStorage
+        const active = Array.from(document.querySelectorAll('#poiFilter input:checked')).map(c => c.dataset.poi);
+        localStorage.setItem('peakflow_poi_filters', JSON.stringify(active));
+      });
+    });
+    // Restore saved filters
+    try {
+      const saved = JSON.parse(localStorage.getItem('peakflow_poi_filters') || '[]');
+      saved.forEach(cat => {
+        const cb = document.querySelector(`#poiFilter input[data-poi="${cat}"]`);
+        if (cb) { cb.checked = true; this._loadPOICategory(cat); }
+      });
+    } catch(e) {}
+
     // Zoom buttons
     document.getElementById('zoomInBtn').addEventListener('click', () => {
       this.map.zoomIn();
@@ -2929,6 +2968,77 @@ const Peakflow = {
   hideSearchDropdown() {
     const dropdown = document.getElementById('searchDropdown');
     if (dropdown) dropdown.classList.add('hidden');
+  },
+
+  // POI category icons
+  _poiIcons: {
+    viewpoint: '👁️', waterfall: '💦', parking: '🅿️', cable_car: '🚡',
+    camp_site: '⛺', picnic_site: '🧺', castle: '🏰', cave: '🕳️'
+  },
+
+  // Load POI category markers on map
+  async _loadPOICategory(category) {
+    try {
+      const bounds = this.map.getBounds();
+      const south = bounds.getSouth().toFixed(4);
+      const north = bounds.getNorth().toFixed(4);
+      const west = bounds.getWest().toFixed(4);
+      const east = bounds.getEast().toFixed(4);
+
+      // Map UI categories to Supabase categories
+      const catMap = { cable_car: 'aerialway' };
+      const dbCat = catMap[category] || category;
+
+      const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/pois_sightseeing' +
+        '?category=eq.' + dbCat +
+        '&lat=gte.' + south + '&lat=lte.' + north +
+        '&lng=gte.' + west + '&lng=lte.' + east +
+        '&name=not.is.null' +
+        '&select=name,lat,lng,category&limit=200';
+
+      const resp = await fetch(url, {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      });
+      if (!resp.ok) return;
+      const pois = await resp.json();
+      console.log('[Peakflow] POI ' + category + ': ' + pois.length + ' loaded');
+
+      // Remove old markers for this category
+      this._removePOICategory(category);
+
+      const icon = this._poiIcons[category] || '📍';
+      const markers = [];
+
+      pois.forEach(poi => {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:26px;height:26px;border-radius:50%;background:rgba(26,26,26,0.8);border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;z-index:5;';
+        el.innerHTML = icon;
+        el.title = poi.name;
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([poi.lng, poi.lat]).addTo(this.map);
+        const popup = new maplibregl.Popup({ offset: 20, maxWidth: '220px' })
+          .setHTML('<div style="padding:4px;font-family:Inter,sans-serif;"><strong>' + icon + ' ' + poi.name + '</strong></div>');
+        marker.setPopup(popup);
+        markers.push(marker);
+      });
+
+      this._poiMarkers[category] = markers;
+    } catch(e) {
+      console.warn('[Peakflow] POI load failed:', category, e);
+    }
+  },
+
+  // Remove POI markers for a category
+  _removePOICategory(category) {
+    if (this._poiMarkers[category]) {
+      this._poiMarkers[category].forEach(m => m.remove());
+      delete this._poiMarkers[category];
+    }
+  },
+
+  // Reload visible POI categories when map moves
+  _refreshPOIMarkers() {
+    const active = Array.from(document.querySelectorAll('#poiFilter input:checked')).map(c => c.dataset.poi);
+    active.forEach(cat => this._loadPOICategory(cat));
   },
 
   // Load all water sources in current map viewport

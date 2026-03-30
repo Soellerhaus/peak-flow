@@ -106,61 +106,8 @@ const PeakflowSnow = {
    * Apply snow overlay to MapLibre route
    */
   applySnowOverlay(map, routeCoords, analysis) {
+    // Snow overlay disabled — snow info shown in sidebar text only
     this.removeSnowOverlay(map);
-    if (!analysis || !analysis.hasSnow || !routeCoords || routeCoords.length < 2) return;
-
-    // Determine snow line elevation from analysis
-    // Find the lowest point where snow > 0
-    const snowSegments = analysis.segments.filter(s => s.snowDepth > 0);
-    if (snowSegments.length === 0) return;
-
-    // Estimate snow line: lowest elevation with snow
-    const snowLineElev = Math.min(...snowSegments.map(s => s.coord[2] || 0)) - 100;
-
-    // Build snow-covered sections of the route (points above snow line)
-    const snowCoords = [];
-    let inSnow = false;
-
-    for (let i = 0; i < routeCoords.length; i++) {
-      const elev = routeCoords[i][2] || 0;
-      if (elev >= snowLineElev) {
-        snowCoords.push([routeCoords[i][0], routeCoords[i][1]]);
-        inSnow = true;
-      } else if (inSnow) {
-        // Add transition point
-        snowCoords.push([routeCoords[i][0], routeCoords[i][1]]);
-        inSnow = false;
-      }
-    }
-
-    if (snowCoords.length < 2) return;
-
-    // Determine color based on snow depth
-    const maxSnow = analysis.maxSnowDepth;
-    const snowColor = maxSnow > 80 ? '#dc2626' : maxSnow > 50 ? '#f97316' : maxSnow > 20 ? '#60a5fa' : '#93c5fd';
-
-    map.addSource('snow-overlay', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: snowCoords }
-      }
-    });
-
-    map.addLayer({
-      id: 'snow-overlay-layer',
-      type: 'line',
-      source: 'snow-overlay',
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': snowColor,
-        'line-width': 5,
-        'line-opacity': 0.7,
-        'line-dasharray': [2, 1]
-      }
-    });
-
-    console.log('[Peakflow] Snow overlay: ' + snowCoords.length + ' pts, ' + maxSnow + 'cm, color ' + snowColor);
   },
 
   /**
