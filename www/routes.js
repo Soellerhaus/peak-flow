@@ -757,9 +757,11 @@ const PeakflowRoutes = {
       // Route each segment independently and concatenate.
       // Race: first valid response wins (fastest profile)
       // Dynamic BRouter profile based on activity (hiking, bike, etc.)
-      // Compare with shortest and pick the one that passes closest to the target waypoint
+      // For hiking: compare hiking-mountain + shortest, pick closest to target
+      // For bike: only use bike profile (no shortest fallback — don't route bikes on hiking trails)
       const brouterProfile = PeakflowUtils.getBrouterProfile();
-      const profiles = [brouterProfile, 'shortest'];
+      const isBike = PeakflowUtils.isBikeProfile();
+      const profiles = isBike ? [brouterProfile] : [brouterProfile, 'shortest'];
       const failedSegments = [];
 
       // Cache segments so adding new waypoints doesn't re-route existing segments
@@ -838,7 +840,7 @@ const PeakflowRoutes = {
               }
             }
 
-            console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}, skipping segment`);
+            console.warn(`[Peakflow] No route found for ${from.name||'WP'}→${to.name||'WP'}` + (isBike ? ' (kein befahrbarer Weg)' : '') + ', skipping segment');
             return null;
           }
           // Pick the route that passes closest to the target waypoint
