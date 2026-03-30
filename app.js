@@ -3274,21 +3274,14 @@ const Peakflow = {
       }
     }
 
-    // Elevation profile visibility
-    if (typeof profile.show_elevation === 'boolean') {
-      this._showElevation = profile.show_elevation;
-      var elevEl = document.getElementById('elevationProfile');
-      if (elevEl) {
-        if (!profile.show_elevation) {
-          elevEl.style.display = 'none';
-        } else {
-          elevEl.style.display = '';
-          elevEl.style.opacity = '0.7'; // halbtransparent
-        }
-      }
-      var settingsEl = document.getElementById('settingsShowElevation');
-      if (settingsEl) settingsEl.checked = profile.show_elevation;
-    }
+    // Elevation profile: sync user preference to the flag routes.js reads
+    // Guests always start hidden (flag stays undefined/false)
+    // Logged-in users with show_elevation:true get it auto-shown after routing
+    PeakflowRoutes._elevationVisible = profile.show_elevation === true;
+    var elevToggleBtn = document.getElementById('elevationToggleBtn');
+    if (elevToggleBtn) elevToggleBtn.classList.toggle('active', profile.show_elevation === true);
+    var settingsEl = document.getElementById('settingsShowElevation');
+    if (settingsEl) settingsEl.checked = profile.show_elevation === true;
 
     // Update user display name in header (userMenu, NOT loginBtn)
     if (PeakflowData.currentUser) {
