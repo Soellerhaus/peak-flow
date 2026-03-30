@@ -801,6 +801,76 @@ a:hover { text-decoration: underline; }
   margin: 0;
   line-height: 1.5;
 }
+/* ── Route signup card ───────────────────────────────────────────────────── */
+.route-signup-card {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 14px 12px;
+  background: linear-gradient(135deg, rgba(201,168,76,0.08) 0%, rgba(201,168,76,0.04) 100%);
+  border: 1px solid rgba(201,168,76,0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.route-signup-card:hover {
+  border-color: rgba(201,168,76,0.5);
+  background: linear-gradient(135deg, rgba(201,168,76,0.13) 0%, rgba(201,168,76,0.06) 100%);
+}
+.route-signup-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 9px;
+  letter-spacing: 0.3px;
+}
+.route-signup-card__features {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.route-signup-card__features li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.route-signup-card__check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(201,168,76,0.15);
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.route-signup-card__btn {
+  width: 100%;
+  padding: 9px 14px;
+  background: var(--color-primary);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.route-signup-card__btn:hover {
+  background: var(--color-primary-light, #d4b060);
+  transform: translateY(-1px);
+}
+
 .route-start-screen__cta {
   display: flex;
   align-items: center;

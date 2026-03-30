@@ -85,8 +85,6 @@ const PeakflowRoutes = {
     html += '<circle cx="16" cy="12" r="2" fill="var(--color-primary)" opacity="0.5"/>';
     html += '</svg></div>';
 
-    html += '<h4 class="route-start-screen__title">Deine Route beginnt hier</h4>';
-
     // Saved locations (if any)
     if (locs.length > 0) {
       html += '<div style="width:100%;margin-bottom:8px;">';
@@ -110,9 +108,16 @@ const PeakflowRoutes = {
 
     // Login CTA (only for guests)
     if (!isLoggedIn) {
-      html += '<div class="route-start-screen__cta" id="routeStartCta">';
-      html += '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 100 10A5 5 0 0010 2zM2 18c0-3.3 3.6-6 8-6s8 2.7 8 6"/></svg>';
-      html += '<span>Kostenlos anmelden &amp; bis zu 5 Startpunkte speichern</span>';
+      html += '<div class="route-signup-card" id="routeStartCta">';
+      html += '<div class="route-signup-card__title">Kostenlos registrieren</div>';
+      html += '<ul class="route-signup-card__features">';
+      html += '<li><span class="route-signup-card__check">✓</span>Bis zu 5 Startpunkte speichern</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Routenfarben anpassen</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Einstellungen & Profil speichern</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Bergkönig Gipfel tracken</li>';
+      html += '<li><span class="route-signup-card__check">✓</span>Routen exportieren & teilen</li>';
+      html += '</ul>';
+      html += '<button class="route-signup-card__btn">Jetzt kostenlos anmelden</button>';
       html += '</div>';
     }
 
