@@ -469,6 +469,7 @@ const Peakflow = {
         type: type,
         beds: item.beds,
         website: item.website,
+        website_url: item.website,   // normalized for detail panel
         phone: item.phone,
         operator: item.operator,
         description: type === 'hut'
@@ -607,6 +608,10 @@ const Peakflow = {
         ? 'var(--primary, #c9a84c)'
         : '#e67e22';
 
+    const websiteLinkHtml = (poi.type === 'hut' && poi.website)
+      ? '<a href="' + poi.website + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:11px;color:#c9a84c;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onclick="event.stopPropagation()">🌐 ' + poi.website.replace(/^https?:\/\/(www\.)?/, '') + '</a>'
+      : '';
+
     const popup = new maplibregl.Popup({ offset: 20, closeOnClick: true })
       .setLngLat([poi.lng, poi.lat])
       .setHTML(
@@ -614,6 +619,7 @@ const Peakflow = {
           '<div class="popup-content__type">' + (typeLabels[poi.type] || poi.type) + '</div>' +
           '<div class="popup-content__name">' + poi.name + '</div>' +
           '<div class="popup-content__elevation">' + poi.elevation + 'm</div>' +
+          websiteLinkHtml +
           warningHtml +
           '<button class="popup-add-route-btn" id="popupAddRoute"' +
             ' style="margin-top:8px;width:100%;padding:6px 10px;background:' + btnColor + ';color:#fff;border:none;border-radius:6px;cursor:' + (isBlocked ? 'not-allowed' : 'pointer') + ';font-size:12px;font-weight:600;' + (isBlocked ? 'opacity:0.6;' : '') + '"' +
