@@ -1859,7 +1859,7 @@ const Peakflow = {
     });
 
     // POI Filter button + panel
-    this._poiMarkers = {};
+    this._poiFilterMarkers = {};
     document.getElementById('poiFilterBtn')?.addEventListener('click', () => {
       const panel = document.getElementById('poiFilter');
       if (panel) panel.classList.toggle('hidden');
@@ -3021,7 +3021,7 @@ const Peakflow = {
         markers.push(marker);
       });
 
-      this._poiMarkers[category] = markers;
+      this._poiFilterMarkers[category] = markers;
     } catch(e) {
       console.warn('[Peakflow] POI load failed:', category, e);
     }
@@ -3029,9 +3029,9 @@ const Peakflow = {
 
   // Remove POI markers for a category
   _removePOICategory(category) {
-    if (this._poiMarkers[category]) {
-      this._poiMarkers[category].forEach(m => m.remove());
-      delete this._poiMarkers[category];
+    if (this._poiFilterMarkers && this._poiFilterMarkers[category]) {
+      this._poiFilterMarkers[category].forEach(m => m.remove());
+      delete this._poiFilterMarkers[category];
     }
   },
 
