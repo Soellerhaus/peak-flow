@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Peakflow</string>
+    <string name="title_activity_main">Peakflow</string>
+    <string name="package_name">app.peakflow.www</string>
+    <string name="custom_url_scheme">app.peakflow.www</string>
+</resources>

@@ -1,0 +1,294 @@
+=== Water Sources Import - Gesamte Alpen ===
+240 Grid-Zellen (0.5° x 0.5°)
+Started: 2026-03-29T08:50:06.935Z
+
+  ✅ [1/240] 44.0_5.0: 238 sources (total: 238)
+  ✅ [2/240] 44.0_5.5: 172 sources (total: 410)
+  ✅ [3/240] 44.0_6.0: 248 sources (total: 658)
+  ✅ [4/240] 44.0_6.5: 304 sources (total: 962)
+  ✅ [5/240] 44.0_7.0: 860 sources (total: 1822)
+  ✅ [6/240] 44.0_7.5: 1041 sources (total: 2863)
+  ✅ [7/240] 44.0_8.0: 720 sources (total: 3583)
+  ✅ [8/240] 44.0_8.5: 757 sources (total: 4340)
+  ❌ [9/240] 44.0_9.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [10/240] 44.0_9.5: 795 sources (total: 5135)
+  ✅ [11/240] 44.0_10.0: 921 sources (total: 6056)
+  ✅ [12/240] 44.0_10.5: 763 sources (total: 6819)
+  ✅ [13/240] 44.0_11.0: 794 sources (total: 7613)
+  ✅ [14/240] 44.0_11.5: 484 sources (total: 8097)
+  ✅ [15/240] 44.0_12.0: 477 sources (total: 8574)
+  ✅ [16/240] 44.0_12.5: 56 sources (total: 8630)
+  [17/240] 44.0_13.0: 0 sources
+  [18/240] 44.0_13.5: 0 sources
+  [19/240] 44.0_14.0: 0 sources
+  ✅ [20/240] 44.0_14.5: 13 sources (total: 8643)
+  ✅ [21/240] 44.0_15.0: 150 sources (total: 8793)
+  ✅ [22/240] 44.0_15.5: 82 sources (total: 8875)
+  ✅ [23/240] 44.0_16.0: 49 sources (total: 8924)
+  ✅ [24/240] 44.0_16.5: 385 sources (total: 9309)
+  ✅ [25/240] 44.5_5.0: 329 sources (total: 9638)
+  ✅ [26/240] 44.5_5.5: 449 sources (total: 10087)
+  ✅ [27/240] 44.5_6.0: 332 sources (total: 10419)
+  ✅ [28/240] 44.5_6.5: 595 sources (total: 11014)
+  ✅ [29/240] 44.5_7.0: 1092 sources (total: 12106)
+  ✅ [30/240] 44.5_7.5: 544 sources (total: 12650)
+  ❌ [31/240] 44.5_8.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [32/240] 44.5_8.5: 401 sources (total: 13051)
+  ✅ [33/240] 44.5_9.0: 635 sources (total: 13686)
+  ✅ [34/240] 44.5_9.5: 272 sources (total: 13958)
+  ✅ [35/240] 44.5_10.0: 303 sources (total: 14261)
+  ✅ [36/240] 44.5_10.5: 412 sources (total: 14673)
+  ❌ [37/240] 44.5_11.0: HTTP_502
+  Waiting 30s (rate limit)...
+  ✅ [38/240] 44.5_11.5: 128 sources (total: 14801)
+  ✅ [39/240] 44.5_12.0: 53 sources (total: 14854)
+  [40/240] 44.5_12.5: 0 sources
+  [41/240] 44.5_13.0: 0 sources
+  ✅ [42/240] 44.5_13.5: 23 sources (total: 14877)
+  ✅ [43/240] 44.5_14.0: 45 sources (total: 14922)
+  ✅ [44/240] 44.5_14.5: 47 sources (total: 14969)
+  ✅ [45/240] 44.5_15.0: 47 sources (total: 15016)
+  ✅ [46/240] 44.5_15.5: 140 sources (total: 15156)
+  ✅ [47/240] 44.5_16.0: 96 sources (total: 15252)
+  ✅ [48/240] 44.5_16.5: 42 sources (total: 15294)
+  ✅ [49/240] 45.0_5.0: 272 sources (total: 15566)
+  ✅ [50/240] 45.0_5.5: 1226 sources (total: 16792)
+  ✅ [51/240] 45.0_6.0: 661 sources (total: 17453)
+  ✅ [52/240] 45.0_6.5: 609 sources (total: 18062)
+  ✅ [53/240] 45.0_7.0: 1340 sources (total: 19402)
+  ✅ [54/240] 45.0_7.5: 1709 sources (total: 21111)
+  ✅ [55/240] 45.0_8.0: 667 sources (total: 21778)
+  ✅ [56/240] 45.0_8.5: 705 sources (total: 22483)
+  ✅ [57/240] 45.0_9.0: 1246 sources (total: 23729)
+  ✅ [58/240] 45.0_9.5: 395 sources (total: 24124)
+  ✅ [59/240] 45.0_10.0: 436 sources (total: 24560)
+  ✅ [60/240] 45.0_10.5: 709 sources (total: 25269)
+  ✅ [61/240] 45.0_11.0: 309 sources (total: 25578)
+  ✅ [62/240] 45.0_11.5: 397 sources (total: 25975)
+  ✅ [63/240] 45.0_12.0: 376 sources (total: 26351)
+  ✅ [64/240] 45.0_12.5: 7 sources (total: 26358)
+  [65/240] 45.0_13.0: 0 sources
+  ✅ [66/240] 45.0_13.5: 133 sources (total: 26491)
+  ✅ [67/240] 45.0_14.0: 194 sources (total: 26685)
+  ✅ [68/240] 45.0_14.5: 112 sources (total: 26797)
+  ✅ [69/240] 45.0_15.0: 102 sources (total: 26899)
+  ✅ [70/240] 45.0_15.5: 140 sources (total: 27039)
+  ✅ [71/240] 45.0_16.0: 34 sources (total: 27073)
+  ✅ [72/240] 45.0_16.5: 32 sources (total: 27105)
+  ✅ [73/240] 45.5_5.0: 252 sources (total: 27357)
+  ✅ [74/240] 45.5_5.5: 412 sources (total: 27769)
+  ✅ [75/240] 45.5_6.0: 712 sources (total: 28481)
+  ⏭ [76/240] 45.5_6.5: already has 616 sources
+  ⏭ [77/240] 45.5_7.0: already has 685 sources
+  ⏭ [78/240] 45.5_7.5: already has 1293 sources
+  ✅ [79/240] 45.5_8.0: 1701 sources (total: 30182)
+  ⏭ [80/240] 45.5_8.5: already has 1 sources
+  ✅ [81/240] 45.5_9.0: 2419 sources (total: 32601)
+  ✅ [82/240] 45.5_9.5: 1627 sources (total: 34228)
+  ✅ [83/240] 45.5_10.0: 1882 sources (total: 36110)
+  ✅ [84/240] 45.5_10.5: 1331 sources (total: 37441)
+  ✅ [85/240] 45.5_11.0: 1384 sources (total: 38825)
+  ✅ [86/240] 45.5_11.5: 569 sources (total: 39394)
+  ✅ [87/240] 45.5_12.0: 470 sources (total: 39864)
+  ✅ [88/240] 45.5_12.5: 408 sources (total: 40272)
+  ✅ [89/240] 45.5_13.0: 374 sources (total: 40646)
+  ✅ [90/240] 45.5_13.5: 766 sources (total: 41412)
+  ✅ [91/240] 45.5_14.0: 246 sources (total: 41658)
+  ✅ [92/240] 45.5_14.5: 115 sources (total: 41773)
+  ✅ [93/240] 45.5_15.0: 101 sources (total: 41874)
+  ✅ [94/240] 45.5_15.5: 254 sources (total: 42128)
+  ✅ [95/240] 45.5_16.0: 55 sources (total: 42183)
+  ✅ [96/240] 45.5_16.5: 45 sources (total: 42228)
+  ✅ [97/240] 46.0_5.0: 162 sources (total: 42390)
+  ✅ [98/240] 46.0_5.5: 279 sources (total: 42669)
+  ⏭ [99/240] 46.0_6.0: already has 1389 sources
+  ⏭ [100/240] 46.0_6.5: already has 930 sources
+  ✅ [101/240] 46.0_7.0: 476 sources (total: 43145)
+  ✅ [102/240] 46.0_7.5: 506 sources (total: 43651)
+  ✅ [103/240] 46.0_8.0: 1119 sources (total: 44770)
+  ✅ [104/240] 46.0_8.5: 1473 sources (total: 46243)
+  ✅ [105/240] 46.0_9.0: 1713 sources (total: 47956)
+  ✅ [106/240] 46.0_9.5: 937 sources (total: 48893)
+  ✅ [107/240] 46.0_10.0: 1020 sources (total: 49913)
+  ✅ [108/240] 46.0_10.5: 928 sources (total: 50841)
+  ❌ [109/240] 46.0_11.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [110/240] 46.0_11.5: 902 sources (total: 51743)
+  ❌ [111/240] 46.0_12.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [112/240] 46.0_12.5: 396 sources (total: 52139)
+  ✅ [113/240] 46.0_13.0: 702 sources (total: 52841)
+  ✅ [114/240] 46.0_13.5: 459 sources (total: 53300)
+  ✅ [115/240] 46.0_14.0: 366 sources (total: 53666)
+  ✅ [116/240] 46.0_14.5: 294 sources (total: 53960)
+  ✅ [117/240] 46.0_15.0: 240 sources (total: 54200)
+  ✅ [118/240] 46.0_15.5: 79 sources (total: 54279)
+  ✅ [119/240] 46.0_16.0: 57 sources (total: 54336)
+  ✅ [120/240] 46.0_16.5: 71 sources (total: 54407)
+  ❌ [121/240] 46.5_5.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [122/240] 46.5_5.5: 273 sources (total: 54680)
+  ⏭ [123/240] 46.5_6.0: already has 383 sources
+  ⏭ [124/240] 46.5_6.5: already has 1133 sources
+  ⏭ [125/240] 46.5_7.0: already has 919 sources
+  ⏭ [126/240] 46.5_7.5: already has 673 sources
+  ⏭ [127/240] 46.5_8.0: already has 591 sources
+  ⏭ [128/240] 46.5_8.5: already has 534 sources
+  ✅ [129/240] 46.5_9.0: 648 sources (total: 55328)
+  ✅ [130/240] 46.5_9.5: 656 sources (total: 55984)
+  ✅ [131/240] 46.5_10.0: 360 sources (total: 56344)
+  ✅ [132/240] 46.5_10.5: 258 sources (total: 56602)
+  ✅ [133/240] 46.5_11.0: 589 sources (total: 57191)
+  ✅ [134/240] 46.5_11.5: 744 sources (total: 57935)
+  ✅ [135/240] 46.5_12.0: 487 sources (total: 58422)
+  ❌ [136/240] 46.5_12.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [137/240] 46.5_13.0: 264 sources (total: 58686)
+  ✅ [138/240] 46.5_13.5: 455 sources (total: 59141)
+  ✅ [139/240] 46.5_14.0: 218 sources (total: 59359)
+  ✅ [140/240] 46.5_14.5: 110 sources (total: 59469)
+  ✅ [141/240] 46.5_15.0: 244 sources (total: 59713)
+  ✅ [142/240] 46.5_15.5: 169 sources (total: 59882)
+  ✅ [143/240] 46.5_16.0: 144 sources (total: 60026)
+  ❌ [144/240] 46.5_16.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ❌ [145/240] 47.0_5.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [146/240] 47.0_5.5: 119 sources (total: 60145)
+  ✅ [147/240] 47.0_6.0: 135 sources (total: 60280)
+  ✅ [148/240] 47.0_6.5: 222 sources (total: 60502)
+  ✅ [149/240] 47.0_7.0: 594 sources (total: 61096)
+  ❌ [150/240] 47.0_7.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ❌ [151/240] 47.0_8.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [152/240] 47.0_8.5: 2646 sources (total: 63742)
+  ⏭ [153/240] 47.0_9.0: already has 1087 sources
+  ⏭ [154/240] 47.0_9.5: already has 1039 sources
+  ⏭ [155/240] 47.0_10.0: already has 383 sources
+  ✅ [156/240] 47.0_10.5: 484 sources (total: 64226)
+  ✅ [157/240] 47.0_11.0: 894 sources (total: 65120)
+  ✅ [158/240] 47.0_11.5: 599 sources (total: 65719)
+  ✅ [159/240] 47.0_12.0: 202 sources (total: 65921)
+  ❌ [160/240] 47.0_12.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [161/240] 47.0_13.0: 498 sources (total: 66419)
+  ✅ [162/240] 47.0_13.5: 163 sources (total: 66582)
+  ✅ [163/240] 47.0_14.0: 106 sources (total: 66688)
+  ❌ [164/240] 47.0_14.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [165/240] 47.0_15.0: 498 sources (total: 67186)
+  ✅ [166/240] 47.0_15.5: 197 sources (total: 67383)
+  ❌ [167/240] 47.0_16.0: TIMEOUT
+  Waiting 30s (rate limit)...
+  ❌ [168/240] 47.0_16.5: TIMEOUT
+  Waiting 30s (rate limit)...
+  ❌ [169/240] 47.5_5.0: TIMEOUT
+  Waiting 30s (rate limit)...
+  ✅ [170/240] 47.5_5.5: 108 sources (total: 67491)
+  ✅ [171/240] 47.5_6.0: 102 sources (total: 67593)
+  ✅ [172/240] 47.5_6.5: 346 sources (total: 67939)
+  ✅ [173/240] 47.5_7.0: 353 sources (total: 68292)
+  ❌ [174/240] 47.5_7.5: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [175/240] 47.5_8.0: 807 sources (total: 69099)
+  ✅ [176/240] 47.5_8.5: 1131 sources (total: 70230)
+  ✅ [177/240] 47.5_9.0: 441 sources (total: 70671)
+  ✅ [178/240] 47.5_9.5: 419 sources (total: 71090)
+  ❌ [179/240] 47.5_10.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ⏭ [180/240] 47.5_10.5: already has 378 sources
+  ⏭ [181/240] 47.5_11.0: already has 379 sources
+  ⏭ [182/240] 47.5_11.5: already has 301 sources
+  ⏭ [183/240] 47.5_12.0: already has 738 sources
+  ⏭ [184/240] 47.5_12.5: already has 421 sources
+  ✅ [185/240] 47.5_13.0: 290 sources (total: 71380)
+  ✅ [186/240] 47.5_13.5: 323 sources (total: 71703)
+  ❌ [187/240] 47.5_14.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [188/240] 47.5_14.5: 193 sources (total: 71896)
+  ✅ [189/240] 47.5_15.0: 192 sources (total: 72088)
+  ✅ [190/240] 47.5_15.5: 404 sources (total: 72492)
+  ✅ [191/240] 47.5_16.0: 242 sources (total: 72734)
+  ✅ [192/240] 47.5_16.5: 353 sources (total: 73087)
+  ✅ [193/240] 48.0_5.0: 37 sources (total: 73124)
+  ✅ [194/240] 48.0_5.5: 69 sources (total: 73193)
+  ✅ [195/240] 48.0_6.0: 140 sources (total: 73333)
+  ✅ [196/240] 48.0_6.5: 157 sources (total: 73490)
+  ✅ [197/240] 48.0_7.0: 523 sources (total: 74013)
+  ✅ [198/240] 48.0_7.5: 386 sources (total: 74399)
+  ✅ [199/240] 48.0_8.0: 528 sources (total: 74927)
+  ✅ [200/240] 48.0_8.5: 331 sources (total: 75258)
+  ✅ [201/240] 48.0_9.0: 242 sources (total: 75500)
+  ✅ [202/240] 48.0_9.5: 146 sources (total: 75646)
+  ✅ [203/240] 48.0_10.0: 86 sources (total: 75732)
+  ✅ [204/240] 48.0_10.5: 217 sources (total: 75949)
+  ✅ [205/240] 48.0_11.0: 240 sources (total: 76189)
+  ✅ [206/240] 48.0_11.5: 324 sources (total: 76513)
+  ✅ [207/240] 48.0_12.0: 91 sources (total: 76604)
+  ✅ [208/240] 48.0_12.5: 99 sources (total: 76703)
+  ❌ [209/240] 48.0_13.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [210/240] 48.0_13.5: 96 sources (total: 76799)
+  ✅ [211/240] 48.0_14.0: 216 sources (total: 77015)
+  ✅ [212/240] 48.0_14.5: 69 sources (total: 77084)
+  ✅ [213/240] 48.0_15.0: 219 sources (total: 77303)
+  ✅ [214/240] 48.0_15.5: 191 sources (total: 77494)
+  ❌ [215/240] 48.0_16.0: JSON_PARSE
+  Waiting 30s (rate limit)...
+  ✅ [216/240] 48.0_16.5: 244 sources (total: 77738)
+  ✅ [217/240] 48.5_5.0: 33 sources (total: 77771)
+  ✅ [218/240] 48.5_5.5: 106 sources (total: 77877)
+  ✅ [219/240] 48.5_6.0: 167 sources (total: 78044)
+  ✅ [220/240] 48.5_6.5: 41 sources (total: 78085)
+  ✅ [221/240] 48.5_7.0: 201 sources (total: 78286)
+  ✅ [222/240] 48.5_7.5: 195 sources (total: 78481)
+  ✅ [223/240] 48.5_8.0: 717 sources (total: 79198)
+  ✅ [224/240] 48.5_8.5: 374 sources (total: 79572)
+  ✅ [225/240] 48.5_9.0: 907 sources (total: 80479)
+  ✅ [226/240] 48.5_9.5: 418 sources (total: 80897)
+  ✅ [227/240] 48.5_10.0: 245 sources (total: 81142)
+  ✅ [228/240] 48.5_10.5: 83 sources (total: 81225)
+  ✅ [229/240] 48.5_11.0: 117 sources (total: 81342)
+  ✅ [230/240] 48.5_11.5: 77 sources (total: 81419)
+  ✅ [231/240] 48.5_12.0: 68 sources (total: 81487)
+  ✅ [232/240] 48.5_12.5: 222 sources (total: 81709)
+  ✅ [233/240] 48.5_13.0: 545 sources (total: 82254)
+  ✅ [234/240] 48.5_13.5: 444 sources (total: 82698)
+  ✅ [235/240] 48.5_14.0: 172 sources (total: 82870)
+  ✅ [236/240] 48.5_14.5: 104 sources (total: 82974)
+  ✅ [237/240] 48.5_15.0: 144 sources (total: 83118)
+  ✅ [238/240] 48.5_15.5: 144 sources (total: 83262)
+  ✅ [239/240] 48.5_16.0: 108 sources (total: 83370)
+  ✅ [240/240] 48.5_16.5: 106 sources (total: 83476)
+
+=== RETRY 21 failed cells ===
+
+  ✅ [1/240] 44.0_9.0: 558 sources (total: 84034)
+  ✅ [2/240] 44.5_8.0: 352 sources (total: 84386)
+  ✅ [3/240] 44.5_11.0: 231 sources (total: 84617)
+  ✅ [4/240] 46.0_11.0: 1868 sources (total: 86485)
+  ✅ [5/240] 46.0_12.0: 726 sources (total: 87211)
+  ✅ [6/240] 46.5_5.0: 130 sources (total: 87341)
+  ✅ [7/240] 46.5_12.5: 372 sources (total: 87713)
+  ✅ [8/240] 46.5_16.5: 278 sources (total: 87991)
+  ✅ [9/240] 47.0_5.0: 144 sources (total: 88135)
+  ✅ [10/240] 47.0_7.5: 1017 sources (total: 89152)
+  ✅ [11/240] 47.0_8.0: 2080 sources (total: 91232)
+  ✅ [12/240] 47.0_12.5: 197 sources (total: 91429)
+  ✅ [13/240] 47.0_14.5: 167 sources (total: 91596)
+  ✅ [14/240] 47.0_16.0: 142 sources (total: 91738)
+  ❌ [15/240] 47.0_16.5: JSON_PARSE
+  ✅ [16/240] 47.5_5.0: 90 sources (total: 91828)
+  ✅ [17/240] 47.5_7.5: 1111 sources (total: 92939)
+  ✅ [18/240] 47.5_10.0: 334 sources (total: 93273)
+  ✅ [19/240] 47.5_14.0: 188 sources (total: 93461)
+  ✅ [20/240] 48.0_13.0: 69 sources (total: 93530)
+  ✅ [21/240] 48.0_16.0: 1834 sources (total: 95364)
+
+============================
+Finished: 2026-03-29T10:03:02.321Z
+Total inserted: 95364
+Failed cells: 47.0_16.5

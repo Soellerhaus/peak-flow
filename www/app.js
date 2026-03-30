@@ -2292,6 +2292,30 @@ const Peakflow = {
       document.getElementById('saveRouteBtn')?.click();
     });
 
+    // Compass — rotates with map bearing, click resets north
+    const _compassRose = document.getElementById('compassRose');
+    const _compassBtn = document.getElementById('compassBtn');
+    const _syncCompass = () => {
+      if (_compassRose) {
+        const bearing = this.map.getBearing();
+        _compassRose.style.transform = `rotate(${-bearing}deg)`;
+        _compassRose.style.transition = 'transform 0.15s linear';
+      }
+    };
+    this.map.on('rotate', _syncCompass);
+    this.map.on('load', _syncCompass);
+    _compassBtn?.addEventListener('click', () => {
+      this.map.resetNorth({ duration: 500 });
+    });
+
+    // Route start CTA — hide when logged in
+    const _hideCta = () => {
+      const cta = document.getElementById('routeStartCta');
+      if (cta && PeakflowData.currentUser) cta.classList.add('hidden');
+    };
+    document.addEventListener('peakflow:auth', _hideCta);
+    _hideCta();
+
     // Undo last waypoint
     document.getElementById('undoWaypointBtn')?.addEventListener('click', () => {
       PeakflowRoutes.undoLastWaypoint();
