@@ -1073,49 +1073,151 @@ const Peakflow = {
     const list = document.getElementById('raceRoutesList');
     if (!list) return;
 
-    let html = '';
+    // ── Group races by organizer (extracted from parenthetical in name) ────────
+    const groups = new Map();
     for (const r of races) {
       if (!r.coords || r.coords.length < 2) continue;
-      const d = r.race_date ? new Date(r.race_date) : null;
-      const dateStr = d ? d.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' }) : '';
-      const peaked = userPeaks.includes(r.id);
-      const dist = r.distance ? parseFloat(r.distance).toFixed(1) : '?';
-      const website = r.website_url ? `<a href="${r.website_url}" target="_blank" style="font-size:11px;color:var(--color-primary);">🔗 Website</a>` : '';
+      const m = r.race_name.match(/\(([^)]+)\)/);
+      const orgName = m ? m[1].trim() : r.race_name;
+      const displayName = r.race_name.replace(/\s*\([^)]+\)\s*/g, '').trim();
+      if (!groups.has(orgName)) {
+        groups.set(orgName, { races: [], logo: r.logo_url, website: r.website_url });
+      }
+      groups.get(orgName).races.push(Object.assign({}, r, { _displayName: displayName }));
+    }
 
-      html += `<div class="race-card community-race" data-race-id="${r.id}" style="cursor:pointer;">
-        <div class="race-card__header">
-          <div class="race-logo-placeholder">${r.logo_url ? '<img src="'+r.logo_url+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">' : '🏁'}</div>
-          <div class="race-card__meta">
-            <div class="race-card__title">${r.race_name}</div>
-            <div class="race-card__subtitle">${dateStr}${r.start_time ? ' · '+r.start_time+' Uhr' : ''}</div>
-            <div style="font-size:11px;color:var(--text-tertiary);">${r.start_name||''}${r.finish_name ? ' → '+r.finish_name : ''} · ${dist}km${r.ascent ? ' · ⬆'+r.ascent+'m' : ''}</div>
+    // ── Date formatter ────────────────────────────────────────────────────────
+    const fmtDate = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+    };
+    const fmtDateShort = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+    };
+    const fmtYear = (iso) => iso ? new Date(iso).getFullYear() : '';
+
+    // ── Difficulty label based on distance ────────────────────────────────────
+    const diffLabel = (km) => {
+      if (!km) return '';
+      const k = parseFloat(km);
+      if (k < 20) return '<span class="race-diff race-diff--easy">Einsteiger</span>';
+      if (k < 40) return '<span class="race-diff race-diff--medium">Trail</span>';
+      return '<span class="race-diff race-diff--hard">Ultra</span>';
+    };
+
+    // ── Build HTML ────────────────────────────────────────────────────────────
+    let html = '';
+    let groupIdx = 0;
+    const autoOpen = groups.size === 1; // auto-expand if only 1 organizer
+
+    for (const [orgName, group] of groups) {
+      const orgId = 'org' + groupIdx++;
+      const sortedRaces = group.races.slice().sort((a, b) => (a.race_date || '').localeCompare(b.race_date || ''));
+      const dates = sortedRaces.map(r => r.race_date).filter(Boolean).sort();
+      const dateMin = dates[0], dateMax = dates[dates.length - 1];
+      let dateRangeStr = '';
+      if (dateMin && dateMax && dateMin !== dateMax) {
+        const d1 = new Date(dateMin), d2 = new Date(dateMax);
+        dateRangeStr = d1.toLocaleDateString('de-DE', { day:'numeric', month:'long' }) + ' – ' +
+                       d2.toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' });
+      } else if (dateMin) {
+        dateRangeStr = fmtDate(dateMin) + ' ' + fmtYear(dateMin);
+      }
+
+      html += `
+      <div class="org-group" data-org-id="${orgId}">
+        <div class="org-header${autoOpen ? ' open' : ''}" data-org-id="${orgId}">
+          <div class="org-header__logo">
+            ${group.logo ? `<img src="${group.logo}" alt="${orgName}" loading="lazy">` : '<span class="org-header__logo-icon">🏁</span>'}
           </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
-          <button class="peak-btn ${peaked?'peaked':''}" data-race-id="${r.id}" title="Peak vergeben">
-            ⛰ <span class="peak-count">${r.peaks_count || 0}</span> ${r.peaks_count === 1 ? 'Peak' : 'Peaks'}
-          </button>
-          <div style="display:flex;gap:6px;align-items:center;">
-            ${website}
-            <button class="share-race-btn" data-token="${r.share_token}" title="Route teilen" style="background:none;border:none;cursor:pointer;font-size:14px;">📤</button>
+          <div class="org-header__info">
+            <div class="org-header__name">${orgName}</div>
+            <div class="org-header__meta">${dateRangeStr}${dateRangeStr ? ' · ' : ''}${sortedRaces.length} Strecke${sortedRaces.length !== 1 ? 'n' : ''}</div>
           </div>
+          <svg class="org-header__chevron${autoOpen ? ' rotated' : ''}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6,9 12,15 18,9"/>
+          </svg>
         </div>
-      </div>`;
+        <div class="org-races${autoOpen ? '' : ' collapsed'}" id="${orgId}-races">`;
+
+      for (const r of sortedRaces) {
+        const peaked = userPeaks.includes(r.id);
+        const dist = r.distance ? parseFloat(r.distance).toFixed(1) : '?';
+        html += `
+          <div class="race-item" data-race-id="${r.id}">
+            <div class="race-item__header">
+              <span class="race-item__name">${r._displayName}</span>
+              ${diffLabel(r.distance)}
+            </div>
+            <div class="race-item__stats">
+              ${r.race_date ? `<span>📅 ${fmtDateShort(r.race_date)}</span>` : ''}
+              <span>📏 ${dist} km</span>
+              ${r.ascent ? `<span>⬆ ${r.ascent} m</span>` : ''}
+              ${r.descent ? `<span>⬇ ${r.descent} m</span>` : ''}
+            </div>
+            ${r.description ? `<div class="race-item__desc">${r.description}</div>` : ''}
+            <div class="race-item__actions">
+              <button class="race-show-btn btn btn--sm btn--primary" data-race-id="${r.id}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                Auf Karte
+              </button>
+              ${group.website ? `<a href="${group.website}" target="_blank" rel="noopener" class="btn btn--sm btn--outline">🔗 Website</a>` : ''}
+              <button class="peak-btn race-peak-btn ${peaked ? 'peaked' : ''}" data-race-id="${r.id}" title="Peak vergeben">
+                ⛰ <span class="peak-count">${r.peaks_count || 0}</span>
+              </button>
+            </div>
+          </div>`;
+      }
+
+      html += `</div></div>`; // close org-races + org-group
+    }
+
+    if (!html) {
+      html = '<div style="text-align:center;padding:24px 12px;color:var(--text-tertiary);font-size:13px;">Noch keine Rennen eingetragen.<br>Sei der Erste! 🏁</div>';
     }
 
     list.innerHTML = html;
 
-    // Race card click → load route
-    list.querySelectorAll('.community-race').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.peak-btn') || e.target.closest('.share-race-btn') || e.target.closest('a')) return;
-        const race = races.find(r => r.id === card.dataset.raceId);
-        if (race) this.loadRaceStage(race);
+    // ── Accordion toggle ──────────────────────────────────────────────────────
+    list.querySelectorAll('.org-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const orgId = header.dataset.orgId;
+        const racesEl = document.getElementById(orgId + '-races');
+        const isOpen = !racesEl.classList.contains('collapsed');
+        // Close all
+        list.querySelectorAll('.org-races').forEach(el => el.classList.add('collapsed'));
+        list.querySelectorAll('.org-header').forEach(el => el.classList.remove('open'));
+        list.querySelectorAll('.org-header__chevron').forEach(el => el.classList.remove('rotated'));
+        if (!isOpen) { // was closed → open it
+          racesEl.classList.remove('collapsed');
+          header.classList.add('open');
+          header.querySelector('.org-header__chevron')?.classList.add('rotated');
+        }
       });
     });
 
-    // Peak buttons
-    list.querySelectorAll('.peak-btn').forEach(btn => {
+    // ── "Auf Karte" → show route WITHOUT tab switch ───────────────────────────
+    list.querySelectorAll('.race-show-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const race = races.find(r => r.id === btn.dataset.raceId);
+        if (!race) return;
+        // Mark this button active, reset others
+        list.querySelectorAll('.race-show-btn').forEach(b => {
+          b.classList.remove('active');
+          b.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg> Auf Karte';
+        });
+        btn.classList.add('active');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg> Wird gezeigt';
+        this.loadRaceOnMap(race);
+      });
+    });
+
+    // ── Peak buttons ──────────────────────────────────────────────────────────
+    list.querySelectorAll('.race-peak-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!PeakflowData.currentUser) { document.getElementById('authModal').classList.remove('hidden'); return; }
@@ -1128,18 +1230,56 @@ const Peakflow = {
         countEl.textContent = result.peaked ? c + 1 : Math.max(0, c - 1);
       });
     });
+  },
 
-    // Share buttons
-    list.querySelectorAll('.share-race-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const url = window.location.origin + '?race=' + btn.dataset.token;
-        navigator.clipboard.writeText(url).then(() => {
-          btn.textContent = '✅';
-          setTimeout(() => btn.textContent = '📤', 2000);
+  // ── Load race route on map — stays in Entdecken/Rennen tab ────────────────
+  async loadRaceOnMap(race) {
+    if (!race.coords || race.coords.length < 2) return;
+    const R = PeakflowRoutes;
+
+    // Clear previous race overlays
+    if (this._raceMapLayers) {
+      Object.keys(this._raceMapLayers).forEach(key => {
+        (this._raceMapLayers[key] || []).forEach(id => {
+          try { R.map.removeLayer(id); } catch(e) {}
+          try { R.map.removeSource(id); } catch(e) {}
         });
       });
-    });
+      this._raceMapLayers = {};
+    }
+    // Clear old route markers + line
+    R.markers.forEach(m => m.remove());
+    R.markers = [];
+    R.routeCoords = race.coords;
+    R.elevations = race.coords.map(c => c[2] || 0);
+
+    // Draw route line
+    R.drawRouteLine(race.coords);
+
+    // Start + finish markers
+    const startC = race.coords[0];
+    const endC   = race.coords[race.coords.length - 1];
+    new maplibregl.Marker({ color: '#22c55e' }).setLngLat([startC[0], startC[1]]).addTo(R.map);
+    new maplibregl.Marker({ color: '#e63946' }).setLngLat([endC[0], endC[1]]).addTo(R.map);
+
+    // Fit map to route
+    const lngs = race.coords.map(c => c[0]);
+    const lats  = race.coords.map(c => c[1]);
+    R.map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: { top: 60, bottom: 180, left: 260, right: 60 }, duration: 900 }
+    );
+
+    // Show elevation profile at bottom
+    const elevEl = document.getElementById('elevationProfile');
+    if (elevEl) elevEl.classList.remove('hidden');
+    setTimeout(() => R.drawElevationProfile(), 200);
+
+    // Background analysis (snow, weather etc.)
+    R.loadSACDataForRoute(race.coords).catch(() => {});
+    R.analyzeSnowOnRoute().catch(() => {});
+    R.loadRouteWeather(race.coords).catch(() => {});
+    R.loadWaterSources(race.coords).catch(() => {});
   },
 
   _toggleRaceOnMap(key, stages, btn) {

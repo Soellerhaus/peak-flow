@@ -5924,3 +5924,66 @@ Batch: 2986 - 2990
   ❌ Westlicher Schafhimmelkopf (2712m) - no trail
   Processed: 2990 | Updated: 2468
   Waiting 30s...
+
+Batch: 2991 - 2995
+  ❌ Ochsentällispitz (2711m) - no trail
+  ✅ Pazüelfernerspitze (2711m) - T4
+  ❌ Passo Dei Mortè (2711m) - no trail
+  ❌ Schwarztallücke (2711m) - no trail
+  ✅ Monte Crabun (2711m) - T2
+  Processed: 2995 | Updated: 2473
+  Waiting 30s...
+
+Batch: 2996 - 3000
+  ❌ Garzen (2711m) - no trail
+  ✅ Rontscher - Monte dei Romici (2711m) - T2
+  ✅ Jägerchrüz (2711m) - T4
+  ❌ Pizzo Martello (2711m) - no trail
+  ✅ Krapfenkarspitz - Quaira Tonda (2711m) - T1
+  Processed: 3000 | Updated: 2478
+  Waiting 30s...
+
+Batch: 3001 - 3005
+  ❌ Schafleck (2711m) - no trail
+  ❌ Mittlerer Findelkarkopf (2711m) - no trail
+  ❌ Krapfbrachkopf (2711m) - no trail
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Weißeck (2711m) - skipped (error)
+  ✅ Milchseescharte - Forcella dei Laghi (2710m) - T4
+  Processed: 3005 | Updated: 2482
+  Waiting 30s...
+
+Batch: 3006 - 3010
+  ✅ Trelebitschtörl (2710m) - T1
+  ❌ Obere Prititschscharte (2710m) - no trail
+  ✅ Gruejoch (2710m) - T4
+  ❌ Popbergscharte (2710m) - no trail
+  ❌ Kleine Sulzfluh (2710m) - no trail
+  Processed: 3010 | Updated: 2487
+  Waiting 30s...
+
+Batch: 3011 - 3015
+  ❌ Pizzo della Sassada (2710m) - no trail
+  ❌ Il Forcellone (2710m) - no trail
+  ❌ Mont Gond (2710m) - no trail
+  ✅ Fil dei Fredolan (2710m) - T3
+  ❌ Punta Veceti (2710m) - no trail
+  Processed: 3015 | Updated: 2492
+  Waiting 30s...
+
+Batch: 3016 - 3020
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Piz Val Matruga (2710m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Grosse Galizenspitze (2710m) - skipped (error)
+  Error: Unexpected token '<', "<?xml vers"... is not valid JSON
+  ⏭ Clutgers (2710m) - skipped (error)
+  ❌ Rosskopf (2710m) - no trail
+  ✅ Höllböden - Monte Chiaro (2710m) - T1
+  Processed: 3020 | Updated: 2494
+  Waiting 30s...
+
+Batch: 3021 - 3025
+  ❌ Großer Woisgenkopf (2710m) - no trail
+  ✅ Pitl Ciampanil de Murfreit (2710m) - T3
+  ❌ Piz Val Matruga (2710m) - no trail

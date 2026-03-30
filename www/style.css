@@ -2457,3 +2457,205 @@ a:hover { text-decoration: underline; }
   color: var(--text-tertiary);
   flex-shrink: 0;
 }
+
+/* ============================================================
+   ORGANIZER ACCORDION — Rennen-Tab
+   ============================================================ */
+
+/* Outer wrapper per organizer */
+.org-group {
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+/* Organizer header row — clickable */
+.org-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+.org-header:hover,
+.org-header.open {
+  background: var(--bg-tertiary);
+}
+
+/* Logo box — square, rounded */
+.org-header__logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 3px;
+}
+.org-header__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.org-header__logo-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Text info */
+.org-header__info {
+  flex: 1;
+  min-width: 0;
+}
+.org-header__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-header__meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Chevron icon */
+.org-header__chevron {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform 0.2s ease;
+}
+.org-header__chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* Race list — collapsible */
+.org-races {
+  overflow: hidden;
+  max-height: 2000px;
+  transition: max-height 0.3s ease;
+  background: var(--bg-primary);
+}
+.org-races.collapsed {
+  max-height: 0;
+}
+
+/* ── Single race card ─────────────────────────────────────── */
+.race-item {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color-light);
+}
+.race-item:first-child {
+  border-top: none;
+}
+.race-item:hover {
+  background: var(--bg-secondary);
+}
+
+/* Race title row */
+.race-item__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.race-item__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Difficulty badge */
+.race-diff {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.race-diff--easy {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+.race-diff--medium {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+}
+.race-diff--hard {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* Stats row */
+.race-item__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+/* Description */
+.race-item__desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Actions row */
+.race-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* "Auf Karte" button active state */
+.race-show-btn.active {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+/* Peak button */
+.race-peak-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.race-peak-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.race-peak-btn.peaked {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
