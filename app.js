@@ -1838,15 +1838,20 @@ const Peakflow = {
       });
     });
 
-    // Water toggle
-    document.getElementById('waterToggleBtn').addEventListener('click', () => {
+    // Water toggle — ON: show all in viewport, OFF: hide all
+    document.getElementById('waterToggleBtn').addEventListener('click', async () => {
       this._waterVisible = !this._waterVisible;
       document.getElementById('waterToggleBtn').classList.toggle('active', this._waterVisible);
-      // Show/hide water markers from routes
-      if (PeakflowRoutes._waterMarkers) {
-        PeakflowRoutes._waterMarkers.forEach(m => {
-          m.getElement().style.display = this._waterVisible ? '' : 'none';
-        });
+
+      if (this._waterVisible) {
+        // Load ALL water sources in current viewport
+        await this._loadViewportWaterSources();
+      } else {
+        // Hide all water markers
+        if (PeakflowRoutes._waterMarkers) {
+          PeakflowRoutes._waterMarkers.forEach(m => m.remove());
+          PeakflowRoutes._waterMarkers = [];
+        }
       }
     });
 
@@ -2924,6 +2929,50 @@ const Peakflow = {
   hideSearchDropdown() {
     const dropdown = document.getElementById('searchDropdown');
     if (dropdown) dropdown.classList.add('hidden');
+  },
+
+  // Load all water sources in current map viewport
+  async _loadViewportWaterSources() {
+    try {
+      const bounds = this.map.getBounds();
+      const south = bounds.getSouth().toFixed(4);
+      const north = bounds.getNorth().toFixed(4);
+      const west = bounds.getWest().toFixed(4);
+      const east = bounds.getEast().toFixed(4);
+
+      const url = 'https://wbrvkweezbeakfphssxp.supabase.co/rest/v1/water_sources' +
+        '?lat=gte.' + south + '&lat=lte.' + north +
+        '&lng=gte.' + west + '&lng=lte.' + east +
+        '&select=osm_id,name,type,lat,lng&limit=500';
+
+      const resp = await fetch(url, {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicnZrd2VlemJlYWtmcGhzc3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwODk4NjEsImV4cCI6MjA4OTY2NTg2MX0.WDzw0d4NewgPhFopQyaQ6f3E0K-yFhOSIeDGXdVa7xE' }
+      });
+      if (!resp.ok) return;
+      const nodes = await resp.json();
+      console.log('[Peakflow] Viewport water sources: ' + nodes.length);
+
+      // Remove old viewport markers
+      if (PeakflowRoutes._waterMarkers) {
+        PeakflowRoutes._waterMarkers.forEach(m => m.remove());
+      }
+      PeakflowRoutes._waterMarkers = [];
+
+      nodes.forEach(node => {
+        const type = node.type === 'spring' ? '🏔️ Quelle' : node.type === 'water_well' ? '🪣 Brunnen' : '🚰 Trinkwasser';
+        const el = document.createElement('div');
+        el.style.cssText = 'width:20px;height:20px;border-radius:50%;background:#3b82f6;border:2px solid white;box-shadow:0 0 6px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;z-index:5;';
+        el.innerHTML = '💧';
+        el.title = (node.name || type);
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([node.lng, node.lat]).addTo(this.map);
+        const popup = new maplibregl.Popup({ offset: 20, maxWidth: '200px' })
+          .setHTML('<div style="padding:4px;font-family:Inter,sans-serif;"><strong>💧 ' + (node.name || 'Wasserquelle') + '</strong><div style="font-size:12px;color:#666;">' + type + '</div></div>');
+        marker.setPopup(popup);
+        PeakflowRoutes._waterMarkers.push(marker);
+      });
+    } catch(e) {
+      console.warn('[Peakflow] Viewport water load failed:', e);
+    }
   },
 
   // ============================================

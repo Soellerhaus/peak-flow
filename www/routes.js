@@ -1023,8 +1023,8 @@ const PeakflowRoutes = {
     if (waterNodes.length === 0) return;
 
     try {
-      // Filter to sources within 1km of route
-      const threshold = 0.01;
+      // Filter to sources within ~200m of route
+      const threshold = 0.002;
       const thresholdSq = threshold * threshold;
       const sources = [];
 
