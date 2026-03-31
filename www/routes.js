@@ -815,8 +815,10 @@ const PeakflowRoutes = {
                   if (elevs[ei] > elevs[ei - 1]) segAscent += elevs[ei] - elevs[ei - 1];
                 }
                 const avgGradient = (segAscent / (dist * 1000)) * 100; // percent
-                const maxGradient = { fastbike: 10, gravel: 14, mtb: 20, trekking: 15 };
-                const limit = maxGradient[brouterProfile] || 15;
+                // Conservative limits: BRouter can't distinguish road vs trail surface,
+                // so we reject steep routes that are likely hiking trails, not bike paths
+                const maxGradient = { fastbike: 8, gravel: 10, mtb: 16, trekking: 10 };
+                const limit = maxGradient[brouterProfile] || 10;
                 if (avgGradient > limit) {
                   throw new Error(`Gradient ${avgGradient.toFixed(0)}% > ${limit}% for ${brouterProfile}`);
                 }
