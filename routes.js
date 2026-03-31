@@ -806,21 +806,44 @@ const PeakflowRoutes = {
                 const detour = segDirect > 0.05 ? dist / segDirect : 1;
                 if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
               }
-              // Bike gradient validation: reject routes with unrealistic steepness
-              // Road bikes can't climb >12% avg, MTB >20%, E-Bike >15%
+              // Bike gradient validation: two checks
+              // 1) Average gradient per segment
+              // 2) Rolling window: steepest 500m section (catches ridges hidden in long segments)
               if (isBike && dist > 0.3) {
                 const elevs = rc.map(c => c[2] || 0);
                 let segAscent = 0;
                 for (let ei = 1; ei < elevs.length; ei++) {
                   if (elevs[ei] > elevs[ei - 1]) segAscent += elevs[ei] - elevs[ei - 1];
                 }
-                const avgGradient = (segAscent / (dist * 1000)) * 100; // percent
-                // Conservative limits: BRouter can't distinguish road vs trail surface,
-                // so we reject steep routes that are likely hiking trails, not bike paths
-                const maxGradient = { fastbike: 8, gravel: 10, mtb: 16, trekking: 10 };
-                const limit = maxGradient[brouterProfile] || 10;
-                if (avgGradient > limit) {
-                  throw new Error(`Gradient ${avgGradient.toFixed(0)}% > ${limit}% for ${brouterProfile}`);
+                const avgGradient = (segAscent / (dist * 1000)) * 100;
+                const maxAvg = { fastbike: 8, gravel: 10, mtb: 12, trekking: 10 };
+                const avgLimit = maxAvg[brouterProfile] || 10;
+                if (avgGradient > avgLimit) {
+                  throw new Error(`Avg gradient ${avgGradient.toFixed(0)}% > ${avgLimit}% for ${brouterProfile}`);
+                }
+                // Rolling 500m window: reject if any section is too steep (T3+ hiking trail)
+                const maxSection = { fastbike: 12, gravel: 15, mtb: 20, trekking: 15 };
+                const secLimit = maxSection[brouterProfile] || 15;
+                let runDist = 0, runAscent = 0, windowStart = 0;
+                for (let ei = 1; ei < rc.length; ei++) {
+                  const d = PeakflowUtils.haversineDistance(rc[ei-1][1], rc[ei-1][0], rc[ei][1], rc[ei][0]) * 1000;
+                  const eleDiff = (rc[ei][2] || 0) - (rc[ei-1][2] || 0);
+                  runDist += d;
+                  if (eleDiff > 0) runAscent += eleDiff;
+                  // Slide window: keep ~500m
+                  while (runDist > 500 && windowStart < ei - 1) {
+                    const wd = PeakflowUtils.haversineDistance(rc[windowStart][1], rc[windowStart][0], rc[windowStart+1][1], rc[windowStart+1][0]) * 1000;
+                    const we = (rc[windowStart+1][2] || 0) - (rc[windowStart][2] || 0);
+                    runDist -= wd;
+                    if (we > 0) runAscent -= we;
+                    windowStart++;
+                  }
+                  if (runDist > 200) {
+                    const secGrad = (runAscent / runDist) * 100;
+                    if (secGrad > secLimit) {
+                      throw new Error(`Section gradient ${secGrad.toFixed(0)}% > ${secLimit}% for ${brouterProfile}`);
+                    }
+                  }
                 }
               }
               return { profile, coords: rc, dist };
