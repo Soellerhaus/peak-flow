@@ -806,6 +806,21 @@ const PeakflowRoutes = {
                 const detour = segDirect > 0.05 ? dist / segDirect : 1;
                 if (detour > MAX_DETOUR) throw new Error(`Detour ×${detour.toFixed(1)}`);
               }
+              // Bike gradient validation: reject routes with unrealistic steepness
+              // Road bikes can't climb >12% avg, MTB >20%, E-Bike >15%
+              if (isBike && dist > 0.3) {
+                const elevs = rc.map(c => c[2] || 0);
+                let segAscent = 0;
+                for (let ei = 1; ei < elevs.length; ei++) {
+                  if (elevs[ei] > elevs[ei - 1]) segAscent += elevs[ei] - elevs[ei - 1];
+                }
+                const avgGradient = (segAscent / (dist * 1000)) * 100; // percent
+                const maxGradient = { fastbike: 10, gravel: 14, mtb: 20, trekking: 15 };
+                const limit = maxGradient[brouterProfile] || 15;
+                if (avgGradient > limit) {
+                  throw new Error(`Gradient ${avgGradient.toFixed(0)}% > ${limit}% for ${brouterProfile}`);
+                }
+              }
               return { profile, coords: rc, dist };
             });
         };
