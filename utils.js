@@ -109,15 +109,27 @@ const PeakflowUtils = {
 
   /**
    * Calculate ascent and descent from elevation array
+   * Uses threshold-based filtering to eliminate GPS noise (like Strava/Garmin)
+   * Only counts elevation changes when cumulative change exceeds threshold
    * @param {number[]} elevations
+   * @param {number} [threshold=4] - minimum elevation change in meters to count
    * @returns {{ ascent: number, descent: number }}
    */
-  calculateElevationGain(elevations) {
+  calculateElevationGain(elevations, threshold) {
+    if (!elevations || elevations.length < 2) return { ascent: 0, descent: 0 };
+    // Default threshold: 4m for BRouter data (clean), use higher for GPS tracks
+    if (threshold === undefined) threshold = 4;
     let ascent = 0, descent = 0;
+    let refElev = elevations[0]; // reference elevation (last confirmed change)
     for (let i = 1; i < elevations.length; i++) {
-      const diff = elevations[i] - elevations[i - 1];
-      if (diff > 0) ascent += diff;
-      else descent += Math.abs(diff);
+      const diff = elevations[i] - refElev;
+      if (diff > threshold) {
+        ascent += diff;
+        refElev = elevations[i];
+      } else if (diff < -threshold) {
+        descent += Math.abs(diff);
+        refElev = elevations[i];
+      }
     }
     return { ascent: Math.round(ascent), descent: Math.round(descent) };
   },

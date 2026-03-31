@@ -1447,9 +1447,12 @@ const PeakflowRoutes = {
     statsEl.classList.remove('hidden');
     actionsEl.classList.remove('hidden');
 
-    // Calculate distance
+    // Calculate distance from full route coords
     const distance = PeakflowUtils.routeDistance(this.routeCoords);
-    const { ascent, descent } = PeakflowUtils.calculateElevationGain(this.elevations);
+    // Use race override stats if available (stored DB values), else calculate from elevation data
+    const calcElev = PeakflowUtils.calculateElevationGain(this.elevations);
+    const ascent = (this._raceOverrideStats && this._raceOverrideStats.ascent) || calcElev.ascent;
+    const descent = (this._raceOverrideStats && this._raceOverrideStats.descent) || calcElev.descent;
     const maxElev = Math.max(...this.elevations);
     const time = PeakflowUtils.calculateTime(distance, ascent, descent);
     const difficulty = PeakflowUtils.calculateDifficulty(distance, ascent, maxElev);

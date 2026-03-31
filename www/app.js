@@ -1375,7 +1375,15 @@ const Peakflow = {
 
     R.updateWaypointList();
     R.drawRouteLine(stage.coords);
+
+    // For race stages: use stored ascent/descent if available (more accurate than GPS recalc)
+    if (stage.ascent && stage.descent) {
+      R._raceOverrideStats = { ascent: stage.ascent, descent: stage.descent };
+    } else {
+      R._raceOverrideStats = null;
+    }
     R.updateStats();
+    R._raceOverrideStats = null; // Clear after use
 
     const elevEl = document.getElementById('elevationProfile');
     if (elevEl) elevEl.classList.remove('hidden');
