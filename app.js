@@ -4014,8 +4014,8 @@ Peakflow.toggleSnowOverlay = async function() {
   for (var lat = bounds.getSouth(); lat < bounds.getNorth(); lat += step) {
     for (var lng = bounds.getWest(); lng < bounds.getEast(); lng += step) {
       var key = lat.toFixed(2) + ',' + lng.toFixed(2);
-      if (this._snowOverlayCache[key]) {
-        features.push(this._createSnowFeature(lat, lng, step, this._snowOverlayCache[key]));
+      if (this._snowOverlayCache[key] !== undefined) {
+        if (this._snowOverlayCache[key] > 0) features.push(this._createSnowFeature(lat, lng, step, this._snowOverlayCache[key]));
       } else {
         (function(lat2, lng2, key2) {
           fetches.push(
@@ -4026,7 +4026,7 @@ Peakflow.toggleSnowOverlay = async function() {
               var snow = data.hourly?.snow_depth?.[new Date().getHours()] || 0;
               var snowCm = Math.round(snow * 100);
               Peakflow._snowOverlayCache[key2] = snowCm;
-              features.push(Peakflow._createSnowFeature(lat2, lng2, step, snowCm));
+              if (snowCm > 0) features.push(Peakflow._createSnowFeature(lat2, lng2, step, snowCm));
             }).catch(function() {})
           );
         })(lat, lng, key);
@@ -4049,7 +4049,7 @@ Peakflow.toggleSnowOverlay = async function() {
       source: 'snow-grid',
       paint: {
         'fill-color': ['get', 'color'],
-        'fill-opacity': 0.35
+        'fill-opacity': 0.55
       }
     }); // Snow grid layer (below route if exists)
   }
@@ -4057,10 +4057,11 @@ Peakflow.toggleSnowOverlay = async function() {
 };
 
 Peakflow._createSnowFeature = function(lat, lng, step, snowCm) {
-  var color = '#22c55e'; // green = snow free
-  if (snowCm > 50) color = '#ffffff';
-  else if (snowCm > 20) color = '#f97316';
-  else if (snowCm > 5) color = '#facc15';
+  // Only snow cells rendered (snowCm > 0), no green "snow-free" cells
+  var color = '#dbeafe'; // light blue = light snow
+  if (snowCm > 100) color = '#ffffff'; // deep white = heavy snow
+  else if (snowCm > 50) color = '#e0e7ff'; // blue-white
+  else if (snowCm > 20) color = '#bfdbfe'; // medium blue
   return {
     type: 'Feature',
     properties: { snowCm: snowCm, color: color },
