@@ -960,12 +960,15 @@ const Peakflow = {
           <div class="poi-item__meta">${meta}${warning}</div>
         </div>
         <div class="poi-item__elevation">${item.elevation}m</div>
+        <button class="poi-item__star" data-lat="${item.lat}" data-lng="${item.lng}" data-name="${(item.name || '').replace(/"/g, '&quot;')}" data-elev="${item.elevation}" title="Zur Watchlist" style="background:none;border:none;cursor:pointer;font-size:16px;padding:4px;opacity:0.5;transition:opacity 0.2s;">⭐</button>
       </div>`;
     }).join('');
 
     // Click handlers
     container.querySelectorAll('.poi-item').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        // Don't trigger if star button was clicked
+        if (e.target.closest('.poi-item__star')) return;
         const id = parseInt(el.dataset.id);
         const poiType = el.dataset.type;
         const poi = this.allPOIs.find(p => p.id === id && p.type === poiType);
@@ -973,6 +976,23 @@ const Peakflow = {
           this.showPOIPopup(poi);
           this.showPOIDetail(poi);
         }
+      });
+    });
+
+    // Watchlist star buttons
+    container.querySelectorAll('.poi-item__star').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!PeakflowData.currentUser) { alert('Bitte zuerst anmelden!'); return; }
+        var lat = parseFloat(btn.dataset.lat);
+        var lng = parseFloat(btn.dataset.lng);
+        var already = await PeakflowData.isOnWatchlist(lat, lng);
+        if (already) { btn.style.opacity = '1'; btn.textContent = '✅'; return; }
+        var result = await PeakflowData.addToWatchlist({
+          name: btn.dataset.name, lat: lat, lng: lng, elevation: parseInt(btn.dataset.elev) || null
+        });
+        if (!result.error) { btn.style.opacity = '1'; btn.textContent = '✅'; }
+        else { alert('Fehler: ' + (result.error.message || result.error)); }
       });
     });
   },
@@ -4031,7 +4051,7 @@ Peakflow.toggleSnowOverlay = async function() {
         'fill-color': ['get', 'color'],
         'fill-opacity': 0.35
       }
-    }, 'route-outline'); // Below route line
+    }); // Snow grid layer (below route if exists)
   }
   this._snowOverlayVisible = true;
 };
