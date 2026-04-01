@@ -3685,64 +3685,83 @@ Peakflow.showBestWindow = async function(lat, lng, name) {
 Peakflow.calculateTourBudget = async function() {
   var resultsEl = document.getElementById('tourBudgetResults');
   if (!resultsEl) return;
-  resultsEl.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-tertiary);">⏳ Berechne erreichbare Gipfel...</div>';
+  resultsEl.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-tertiary);">⏳ Prüfe Schnee & berechne erreichbare Ziele...</div>';
 
   var hours = parseFloat(document.getElementById('tourBudgetTime').value) || 4;
   var profile = PeakflowUtils.PROFILES[PeakflowUtils.currentProfile];
   var speed = profile ? profile.flatSpeed : 4;
-  // Max reachable distance (round trip): speed × hours / 2 (hin und zurück)
   var maxDistKm = speed * hours / 2;
-  // Convert to rough lat/lng degree offset (~111km per degree)
   var degOffset = maxDistKm / 111;
 
-  // Get user's current map center as start point
   var center = PeakflowRoutes.map ? PeakflowRoutes.map.getCenter() : null;
   if (!center) { resultsEl.innerHTML = '<p>Karte nicht geladen.</p>'; return; }
 
-  // Query peaks within radius from Supabase
+  // Get current snow line from Open-Meteo (freezing level as proxy)
+  var snowLine = 9999;
   try {
-    var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
-      '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
-      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset) +
-      '&elevation=gt.0&limit=50&order=elevation.desc';
-    var resp = await fetch(url, {
-      headers: { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY }
-    });
-    var peaks = await resp.json();
+    var snowResp = await fetch(PeakflowWeather.BASE_URL + '/forecast?latitude=' + center.lat.toFixed(3) + '&longitude=' + center.lng.toFixed(3) + '&hourly=snow_depth,freezing_level_height&forecast_days=1&timezone=auto');
+    var snowData = await snowResp.json();
+    var hour = new Date().getHours();
+    var freezeLevel = snowData.hourly?.freezing_level_height?.[hour] || 9999;
+    var snowDepth = (snowData.hourly?.snow_depth?.[hour] || 0) * 100; // cm
+    // Snow line: rough estimate — if snow on ground, use freezing level minus buffer
+    snowLine = snowDepth > 5 ? Math.min(freezeLevel, 2500) : freezeLevel;
+  } catch(e) { console.warn('[Peakflow] Snow check failed:', e); }
 
-    if (!peaks || peaks.length === 0) {
-      resultsEl.innerHTML = '<p class="sidebar__empty">Keine Gipfel im Umkreis von ' + maxDistKm.toFixed(0) + 'km gefunden.</p>';
+  try {
+    var headers = { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY };
+    var baseFilter = '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
+      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset);
+
+    // Query peaks + huts + passes in parallel
+    var [peaksResp, hutsResp, passesResp] = await Promise.all([
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation,reachable' + baseFilter + '&elevation=gt.0&limit=30&order=elevation.desc', { headers: headers }),
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/huts?select=name,lat,lng,elevation' + baseFilter + '&limit=15&order=elevation.desc', { headers: headers }),
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/passes?select=name,lat,lng,elevation' + baseFilter + '&limit=15&order=elevation.desc', { headers: headers })
+    ]);
+    var peaks = await peaksResp.json();
+    var huts = (await hutsResp.json()).map(function(h) { h._type = 'hut'; return h; });
+    var passes = (await passesResp.json()).map(function(p) { p._type = 'pass'; return p; });
+    var allPOIs = [].concat(peaks || [], huts || [], passes || []);
+
+    if (allPOIs.length === 0) {
+      resultsEl.innerHTML = '<p class="sidebar__empty">Keine Ziele im Umkreis von ' + maxDistKm.toFixed(0) + 'km gefunden.</p>';
       return;
     }
 
-    // Calculate estimated time for each peak
     var results = [];
-    for (var i = 0; i < peaks.length; i++) {
-      var p = peaks[i];
+    for (var i = 0; i < allPOIs.length; i++) {
+      var p = allPOIs[i];
+      // Skip unreachable peaks
+      if (p.reachable === false) continue;
+      // Skip peaks above snow line (likely snow-covered)
+      if ((p.elevation || 0) > snowLine && !p._type) continue;
       var distKm = PeakflowUtils.haversineDistance(center.lat, center.lng, p.lat, p.lng);
       if (distKm > maxDistKm) continue;
-      var ascentEstimate = Math.max(0, (p.elevation || 0) - (center.lat > 0 ? 800 : 500)); // rough valley elevation
+      var ascentEstimate = Math.max(0, (p.elevation || 0) - (center.lat > 0 ? 800 : 500));
       var time = PeakflowUtils.calculateTime(distKm * 2, ascentEstimate, ascentEstimate);
       if (time.totalMinutes <= hours * 60) {
-        results.push({ name: p.name, elevation: p.elevation, dist: distKm, time: time, lat: p.lat, lng: p.lng });
+        var icon = p._type === 'hut' ? '🛖' : p._type === 'pass' ? '🏔' : '⛰';
+        results.push({ name: p.name, elevation: p.elevation, dist: distKm, time: time, lat: p.lat, lng: p.lng, icon: icon, type: p._type || 'peak' });
       }
     }
 
     results.sort(function(a, b) { return (b.elevation || 0) - (a.elevation || 0); });
 
     if (results.length === 0) {
-      resultsEl.innerHTML = '<p class="sidebar__empty">In ' + hours + 'h leider kein Gipfel erreichbar.</p>';
+      resultsEl.innerHTML = '<p class="sidebar__empty">In ' + hours + 'h kein schneefreies Ziel erreichbar.<br><span style="font-size:11px;">Schneegrenze: ~' + snowLine + 'm</span></p>';
       return;
     }
 
-    var html = '';
+    var html = '<div style="font-size:11px;color:var(--text-tertiary);margin-bottom:6px;">Schneegrenze: ~' + snowLine + 'm · ' + results.length + ' Ziele</div>';
     for (var j = 0; j < Math.min(results.length, 8); j++) {
       var r = results[j];
+      var snowWarning = (r.elevation || 0) > snowLine - 200 ? ' ❄️' : '';
       html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);cursor:pointer;" class="budget-peak" data-lat="' + r.lat + '" data-lng="' + r.lng + '">' +
-        '<span style="font-size:18px;">⛰</span>' +
+        '<span style="font-size:18px;">' + r.icon + '</span>' +
         '<div style="flex:1;">' +
-          '<div style="font-weight:600;font-size:13px;">' + (r.name || 'Gipfel') + '</div>' +
-          '<div style="font-size:11px;color:var(--text-tertiary);">' + r.elevation + 'm · ' + r.dist.toFixed(1) + 'km · ' + PeakflowUtils.formatDuration(r.time.hours, r.time.minutes) + '</div>' +
+          '<div style="font-weight:600;font-size:13px;">' + (r.name || 'Ziel') + snowWarning + '</div>' +
+          '<div style="font-size:11px;color:var(--text-tertiary);">' + (r.elevation || '?') + 'm · ' + r.dist.toFixed(1) + 'km · ' + PeakflowUtils.formatDuration(r.time.hours, r.time.minutes) + '</div>' +
         '</div>' +
         '<span style="font-size:11px;color:#22c55e;">✓</span>' +
       '</div>';
@@ -3768,37 +3787,61 @@ Peakflow.loadSeasonalSuggestions = async function() {
   if (!container) return;
 
   var center = PeakflowRoutes.map ? PeakflowRoutes.map.getCenter() : { lat: 47.3, lng: 10.15 };
+
+  // Get actual snow line from Open-Meteo
+  var snowLine = 9999;
+  try {
+    var snowResp = await fetch(PeakflowWeather.BASE_URL + '/forecast?latitude=' + center.lat.toFixed(3) + '&longitude=' + center.lng.toFixed(3) + '&hourly=snow_depth,freezing_level_height&forecast_days=1&timezone=auto');
+    var snowData = await snowResp.json();
+    var hour = new Date().getHours();
+    var freezeLevel = snowData.hourly?.freezing_level_height?.[hour] || 9999;
+    var snowDepth = (snowData.hourly?.snow_depth?.[hour] || 0) * 100;
+    snowLine = snowDepth > 5 ? Math.min(freezeLevel - 200, 2500) : freezeLevel;
+  } catch(e) {}
+
   var month = new Date().getMonth() + 1;
-  var maxElev, label;
-  if (month >= 3 && month <= 5) { maxElev = 1800; label = '🌱 Frühling: Schneefrei unter 1800m'; }
-  else if (month >= 6 && month <= 8) { maxElev = 4000; label = '☀️ Sommer: Hochtouren möglich'; }
-  else if (month >= 9 && month <= 10) { maxElev = 2500; label = '🍂 Herbst: Goldene Tage'; }
-  else { maxElev = 1500; label = '❄️ Winter: Winterwanderungen'; }
+  // Use real snow line instead of hardcoded elevation limits
+  var maxElev = Math.max(snowLine, 800); // At least show low-elevation options
+  var label;
+  if (month >= 3 && month <= 5) { label = '🌱 Frühling: Schneefrei unter ' + maxElev + 'm'; }
+  else if (month >= 6 && month <= 8) { label = '☀️ Sommer: Schneefrei bis ' + maxElev + 'm'; }
+  else if (month >= 9 && month <= 10) { label = '🍂 Herbst: Schneefrei bis ' + maxElev + 'm'; }
+  else { label = '❄️ Winter: Schneefrei bis ' + maxElev + 'm'; }
 
   container.innerHTML = '<p style="font-weight:600;font-size:13px;margin-bottom:8px;">' + label + '</p><div style="text-align:center;color:var(--text-tertiary);">⏳ Lade...</div>';
 
   try {
-    var degOffset = 0.5; // ~55km radius
-    var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
-      '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
-      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset) +
-      '&elevation=gt.500&elevation=lte.' + maxElev + '&limit=5&order=elevation.desc';
-    var resp = await fetch(url, {
-      headers: { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY }
-    });
-    var peaks = await resp.json();
+    var degOffset = 0.5;
+    var headers = { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY };
+    var baseFilter = '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
+      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset);
 
-    if (!peaks || peaks.length === 0) {
-      container.innerHTML = '<p style="font-weight:600;font-size:13px;">' + label + '</p><p class="sidebar__empty">Keine passenden Gipfel in der Nähe.</p>';
+    // Query peaks + huts + passes below snow line, only reachable
+    var [peaksR, hutsR, passesR] = await Promise.all([
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation,reachable' + baseFilter + '&elevation=gt.500&elevation=lte.' + maxElev + '&reachable=not.is.false&limit=5&order=elevation.desc', { headers: headers }),
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/huts?select=name,lat,lng,elevation' + baseFilter + '&elevation=lte.' + maxElev + '&limit=3&order=elevation.desc', { headers: headers }),
+      fetch(PeakflowData.SUPABASE_URL + '/rest/v1/passes?select=name,lat,lng,elevation' + baseFilter + '&elevation=lte.' + maxElev + '&limit=3&order=elevation.desc', { headers: headers })
+    ]);
+    var peaks = await peaksR.json();
+    var huts = (await hutsR.json()).map(function(h) { h._icon = '🛖'; return h; });
+    var passes = (await passesR.json()).map(function(p) { p._icon = '🏔'; return p; });
+    var allPOIs = [].concat(peaks || [], huts || [], passes || []);
+    // Sort by elevation desc, take top 8
+    allPOIs.sort(function(a, b) { return (b.elevation || 0) - (a.elevation || 0); });
+    allPOIs = allPOIs.slice(0, 8);
+
+    if (allPOIs.length === 0) {
+      container.innerHTML = '<p style="font-weight:600;font-size:13px;">' + label + '</p><p class="sidebar__empty">Keine schneefreien Ziele in der Nähe.</p>';
       return;
     }
 
     var html = '<p style="font-weight:600;font-size:13px;margin-bottom:8px;">' + label + '</p>';
-    for (var i = 0; i < peaks.length; i++) {
-      var p = peaks[i];
+    for (var i = 0; i < allPOIs.length; i++) {
+      var p = allPOIs[i];
+      var icon = p._icon || '⛰';
       html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);cursor:pointer;" class="seasonal-peak" data-lat="' + p.lat + '" data-lng="' + p.lng + '">' +
-        '<span style="font-size:16px;">⛰</span>' +
-        '<div style="flex:1;"><span style="font-weight:600;font-size:13px;">' + (p.name || 'Gipfel') + '</span> <span style="font-size:11px;color:var(--text-tertiary);">' + p.elevation + 'm</span></div>' +
+        '<span style="font-size:16px;">' + icon + '</span>' +
+        '<div style="flex:1;"><span style="font-weight:600;font-size:13px;">' + (p.name || 'Ziel') + '</span> <span style="font-size:11px;color:var(--text-tertiary);">' + (p.elevation || '?') + 'm</span></div>' +
       '</div>';
     }
     container.innerHTML = html;
@@ -3956,7 +3999,7 @@ Peakflow.toggleSnowOverlay = async function() {
       } else {
         (function(lat2, lng2, key2) {
           fetches.push(
-            PeakflowWeather._rateLimitedFetch(
+            PeakflowWeather.rateLimitedFetch(
               PeakflowWeather.BASE_URL + '/forecast?latitude=' + lat2.toFixed(3) + '&longitude=' + lng2.toFixed(3) + '&hourly=snow_depth&forecast_days=1&timezone=auto'
             ).then(function(r) { return r.json(); })
             .then(function(data) {
