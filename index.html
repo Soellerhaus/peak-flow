@@ -297,7 +297,27 @@
         <!-- Discover sub-tabs: Gipfel / Rennen -->
         <div class="discover-tabs">
           <button class="dtab dtab--active" data-dtab="races">🏁 Rennen</button>
+          <button class="dtab" data-dtab="tours">👥 Touren</button>
           <button class="dtab" data-dtab="peaks">⛰ Gipfel</button>
+        </div>
+
+        <!-- Gruppen-Touren Tab -->
+        <div id="dtab-tours" class="hidden">
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Gruppen-Touren</h3>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px;">Gemeinsam in die Berge — tritt einer Tour bei oder erstelle deine eigene.</p>
+            <div id="groupToursList">
+              <p class="sidebar__empty">Keine kommenden Touren in der Region.</p>
+            </div>
+          </div>
+          <!-- Saisonale Vorschläge -->
+          <div class="sidebar__section" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <h3 class="sidebar__heading">📌 Empfohlen für dich</h3>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px;">Saisonale Vorschläge basierend auf Schnee & Wetter</p>
+            <div id="seasonalSuggestions">
+              <p class="sidebar__empty">Lade Vorschläge...</p>
+            </div>
+          </div>
         </div>
 
         <!-- Gipfel Tab (existing content) -->
@@ -534,10 +554,44 @@
 
       <!-- Saved Routes Tab -->
       <div class="sidebar__panel" id="panel-saved">
-        <div class="sidebar__section">
-          <h3 class="sidebar__heading">Gespeicherte Routen</h3>
-          <div class="saved-routes" id="savedRoutesList">
-            <p class="sidebar__empty">Noch keine Routen gespeichert.</p>
+        <!-- Sub-tabs: Routes / Watchlist -->
+        <div class="discover-tabs">
+          <button class="dtab dtab--active" data-stab="routes">📋 Routen</button>
+          <button class="dtab" data-stab="watchlist">⭐ Watchlist</button>
+        </div>
+
+        <div id="stab-routes">
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Gespeicherte Routen</h3>
+            <div class="saved-routes" id="savedRoutesList">
+              <p class="sidebar__empty">Noch keine Routen gespeichert.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="stab-watchlist" class="hidden">
+          <div class="sidebar__section">
+            <h3 class="sidebar__heading">Gipfel-Watchlist</h3>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px;">Deine Saisonziele — Peak Flow prüft Schnee & Wetter automatisch.</p>
+            <div id="watchlistCards">
+              <p class="sidebar__empty" id="watchlistEmpty">Noch keine Gipfel auf der Watchlist.<br>Tippe auf einen Gipfel → ⭐ Watchlist</p>
+            </div>
+            <!-- Tour Budget -->
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color);">
+              <h3 class="sidebar__heading">⏱ Tourenbudget</h3>
+              <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px;">Was geht in deiner verfügbaren Zeit?</p>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="tourBudgetTime" style="flex:1;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+                  <option value="2">2 Stunden</option>
+                  <option value="3">3 Stunden</option>
+                  <option value="4" selected>4 Stunden</option>
+                  <option value="6">6 Stunden</option>
+                  <option value="8">Ganzer Tag</option>
+                </select>
+                <button id="tourBudgetBtn" class="btn btn--sm btn--primary" style="white-space:nowrap;">🔍 Suchen</button>
+              </div>
+              <div id="tourBudgetResults" style="margin-top:10px;"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -557,12 +611,16 @@
           <div class="poi-detail__difficulty" id="poiDifficulty"></div>
 
           <!-- Route button at top -->
-          <button class="btn btn--primary btn--full" id="routeToPoiBtn" style="margin:12px 0;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Zur Route hinzufügen
-          </button>
+          <div style="display:flex;gap:8px;margin:12px 0;">
+            <button class="btn btn--primary" id="routeToPoiBtn" style="flex:1;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>Route
+            </button>
+            <button class="btn btn--outline" id="watchlistPoiBtn" style="flex:1;" title="Zur Gipfel-Watchlist hinzufügen">
+              ⭐ Watchlist
+            </button>
+          </div>
 
           <!-- Description from Supabase -->
           <p class="poi-detail__description" id="poiDescription"></p>
@@ -660,6 +718,11 @@
         <button class="map-toolbar__btn" id="terrainToggleBtn" title="3D Terrain an/aus">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M2 20L9 8l5 6 3-4 5 10H2z"/><text x="12" y="7" font-size="8" font-weight="bold" fill="currentColor" stroke="none" text-anchor="middle">3D</text>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="snowOverlayBtn" title="Schnee-Overlay an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/>
           </svg>
         </button>
         <button class="map-toolbar__btn" id="elevationToggleBtn" title="Höhenprofil an/aus">
@@ -944,5 +1007,69 @@
       console.log('[Peakflow] App installed!');
     });
   </script>
+
+  <!-- Group Tour Create Modal -->
+  <div class="modal hidden" id="groupTourModal">
+    <div class="modal__content" style="max-width:440px;max-height:90vh;overflow-y:auto;">
+      <h2 class="modal__title">👥 Gruppen-Tour erstellen</h2>
+      <div class="settings-section" style="margin-top:12px;">
+        <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Tour-Name *</label>
+        <input type="text" id="gtTitle" placeholder="z.B. Sonntagstour Widderstein" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <div style="flex:1;">
+          <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Datum *</label>
+          <input type="date" id="gtDate" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Uhrzeit</label>
+          <input type="time" id="gtTime" value="08:00" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;">
+        </div>
+      </div>
+      <div class="settings-section" style="margin-top:12px;">
+        <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Treffpunkt</label>
+        <input type="text" id="gtMeetingPoint" placeholder="z.B. Parkplatz Mittelberg" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <div style="flex:1;">
+          <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Max. Teilnehmer</label>
+          <select id="gtMaxPart" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Schwierigkeit</label>
+          <select id="gtDifficulty" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;">
+            <option value="leicht">Leicht</option>
+            <option value="mittel" selected>Mittel</option>
+            <option value="schwer">Schwer</option>
+            <option value="experte">Experte</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-section" style="margin-top:12px;">
+        <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;">Beschreibung</label>
+        <textarea id="gtDescription" rows="3" placeholder="Optional: Infos zur Tour, Ausrüstung, etc." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;margin-top:4px;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn btn--outline btn--full" id="closeGroupTourModal">Abbrechen</button>
+        <button class="btn btn--primary btn--full" id="saveGroupTour">🚀 Tour erstellen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Best Weather Window Modal -->
+  <div class="modal hidden" id="bestWindowModal">
+    <div class="modal__content" style="max-width:400px;">
+      <h2 class="modal__title">🌤 Bestes Wetter-Fenster</h2>
+      <p id="bestWindowPeak" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;"></p>
+      <div id="bestWindowContent">Lade Wetterdaten...</div>
+      <button class="btn btn--outline btn--full" style="margin-top:16px;" id="closeBestWindowModal">Schließen</button>
+    </div>
+  </div>
 </body>
 </html>

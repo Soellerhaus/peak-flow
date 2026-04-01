@@ -1973,15 +1973,34 @@ const Peakflow = {
       });
     });
 
-    // Discover sub-tabs: Gipfel / Rennen
-    document.querySelectorAll('.dtab').forEach(dtab => {
+    // Discover sub-tabs: Rennen / Touren / Gipfel
+    document.querySelectorAll('.dtab[data-dtab]').forEach(dtab => {
       dtab.addEventListener('click', () => {
-        document.querySelectorAll('.dtab').forEach(d => d.classList.remove('dtab--active'));
+        const parent = dtab.closest('.discover-tabs');
+        parent.querySelectorAll('.dtab').forEach(d => d.classList.remove('dtab--active'));
         dtab.classList.add('dtab--active');
         const target = dtab.dataset.dtab;
-        document.getElementById('dtab-peaks').classList.toggle('hidden', target !== 'peaks');
-        document.getElementById('dtab-races').classList.toggle('hidden', target !== 'races');
+        ['peaks', 'races', 'tours'].forEach(t => {
+          const el = document.getElementById('dtab-' + t);
+          if (el) el.classList.toggle('hidden', target !== t);
+        });
         if (target === 'races') this.loadRaceRoutes();
+        if (target === 'tours') { this.loadGroupTours(); this.loadSeasonalSuggestions(); }
+      });
+    });
+
+    // Saved sub-tabs: Routen / Watchlist
+    document.querySelectorAll('.dtab[data-stab]').forEach(stab => {
+      stab.addEventListener('click', () => {
+        const parent = stab.closest('.discover-tabs');
+        parent.querySelectorAll('.dtab').forEach(d => d.classList.remove('dtab--active'));
+        stab.classList.add('dtab--active');
+        const target = stab.dataset.stab;
+        ['routes', 'watchlist'].forEach(t => {
+          const el = document.getElementById('stab-' + t);
+          if (el) el.classList.toggle('hidden', target !== t);
+        });
+        if (target === 'watchlist') this.loadWatchlist();
       });
     });
 
@@ -2067,6 +2086,31 @@ const Peakflow = {
         PeakflowRoutes.addWaypoint({ lng: poi.lng, lat: poi.lat, name: poi.name });
       }
     });
+
+    // Watchlist button on POI detail
+    document.getElementById('watchlistPoiBtn').addEventListener('click', async () => {
+      const poi = this._currentPoi;
+      if (!poi) return;
+      if (!PeakflowData.currentUser) { alert('Bitte zuerst anmelden um die Watchlist zu nutzen!'); return; }
+      const already = await PeakflowData.isOnWatchlist(poi.lat, poi.lng);
+      if (already) { alert(poi.name + ' ist bereits auf deiner Watchlist!'); return; }
+      const result = await PeakflowData.addToWatchlist({
+        name: poi.name, lat: poi.lat, lng: poi.lng, elevation: poi.elevation
+      });
+      if (result.error) { alert('Fehler: ' + (result.error.message || result.error)); return; }
+      document.getElementById('watchlistPoiBtn').textContent = '✅ Auf Watchlist';
+      document.getElementById('watchlistPoiBtn').disabled = true;
+    });
+
+    // Group Tour button (after route planning)
+    var groupTourActionBtn = document.createElement('button');
+    groupTourActionBtn.className = 'btn btn--sm btn--outline';
+    groupTourActionBtn.innerHTML = '👥 Gruppen-Tour';
+    groupTourActionBtn.title = 'Als Gruppen-Tour teilen';
+    groupTourActionBtn.style.cssText = 'margin-top:8px;';
+    groupTourActionBtn.addEventListener('click', function() { Peakflow.openGroupTourModal(); });
+    var routeActions = document.getElementById('routeActions');
+    if (routeActions) routeActions.appendChild(groupTourActionBtn);
 
     // Route planning button
     document.getElementById('routePlanBtn').addEventListener('click', () => {
@@ -2473,6 +2517,12 @@ const Peakflow = {
     // Terrain toggle
     document.getElementById('terrainToggleBtn').addEventListener('click', () => {
       this.toggleTerrain();
+    });
+
+    // Snow overlay toggle
+    document.getElementById('snowOverlayBtn')?.addEventListener('click', () => {
+      Peakflow.toggleSnowOverlay();
+      document.getElementById('snowOverlayBtn').classList.toggle('active');
     });
 
     // Fit route to view
@@ -3527,6 +3577,477 @@ const Peakflow = {
     }
   }
 };
+
+// ============================================
+// WATCHLIST, WEATHER WINDOW, TOUR BUDGET, SEASONAL, GROUP TOURS
+// ============================================
+
+// ─── WATCHLIST ─────────────────────────────────────────────────────────
+Peakflow.loadWatchlist = async function() {
+  const container = document.getElementById('watchlistCards');
+  const empty = document.getElementById('watchlistEmpty');
+  if (!container) return;
+
+  const list = await PeakflowData.getWatchlist();
+  if (!list || list.length === 0) {
+    container.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  // Get conditions for all peaks
+  const conditions = await PeakflowWeather.getWatchlistConditions(list);
+
+  let html = '';
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    const c = conditions[i] || {};
+    const statusColors = { go: '#22c55e', maybe: '#f59e0b', no: '#ef4444' };
+    const statusLabels = { go: '🟢 Go!', maybe: '🟡 Bedingt', no: '🔴 Nicht möglich' };
+    const statusBg = { go: 'rgba(34,197,94,0.1)', maybe: 'rgba(245,158,11,0.1)', no: 'rgba(239,68,68,0.1)' };
+
+    html += '<div class="watchlist-card" style="background:' + (statusBg[c.status] || statusBg.maybe) + ';border:1px solid ' + (statusColors[c.status] || '#888') + '33;border-radius:10px;padding:12px;margin-bottom:8px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:14px;">' + (p.peak_name || 'Gipfel') + '</div>' +
+          '<div style="font-size:12px;color:var(--text-tertiary);">' + (p.elevation || '?') + 'm</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-weight:700;color:' + (statusColors[c.status] || '#888') + ';">' + (statusLabels[c.status] || '❓') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--text-secondary);">' +
+        '<span>❄️ ' + (c.snowCm >= 0 ? c.snowCm + 'cm' : '?') + '</span>' +
+        '<span>' + (c.weatherIcon || '?') + ' ' + (c.temp || '?') + '°</span>' +
+        '<span>💨 ' + (c.wind || '?') + ' km/h</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:8px;">' +
+        '<button class="btn btn--sm btn--primary watchlist-window-btn" data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-name="' + (p.peak_name || '') + '">🌤 Wetter-Fenster</button>' +
+        '<button class="btn btn--sm btn--outline watchlist-route-btn" data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-name="' + (p.peak_name || '') + '">🗺 Route</button>' +
+        '<button class="btn btn--sm watchlist-remove-btn" data-id="' + p.id + '" style="background:none;color:#ef4444;border:1px solid #ef4444;">✕</button>' +
+      '</div>' +
+    '</div>';
+  }
+  container.innerHTML = html;
+
+  // Event: Best Window
+  container.querySelectorAll('.watchlist-window-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      Peakflow.showBestWindow(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng), btn.dataset.name);
+    });
+  });
+
+  // Event: Route to peak
+  container.querySelectorAll('.watchlist-route-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      PeakflowRoutes.clearRoute();
+      PeakflowRoutes.isPlanning = true;
+      if (PeakflowRoutes.map) {
+        PeakflowRoutes.map.flyTo({ center: [parseFloat(btn.dataset.lng), parseFloat(btn.dataset.lat)], zoom: 13, duration: 1000 });
+      }
+      // Switch to route tab
+      document.querySelectorAll('.sidebar__tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.sidebar__panel').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelector('.sidebar__tab[data-tab="routes"]').classList.add('active');
+      document.getElementById('panel-routes').classList.add('active');
+    });
+  });
+
+  // Event: Remove from watchlist
+  container.querySelectorAll('.watchlist-remove-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      await PeakflowData.removeFromWatchlist(btn.dataset.id);
+      Peakflow.loadWatchlist();
+    });
+  });
+};
+
+// ─── BEST WEATHER WINDOW ───────────────────────────────────────────────
+Peakflow.showBestWindow = async function(lat, lng, name) {
+  var modal = document.getElementById('bestWindowModal');
+  var content = document.getElementById('bestWindowContent');
+  var peakEl = document.getElementById('bestWindowPeak');
+  if (!modal || !content) return;
+  modal.classList.remove('hidden');
+  peakEl.textContent = name ? '📍 ' + name + (lat ? ' (' + lat.toFixed(2) + ', ' + lng.toFixed(2) + ')' : '') : '';
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">⏳ Lade 7-Tage-Wetterdaten...</div>';
+
+  var windowData = await PeakflowWeather.calculateBestWindow(lat, lng);
+  if (!windowData) {
+    content.innerHTML = '<p style="color:#ef4444;">Wetterdaten nicht verfügbar.</p>';
+    return;
+  }
+  content.innerHTML = PeakflowWeather.renderBestWindowHTML(windowData);
+};
+
+// ─── TOUR BUDGET ───────────────────────────────────────────────────────
+Peakflow.calculateTourBudget = async function() {
+  var resultsEl = document.getElementById('tourBudgetResults');
+  if (!resultsEl) return;
+  resultsEl.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-tertiary);">⏳ Berechne erreichbare Gipfel...</div>';
+
+  var hours = parseFloat(document.getElementById('tourBudgetTime').value) || 4;
+  var profile = PeakflowUtils.PROFILES[PeakflowUtils.currentProfile];
+  var speed = profile ? profile.flatSpeed : 4;
+  // Max reachable distance (round trip): speed × hours / 2 (hin und zurück)
+  var maxDistKm = speed * hours / 2;
+  // Convert to rough lat/lng degree offset (~111km per degree)
+  var degOffset = maxDistKm / 111;
+
+  // Get user's current map center as start point
+  var center = PeakflowRoutes.map ? PeakflowRoutes.map.getCenter() : null;
+  if (!center) { resultsEl.innerHTML = '<p>Karte nicht geladen.</p>'; return; }
+
+  // Query peaks within radius from Supabase
+  try {
+    var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
+      '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
+      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset) +
+      '&elevation=gt.0&limit=50&order=elevation.desc';
+    var resp = await fetch(url, {
+      headers: { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY }
+    });
+    var peaks = await resp.json();
+
+    if (!peaks || peaks.length === 0) {
+      resultsEl.innerHTML = '<p class="sidebar__empty">Keine Gipfel im Umkreis von ' + maxDistKm.toFixed(0) + 'km gefunden.</p>';
+      return;
+    }
+
+    // Calculate estimated time for each peak
+    var results = [];
+    for (var i = 0; i < peaks.length; i++) {
+      var p = peaks[i];
+      var distKm = PeakflowUtils.haversineDistance(center.lat, center.lng, p.lat, p.lng);
+      if (distKm > maxDistKm) continue;
+      var ascentEstimate = Math.max(0, (p.elevation || 0) - (center.lat > 0 ? 800 : 500)); // rough valley elevation
+      var time = PeakflowUtils.calculateTime(distKm * 2, ascentEstimate, ascentEstimate);
+      if (time.totalMinutes <= hours * 60) {
+        results.push({ name: p.name, elevation: p.elevation, dist: distKm, time: time, lat: p.lat, lng: p.lng });
+      }
+    }
+
+    results.sort(function(a, b) { return (b.elevation || 0) - (a.elevation || 0); });
+
+    if (results.length === 0) {
+      resultsEl.innerHTML = '<p class="sidebar__empty">In ' + hours + 'h leider kein Gipfel erreichbar.</p>';
+      return;
+    }
+
+    var html = '';
+    for (var j = 0; j < Math.min(results.length, 8); j++) {
+      var r = results[j];
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);cursor:pointer;" class="budget-peak" data-lat="' + r.lat + '" data-lng="' + r.lng + '">' +
+        '<span style="font-size:18px;">⛰</span>' +
+        '<div style="flex:1;">' +
+          '<div style="font-weight:600;font-size:13px;">' + (r.name || 'Gipfel') + '</div>' +
+          '<div style="font-size:11px;color:var(--text-tertiary);">' + r.elevation + 'm · ' + r.dist.toFixed(1) + 'km · ' + PeakflowUtils.formatDuration(r.time.hours, r.time.minutes) + '</div>' +
+        '</div>' +
+        '<span style="font-size:11px;color:#22c55e;">✓</span>' +
+      '</div>';
+    }
+    resultsEl.innerHTML = html;
+
+    // Click to fly to peak
+    resultsEl.querySelectorAll('.budget-peak').forEach(function(el) {
+      el.addEventListener('click', function() {
+        if (PeakflowRoutes.map) {
+          PeakflowRoutes.map.flyTo({ center: [parseFloat(el.dataset.lng), parseFloat(el.dataset.lat)], zoom: 14, duration: 1000 });
+        }
+      });
+    });
+  } catch (e) {
+    resultsEl.innerHTML = '<p style="color:#ef4444;">Fehler beim Laden: ' + e.message + '</p>';
+  }
+};
+
+// ─── SEASONAL SUGGESTIONS ──────────────────────────────────────────────
+Peakflow.loadSeasonalSuggestions = async function() {
+  var container = document.getElementById('seasonalSuggestions');
+  if (!container) return;
+
+  var center = PeakflowRoutes.map ? PeakflowRoutes.map.getCenter() : { lat: 47.3, lng: 10.15 };
+  var month = new Date().getMonth() + 1;
+  var maxElev, label;
+  if (month >= 3 && month <= 5) { maxElev = 1800; label = '🌱 Frühling: Schneefrei unter 1800m'; }
+  else if (month >= 6 && month <= 8) { maxElev = 4000; label = '☀️ Sommer: Hochtouren möglich'; }
+  else if (month >= 9 && month <= 10) { maxElev = 2500; label = '🍂 Herbst: Goldene Tage'; }
+  else { maxElev = 1500; label = '❄️ Winter: Winterwanderungen'; }
+
+  container.innerHTML = '<p style="font-weight:600;font-size:13px;margin-bottom:8px;">' + label + '</p><div style="text-align:center;color:var(--text-tertiary);">⏳ Lade...</div>';
+
+  try {
+    var degOffset = 0.5; // ~55km radius
+    var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
+      '&lat=gte.' + (center.lat - degOffset) + '&lat=lte.' + (center.lat + degOffset) +
+      '&lng=gte.' + (center.lng - degOffset) + '&lng=lte.' + (center.lng + degOffset) +
+      '&elevation=gt.500&elevation=lte.' + maxElev + '&limit=5&order=elevation.desc';
+    var resp = await fetch(url, {
+      headers: { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY }
+    });
+    var peaks = await resp.json();
+
+    if (!peaks || peaks.length === 0) {
+      container.innerHTML = '<p style="font-weight:600;font-size:13px;">' + label + '</p><p class="sidebar__empty">Keine passenden Gipfel in der Nähe.</p>';
+      return;
+    }
+
+    var html = '<p style="font-weight:600;font-size:13px;margin-bottom:8px;">' + label + '</p>';
+    for (var i = 0; i < peaks.length; i++) {
+      var p = peaks[i];
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);cursor:pointer;" class="seasonal-peak" data-lat="' + p.lat + '" data-lng="' + p.lng + '">' +
+        '<span style="font-size:16px;">⛰</span>' +
+        '<div style="flex:1;"><span style="font-weight:600;font-size:13px;">' + (p.name || 'Gipfel') + '</span> <span style="font-size:11px;color:var(--text-tertiary);">' + p.elevation + 'm</span></div>' +
+      '</div>';
+    }
+    container.innerHTML = html;
+
+    container.querySelectorAll('.seasonal-peak').forEach(function(el) {
+      el.addEventListener('click', function() {
+        if (PeakflowRoutes.map) {
+          PeakflowRoutes.map.flyTo({ center: [parseFloat(el.dataset.lng), parseFloat(el.dataset.lat)], zoom: 14, duration: 1000 });
+        }
+      });
+    });
+  } catch (e) {
+    container.innerHTML = '<p style="font-weight:600;font-size:13px;">' + label + '</p><p class="sidebar__empty">Fehler beim Laden.</p>';
+  }
+};
+
+// ─── GROUP TOURS ───────────────────────────────────────────────────────
+Peakflow.loadGroupTours = async function() {
+  var container = document.getElementById('groupToursList');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-tertiary);">⏳ Lade Touren...</div>';
+
+  var tours = await PeakflowData.getGroupTours();
+  if (!tours || tours.length === 0) {
+    container.innerHTML = '<p class="sidebar__empty">Keine kommenden Touren.<br><br>' +
+      (PeakflowData.currentUser ? '<button class="btn btn--primary" id="createTourFromList" style="width:100%;">👥 Erste Tour erstellen</button>' : 'Melde dich an um eine Tour zu erstellen.') + '</p>';
+    var createBtn = document.getElementById('createTourFromList');
+    if (createBtn) createBtn.addEventListener('click', function() { Peakflow.openGroupTourModal(); });
+    return;
+  }
+
+  var html = '';
+  if (PeakflowData.currentUser) {
+    html += '<button class="btn btn--primary btn--full" id="createTourBtn" style="margin-bottom:12px;">👥 Tour erstellen</button>';
+  }
+  var fmtDate = function(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  for (var i = 0; i < tours.length; i++) {
+    var t = tours[i];
+    var partCount = t.group_tour_participants?.[0]?.count || 0;
+    var diffColors = { leicht: '#22c55e', mittel: '#f59e0b', schwer: '#ef4444', experte: '#dc2626' };
+    html += '<div class="group-tour-card" style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:12px;margin-bottom:8px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div style="font-weight:700;font-size:14px;">' + (t.title || 'Tour') + '</div>' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:' + (diffColors[t.difficulty] || '#888') + '22;color:' + (diffColors[t.difficulty] || '#888') + ';font-weight:600;">' + (t.difficulty || 'mittel') + '</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' +
+        '📅 ' + fmtDate(t.tour_date) + (t.start_time ? ' · ⏰ ' + t.start_time.substring(0, 5) : '') +
+        (t.meeting_point ? ' · 📍 ' + t.meeting_point : '') +
+      '</div>' +
+      (t.distance ? '<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">📏 ' + parseFloat(t.distance).toFixed(1) + 'km' + (t.ascent ? ' · ↑' + t.ascent + 'm' : '') + '</div>' : '') +
+      (t.description ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + t.description + '</div>' : '') +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">' +
+        '<span style="font-size:12px;">👥 ' + partCount + '/' + (t.max_participants || 10) + ' Plätze</span>' +
+        '<button class="btn btn--sm btn--primary tour-join-btn" data-tour-id="' + t.id + '">🙋 Ich bin dabei!</button>' +
+      '</div>' +
+    '</div>';
+  }
+  container.innerHTML = html;
+
+  var createBtn2 = document.getElementById('createTourBtn');
+  if (createBtn2) createBtn2.addEventListener('click', function() { Peakflow.openGroupTourModal(); });
+
+  container.querySelectorAll('.tour-join-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      if (!PeakflowData.currentUser) { alert('Bitte zuerst anmelden!'); return; }
+      var result = await PeakflowData.joinGroupTour(btn.dataset.tourId);
+      if (result.error) { alert('Fehler: ' + result.error); return; }
+      btn.textContent = '✅ Angemeldet';
+      btn.disabled = true;
+      Peakflow.loadGroupTours();
+    });
+  });
+};
+
+Peakflow.openGroupTourModal = function() {
+  if (!PeakflowData.currentUser) { alert('Bitte zuerst anmelden!'); return; }
+  var modal = document.getElementById('groupTourModal');
+  if (modal) modal.classList.remove('hidden');
+  // Pre-fill date with next Saturday
+  var next = new Date();
+  next.setDate(next.getDate() + (6 - next.getDay() + 7) % 7);
+  var dateInput = document.getElementById('gtDate');
+  if (dateInput) dateInput.value = next.toISOString().split('T')[0];
+};
+
+Peakflow.saveGroupTour = async function() {
+  var title = document.getElementById('gtTitle').value.trim();
+  var date = document.getElementById('gtDate').value;
+  if (!title || !date) { alert('Bitte Tour-Name und Datum eingeben!'); return; }
+
+  var coords = PeakflowRoutes.routeCoords || [];
+  var waypoints = PeakflowRoutes.waypoints || [];
+  var distance = coords.length > 1 ? PeakflowUtils.routeDistance(coords) : 0;
+  var elevData = coords.length > 1 ? PeakflowUtils.calculateElevationGain(coords.map(function(c) { return c[2] || 0; })) : { ascent: 0, descent: 0 };
+  var startWp = waypoints[0] || {};
+
+  var tour = {
+    title: title,
+    description: document.getElementById('gtDescription').value.trim() || null,
+    route_coords: coords,
+    waypoints: waypoints,
+    distance: Math.round(distance * 10) / 10,
+    ascent: elevData.ascent,
+    descent: elevData.descent,
+    tour_date: date,
+    start_time: document.getElementById('gtTime').value || null,
+    meeting_point: document.getElementById('gtMeetingPoint').value.trim() || null,
+    meeting_lat: startWp.lat || null,
+    meeting_lng: startWp.lng || null,
+    max_participants: parseInt(document.getElementById('gtMaxPart').value) || 10,
+    difficulty: document.getElementById('gtDifficulty').value || 'mittel',
+    activity_type: PeakflowUtils.isBikeProfile() ? 'bike' : 'hike'
+  };
+
+  var result = await PeakflowData.createGroupTour(tour);
+  if (result.error) { alert('Fehler: ' + (result.error.message || result.error)); return; }
+
+  document.getElementById('groupTourModal').classList.add('hidden');
+  alert('Tour erstellt! 🎉 Teile den Link mit Freunden.');
+  Peakflow.loadGroupTours();
+};
+
+// ─── SNOW CONDITIONS OVERLAY ───────────────────────────────────────────
+Peakflow._snowOverlayVisible = false;
+Peakflow._snowOverlayCache = {};
+
+Peakflow.toggleSnowOverlay = async function() {
+  var map = PeakflowRoutes.map;
+  if (!map) return;
+
+  if (this._snowOverlayVisible) {
+    // Remove overlay
+    if (map.getLayer('snow-grid')) map.removeLayer('snow-grid');
+    if (map.getSource('snow-grid')) map.removeSource('snow-grid');
+    this._snowOverlayVisible = false;
+    return;
+  }
+
+  // Build snow grid for current viewport
+  var bounds = map.getBounds();
+  var step = 0.05; // ~5km grid cells
+  var features = [];
+  var fetches = [];
+
+  for (var lat = bounds.getSouth(); lat < bounds.getNorth(); lat += step) {
+    for (var lng = bounds.getWest(); lng < bounds.getEast(); lng += step) {
+      var key = lat.toFixed(2) + ',' + lng.toFixed(2);
+      if (this._snowOverlayCache[key]) {
+        features.push(this._createSnowFeature(lat, lng, step, this._snowOverlayCache[key]));
+      } else {
+        (function(lat2, lng2, key2) {
+          fetches.push(
+            PeakflowWeather._rateLimitedFetch(
+              PeakflowWeather.BASE_URL + '/forecast?latitude=' + lat2.toFixed(3) + '&longitude=' + lng2.toFixed(3) + '&hourly=snow_depth&forecast_days=1&timezone=auto'
+            ).then(function(r) { return r.json(); })
+            .then(function(data) {
+              var snow = data.hourly?.snow_depth?.[new Date().getHours()] || 0;
+              var snowCm = Math.round(snow * 100);
+              Peakflow._snowOverlayCache[key2] = snowCm;
+              features.push(Peakflow._createSnowFeature(lat2, lng2, step, snowCm));
+            }).catch(function() {})
+          );
+        })(lat, lng, key);
+      }
+      if (fetches.length >= 30) break; // Max 30 API calls
+    }
+    if (fetches.length >= 30) break;
+  }
+
+  if (fetches.length > 0) await Promise.all(fetches);
+
+  var geojson = { type: 'FeatureCollection', features: features };
+  if (map.getSource('snow-grid')) {
+    map.getSource('snow-grid').setData(geojson);
+  } else {
+    map.addSource('snow-grid', { type: 'geojson', data: geojson });
+    map.addLayer({
+      id: 'snow-grid',
+      type: 'fill',
+      source: 'snow-grid',
+      paint: {
+        'fill-color': ['get', 'color'],
+        'fill-opacity': 0.35
+      }
+    }, 'route-outline'); // Below route line
+  }
+  this._snowOverlayVisible = true;
+};
+
+Peakflow._createSnowFeature = function(lat, lng, step, snowCm) {
+  var color = '#22c55e'; // green = snow free
+  if (snowCm > 50) color = '#ffffff';
+  else if (snowCm > 20) color = '#f97316';
+  else if (snowCm > 5) color = '#facc15';
+  return {
+    type: 'Feature',
+    properties: { snowCm: snowCm, color: color },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [lng, lat], [lng + step, lat], [lng + step, lat + step], [lng, lat + step], [lng, lat]
+      ]]
+    }
+  };
+};
+
+// ─── EVENT LISTENERS FOR NEW FEATURES ──────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  // Tour Budget button
+  var budgetBtn = document.getElementById('tourBudgetBtn');
+  if (budgetBtn) budgetBtn.addEventListener('click', function() { Peakflow.calculateTourBudget(); });
+
+  // Group Tour modal
+  var closeGT = document.getElementById('closeGroupTourModal');
+  if (closeGT) closeGT.addEventListener('click', function() { document.getElementById('groupTourModal').classList.add('hidden'); });
+  var saveGT = document.getElementById('saveGroupTour');
+  if (saveGT) saveGT.addEventListener('click', function() { Peakflow.saveGroupTour(); });
+
+  // Best Window modal
+  var closeBW = document.getElementById('closeBestWindowModal');
+  if (closeBW) closeBW.addEventListener('click', function() { document.getElementById('bestWindowModal').classList.add('hidden'); });
+
+  // Deep-link: ?tour=ID
+  var urlParams = new URLSearchParams(window.location.search);
+  var tourId = urlParams.get('tour');
+  if (tourId) {
+    setTimeout(async function() {
+      var tour = await PeakflowData.getGroupTourById(tourId);
+      if (tour && tour.route_coords) {
+        PeakflowRoutes.clearRoute();
+        PeakflowRoutes.routeCoords = tour.route_coords;
+        PeakflowRoutes.elevations = tour.route_coords.map(function(c) { return c[2] || 0; });
+        PeakflowRoutes.drawRouteLine(tour.route_coords);
+        // Fit map
+        var lngs = tour.route_coords.map(function(c) { return c[0]; });
+        var lats = tour.route_coords.map(function(c) { return c[1]; });
+        if (PeakflowRoutes.map) {
+          PeakflowRoutes.map.fitBounds([[Math.min.apply(null, lngs), Math.min.apply(null, lats)], [Math.max.apply(null, lngs), Math.max.apply(null, lats)]], { padding: 40 });
+        }
+        alert('👥 Gruppen-Tour: ' + tour.title + '\n📅 ' + tour.tour_date + (tour.start_time ? ' ⏰ ' + tour.start_time : '') + (tour.meeting_point ? '\n📍 ' + tour.meeting_point : ''));
+      }
+    }, 2000);
+  }
+});
 
 // Alias for backward compatibility (routes.js uses PeakflowApp)
 const PeakflowApp = Peakflow;

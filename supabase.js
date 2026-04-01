@@ -649,5 +649,158 @@ const PeakflowData = {
       .eq('user_id', this.currentUser.id)
       .in('race_id', raceIds);
     return (data || []).map(d => d.race_id);
+  },
+
+  // ─── WATCHLIST ───────────────────────────────────────────────────────
+  async addToWatchlist(peak) {
+    if (!this.authClient || !this.currentUser) return { error: 'Not logged in' };
+    const { data, error } = await this.authClient
+      .from('watchlist')
+      .insert({
+        user_id: this.currentUser.id,
+        peak_name: peak.name,
+        lat: peak.lat,
+        lng: peak.lng,
+        elevation: peak.elevation || null,
+        target_month: peak.target_month || null,
+        notify_snow_free: true,
+        notify_weather: true
+      })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async getWatchlist() {
+    if (!this.authClient || !this.currentUser) return [];
+    const { data } = await this.authClient
+      .from('watchlist')
+      .select('*')
+      .eq('user_id', this.currentUser.id)
+      .order('created_at', { ascending: false });
+    return data || [];
+  },
+
+  async removeFromWatchlist(id) {
+    if (!this.authClient || !this.currentUser) return;
+    await this.authClient
+      .from('watchlist')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', this.currentUser.id);
+  },
+
+  async isOnWatchlist(lat, lng) {
+    if (!this.authClient || !this.currentUser) return false;
+    const { data } = await this.authClient
+      .from('watchlist')
+      .select('id')
+      .eq('user_id', this.currentUser.id)
+      .gte('lat', lat - 0.001)
+      .lte('lat', lat + 0.001)
+      .gte('lng', lng - 0.001)
+      .lte('lng', lng + 0.001)
+      .limit(1);
+    return data && data.length > 0;
+  },
+
+  // ─── GROUP TOURS ─────────────────────────────────────────────────────
+  async createGroupTour(tour) {
+    if (!this.authClient || !this.currentUser) return { error: 'Not logged in' };
+    const { data, error } = await this.authClient
+      .from('group_tours')
+      .insert({
+        creator_id: this.currentUser.id,
+        title: tour.title,
+        description: tour.description || null,
+        route_coords: tour.route_coords,
+        waypoints: tour.waypoints,
+        distance: tour.distance,
+        ascent: tour.ascent,
+        descent: tour.descent,
+        tour_date: tour.tour_date,
+        start_time: tour.start_time || null,
+        meeting_point: tour.meeting_point || null,
+        meeting_lat: tour.meeting_lat || null,
+        meeting_lng: tour.meeting_lng || null,
+        max_participants: tour.max_participants || 10,
+        difficulty: tour.difficulty || 'mittel',
+        activity_type: tour.activity_type || 'hike',
+        is_public: true
+      })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async getGroupTours(regionBounds) {
+    if (!this.authClient) return [];
+    let query = this.authClient
+      .from('group_tours')
+      .select('*, group_tour_participants(count)')
+      .eq('is_public', true)
+      .gte('tour_date', new Date().toISOString().split('T')[0])
+      .order('tour_date', { ascending: true });
+    if (regionBounds) {
+      query = query
+        .gte('meeting_lat', regionBounds.south)
+        .lte('meeting_lat', regionBounds.north)
+        .gte('meeting_lng', regionBounds.west)
+        .lte('meeting_lng', regionBounds.east);
+    }
+    const { data } = await query;
+    return data || [];
+  },
+
+  async getGroupTourById(tourId) {
+    if (!this.authClient) return null;
+    const { data } = await this.authClient
+      .from('group_tours')
+      .select('*, group_tour_participants(user_id, status, joined_at)')
+      .eq('id', tourId)
+      .single();
+    return data;
+  },
+
+  async joinGroupTour(tourId, status) {
+    if (!this.authClient || !this.currentUser) return { error: 'Not logged in' };
+    const { data, error } = await this.authClient
+      .from('group_tour_participants')
+      .upsert({
+        tour_id: tourId,
+        user_id: this.currentUser.id,
+        status: status || 'joined'
+      }, { onConflict: 'tour_id,user_id' })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async leaveGroupTour(tourId) {
+    if (!this.authClient || !this.currentUser) return;
+    await this.authClient
+      .from('group_tour_participants')
+      .delete()
+      .eq('tour_id', tourId)
+      .eq('user_id', this.currentUser.id);
+  },
+
+  async deleteGroupTour(id) {
+    if (!this.authClient || !this.currentUser) return;
+    await this.authClient
+      .from('group_tours')
+      .delete()
+      .eq('id', id)
+      .eq('creator_id', this.currentUser.id);
+  },
+
+  async getMyGroupTours() {
+    if (!this.authClient || !this.currentUser) return [];
+    const { data } = await this.authClient
+      .from('group_tours')
+      .select('*, group_tour_participants(count)')
+      .eq('creator_id', this.currentUser.id)
+      .order('tour_date', { ascending: true });
+    return data || [];
   }
 };

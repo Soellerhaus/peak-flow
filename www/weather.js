@@ -331,5 +331,146 @@ const PeakflowWeather = {
     }
     html += '</div></div>';
     return html;
+  },
+
+  // ─── WATCHLIST CONDITIONS ────────────────────────────────────────────
+  /**
+   * Get snow + weather conditions for multiple peaks (batch)
+   * Returns array of {lat, lng, snowDepth, weather, wind, temp, status}
+   * status: 'go' | 'maybe' | 'no'
+   */
+  async getWatchlistConditions(peaks) {
+    if (!peaks || peaks.length === 0) return [];
+    const results = [];
+    // Process max 5 peaks at a time to avoid rate limiting
+    for (let i = 0; i < peaks.length; i++) {
+      const p = peaks[i];
+      try {
+        const params = new URLSearchParams({
+          latitude: p.lat,
+          longitude: p.lng,
+          current: 'temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m',
+          hourly: 'snow_depth',
+          forecast_days: 1,
+          timezone: 'auto'
+        });
+        const resp = await this._rateLimitedFetch(`${this.BASE_URL}/forecast?${params}`);
+        const data = await resp.json();
+        const snow = data.hourly?.snow_depth?.[new Date().getHours()] || 0;
+        const snowCm = Math.round(snow * 100);
+        const temp = data.current?.temperature_2m || 0;
+        const wind = data.current?.wind_speed_10m || 0;
+        const code = data.current?.weather_code || 0;
+        const wInfo = this.WEATHER_CODES[code] || { icon: '🌡️', desc: 'Unbekannt' };
+        // Determine status
+        let status = 'go';
+        if (snowCm > 30 || code >= 65 || code >= 95 || wind > 60) status = 'no';
+        else if (snowCm > 5 || wind > 40 || code >= 51) status = 'maybe';
+        results.push({
+          lat: p.lat, lng: p.lng, name: p.peak_name || p.name,
+          snowCm, temp: Math.round(temp), wind: Math.round(wind),
+          weatherIcon: wInfo.icon, weatherDesc: wInfo.desc, weatherCode: code,
+          status
+        });
+      } catch (e) {
+        results.push({
+          lat: p.lat, lng: p.lng, name: p.peak_name || p.name,
+          snowCm: -1, temp: 0, wind: 0, weatherIcon: '❓', weatherDesc: 'Fehler',
+          status: 'maybe'
+        });
+      }
+    }
+    return results;
+  },
+
+  // ─── BEST WEATHER WINDOW ────────────────────────────────────────────
+  /**
+   * Calculate best day to go for a given peak (7-day forecast)
+   * Returns array of {date, dayName, score, details, isBest}
+   */
+  async calculateBestWindow(lat, lng) {
+    const daily = await this.getWeeklyForecast(lat, lng);
+    if (!daily || !daily.time) return null;
+
+    const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const results = [];
+    let bestScore = -1;
+    let bestIdx = 0;
+
+    for (let i = 0; i < daily.time.length; i++) {
+      const d = new Date(daily.time[i]);
+      const dayName = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : days[d.getDay()] + ' ' + d.getDate() + '.';
+
+      const rain = daily.precipitation_sum?.[i] || 0;
+      const snow = daily.snowfall_sum?.[i] || 0;
+      const wind = daily.wind_speed_10m_max?.[i] || 0;
+      const tMax = daily.temperature_2m_max?.[i] || 0;
+      const tMin = daily.temperature_2m_min?.[i] || 0;
+      const code = daily.weather_code?.[i] || 0;
+
+      // Scoring (max 50 points)
+      let score = 0;
+      // Precipitation (0-10)
+      if (rain === 0 && snow === 0) score += 10;
+      else if (rain < 2) score += 7;
+      else if (rain < 5) score += 3;
+      // Wind (0-10)
+      if (wind < 15) score += 10;
+      else if (wind < 25) score += 7;
+      else if (wind < 40) score += 3;
+      // Temperature (0-10)
+      const avgTemp = (tMax + tMin) / 2;
+      if (avgTemp >= 5 && avgTemp <= 20) score += 10;
+      else if (avgTemp >= 0 && avgTemp <= 25) score += 7;
+      else if (avgTemp >= -5 && avgTemp <= 30) score += 4;
+      // Sky clarity (0-10)
+      if (code <= 1) score += 10;
+      else if (code <= 2) score += 7;
+      else if (code <= 3) score += 4;
+      else if (code <= 48) score += 2;
+      // Snow bonus/penalty (0-10)
+      if (snow === 0 && rain === 0) score += 10;
+      else if (snow > 5) score -= 5;
+
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+
+      const wInfo = this.WEATHER_CODES[code] || { icon: '🌡️', desc: '' };
+      results.push({
+        date: daily.time[i], dayName, score,
+        maxScore: 50,
+        icon: wInfo.icon,
+        tMax: Math.round(tMax), tMin: Math.round(tMin),
+        rain: Math.round(rain * 10) / 10,
+        snow: Math.round(snow * 10) / 10,
+        wind: Math.round(wind),
+        isBest: false
+      });
+    }
+    if (results[bestIdx]) results[bestIdx].isBest = true;
+    return results;
+  },
+
+  /**
+   * Render Best Weather Window as HTML
+   */
+  renderBestWindowHTML(windowData) {
+    if (!windowData || windowData.length === 0) return '<p>Keine Wetterdaten verfügbar</p>';
+    let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+    for (const d of windowData) {
+      const pct = Math.round((d.score / d.maxScore) * 100);
+      const barColor = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;' +
+        (d.isBest ? 'background:rgba(34,197,94,0.1);border-radius:8px;padding:8px;border:1px solid rgba(34,197,94,0.3);' : '') + '">' +
+        '<span style="width:55px;font-size:13px;font-weight:' + (d.isBest ? '700' : '400') + ';">' + d.dayName + '</span>' +
+        '<span style="font-size:18px;">' + d.icon + '</span>' +
+        '<div style="flex:1;height:8px;background:var(--bg-tertiary,#2a2826);border-radius:4px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:4px;"></div>' +
+        '</div>' +
+        '<span style="width:32px;font-size:12px;font-weight:600;color:' + barColor + ';">' + pct + '%</span>' +
+        (d.isBest ? '<span style="font-size:11px;font-weight:700;color:#22c55e;">⭐ BEST</span>' : '') +
+      '</div>';
+    }
+    html += '</div>';
+    return html;
   }
 };
