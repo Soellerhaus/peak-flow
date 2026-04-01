@@ -4041,12 +4041,11 @@ Peakflow.toggleSnowOverlay = async function() {
     } else {
       try {
         // KEY FIX: add &elevation= parameter to get snow at PEAK elevation, not valley floor
-        var snowResp = await PeakflowWeather.rateLimitedFetch(
+        var snowData = await PeakflowWeather.rateLimitedFetch(
           PeakflowWeather.BASE_URL + '/forecast?latitude=' + p.lat.toFixed(4) + '&longitude=' + p.lng.toFixed(4) +
           '&elevation=' + (p.elevation || 1500) +
           '&hourly=snow_depth,freezing_level_height&forecast_days=1&timezone=auto'
         );
-        var snowData = await snowResp.json();
         var rawSnow = snowData.hourly?.snow_depth?.[hour] || 0;
         snowCm = Math.round(rawSnow * 100);
         this._snowOverlayCache[cacheKey] = snowCm;

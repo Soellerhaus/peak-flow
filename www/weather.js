@@ -354,8 +354,7 @@ const PeakflowWeather = {
           forecast_days: 1,
           timezone: 'auto'
         });
-        const resp = await this.rateLimitedFetch(`${this.BASE_URL}/forecast?${params}`);
-        const data = await resp.json();
+        const data = await this.rateLimitedFetch(`${this.BASE_URL}/forecast?${params}`);
         const snow = data.hourly?.snow_depth?.[new Date().getHours()] || 0;
         const snowCm = Math.round(snow * 100);
         const temp = data.current?.temperature_2m || 0;
