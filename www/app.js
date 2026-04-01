@@ -3999,15 +3999,13 @@ Peakflow.toggleSnowOverlay = async function() {
 
   // Toggle off
   if (this._snowOverlayVisible) {
-    if (map.getLayer('snow-circles')) map.removeLayer('snow-circles');
-    if (map.getLayer('snow-labels')) map.removeLayer('snow-labels');
-    if (map.getSource('snow-peaks')) map.removeSource('snow-peaks');
     if (this._snowMarkers) { this._snowMarkers.forEach(function(m) { m.remove(); }); this._snowMarkers = []; }
+    if (this._snowLineEl) { this._snowLineEl.remove(); this._snowLineEl = null; }
     this._snowOverlayVisible = false;
     return;
   }
 
-  // Get visible peaks from allPOIs (already loaded) + query Supabase for peaks in bounds
+  // Step 1: Get peaks above 1000m in viewport
   var bounds = map.getBounds();
   var headers = { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY };
   var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
@@ -4026,34 +4024,45 @@ Peakflow.toggleSnowOverlay = async function() {
     return;
   }
 
-  // Query snow at each peak location (batch, max 20)
+  // Step 2: Query REAL snow depth at each peak using elevation parameter
+  // Open-Meteo elevation param forces snow calculation AT that altitude
   this._snowMarkers = [];
   var markers = this._snowMarkers;
-  var queried = 0;
-  for (var i = 0; i < peaks.length && queried < 20; i++) {
+  var hour = new Date().getHours();
+  var snowCount = 0;
+
+  for (var i = 0; i < Math.min(peaks.length, 20); i++) {
     var p = peaks[i];
-    var cacheKey = p.lat.toFixed(3) + ',' + p.lng.toFixed(3);
-    var snowCm = this._snowOverlayCache[cacheKey];
-    if (snowCm === undefined) {
+    var snowCm = 0;
+    var cacheKey = p.lat.toFixed(3) + ',' + p.lng.toFixed(3) + '@' + (p.elevation || 0);
+
+    if (this._snowOverlayCache[cacheKey] !== undefined) {
+      snowCm = this._snowOverlayCache[cacheKey];
+    } else {
       try {
+        // KEY FIX: add &elevation= parameter to get snow at PEAK elevation, not valley floor
         var snowResp = await PeakflowWeather.rateLimitedFetch(
-          PeakflowWeather.BASE_URL + '/forecast?latitude=' + p.lat.toFixed(4) + '&longitude=' + p.lng.toFixed(4) + '&hourly=snow_depth&forecast_days=1&timezone=auto'
+          PeakflowWeather.BASE_URL + '/forecast?latitude=' + p.lat.toFixed(4) + '&longitude=' + p.lng.toFixed(4) +
+          '&elevation=' + (p.elevation || 1500) +
+          '&hourly=snow_depth,freezing_level_height&forecast_days=1&timezone=auto'
         );
         var snowData = await snowResp.json();
-        var snow = snowData.hourly?.snow_depth?.[new Date().getHours()] || 0;
-        snowCm = Math.round(snow * 100);
+        var rawSnow = snowData.hourly?.snow_depth?.[hour] || 0;
+        snowCm = Math.round(rawSnow * 100);
         this._snowOverlayCache[cacheKey] = snowCm;
-        queried++;
       } catch(e) { snowCm = 0; }
     }
 
-    // Create marker for peaks with snow
     if (snowCm > 0) {
-      var color = snowCm > 100 ? '#ffffff' : snowCm > 50 ? '#dbeafe' : snowCm > 20 ? '#93c5fd' : '#bfdbfe';
-      var border = snowCm > 100 ? '#94a3b8' : '#60a5fa';
-      var size = snowCm > 100 ? 36 : snowCm > 50 ? 30 : 24;
+      snowCount++;
+      var color, border, size;
+      if (snowCm > 100) { color = '#ffffff'; border = '#94a3b8'; size = 34; }
+      else if (snowCm > 50) { color = '#e0e7ff'; border = '#6366f1'; size = 30; }
+      else if (snowCm > 20) { color = '#dbeafe'; border = '#3b82f6'; size = 26; }
+      else { color = '#bfdbfe'; border = '#60a5fa'; size = 22; }
+
       var el = document.createElement('div');
-      el.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#1e3a5f;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer;z-index:3;';
+      el.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#1e3a5f;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;z-index:3;';
       el.textContent = snowCm + '';
       el.title = (p.name || 'Gipfel') + ' (' + p.elevation + 'm): ' + snowCm + 'cm Schnee';
       var marker = new maplibregl.Marker({ element: el })
@@ -4063,11 +4072,15 @@ Peakflow.toggleSnowOverlay = async function() {
     }
   }
 
+  // Info banner
+  var banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(30,58,95,0.9);color:white;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+  banner.innerHTML = '❄️ ' + snowCount + '/' + Math.min(peaks.length, 20) + ' Gipfel mit Schnee (echte Daten von Open-Meteo)';
+  document.body.appendChild(banner);
+  this._snowLineEl = banner;
+  setTimeout(function() { if (banner.parentNode) banner.style.opacity = '0.6'; }, 5000);
+
   this._snowOverlayVisible = true;
-  if (markers.length === 0) {
-    alert('Kein Schnee auf den Gipfeln im Kartenausschnitt! ☀️');
-    this._snowOverlayVisible = false;
-  }
 };
 
 // ─── EVENT LISTENERS FOR NEW FEATURES ──────────────────────────────────
