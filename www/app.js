@@ -3997,81 +3997,77 @@ Peakflow.toggleSnowOverlay = async function() {
   var map = PeakflowRoutes.map;
   if (!map) return;
 
+  // Toggle off
   if (this._snowOverlayVisible) {
-    // Remove overlay
-    if (map.getLayer('snow-grid')) map.removeLayer('snow-grid');
-    if (map.getSource('snow-grid')) map.removeSource('snow-grid');
+    if (map.getLayer('snow-circles')) map.removeLayer('snow-circles');
+    if (map.getLayer('snow-labels')) map.removeLayer('snow-labels');
+    if (map.getSource('snow-peaks')) map.removeSource('snow-peaks');
+    if (this._snowMarkers) { this._snowMarkers.forEach(function(m) { m.remove(); }); this._snowMarkers = []; }
     this._snowOverlayVisible = false;
     return;
   }
 
-  // Build snow grid for current viewport
+  // Get visible peaks from allPOIs (already loaded) + query Supabase for peaks in bounds
   var bounds = map.getBounds();
-  var step = 0.05; // ~5km grid cells
-  var features = [];
-  var fetches = [];
+  var headers = { 'apikey': PeakflowData.SUPABASE_KEY, 'Authorization': 'Bearer ' + PeakflowData.SUPABASE_KEY };
+  var url = PeakflowData.SUPABASE_URL + '/rest/v1/peaks?select=name,lat,lng,elevation' +
+    '&lat=gte.' + bounds.getSouth().toFixed(3) + '&lat=lte.' + bounds.getNorth().toFixed(3) +
+    '&lng=gte.' + bounds.getWest().toFixed(3) + '&lng=lte.' + bounds.getEast().toFixed(3) +
+    '&elevation=gt.1000&limit=25&order=elevation.desc';
 
-  for (var lat = bounds.getSouth(); lat < bounds.getNorth(); lat += step) {
-    for (var lng = bounds.getWest(); lng < bounds.getEast(); lng += step) {
-      var key = lat.toFixed(2) + ',' + lng.toFixed(2);
-      if (this._snowOverlayCache[key] !== undefined) {
-        if (this._snowOverlayCache[key] > 0) features.push(this._createSnowFeature(lat, lng, step, this._snowOverlayCache[key]));
-      } else {
-        (function(lat2, lng2, key2) {
-          fetches.push(
-            PeakflowWeather.rateLimitedFetch(
-              PeakflowWeather.BASE_URL + '/forecast?latitude=' + lat2.toFixed(3) + '&longitude=' + lng2.toFixed(3) + '&hourly=snow_depth&forecast_days=1&timezone=auto'
-            ).then(function(r) { return r.json(); })
-            .then(function(data) {
-              var snow = data.hourly?.snow_depth?.[new Date().getHours()] || 0;
-              var snowCm = Math.round(snow * 100);
-              Peakflow._snowOverlayCache[key2] = snowCm;
-              if (snowCm > 0) features.push(Peakflow._createSnowFeature(lat2, lng2, step, snowCm));
-            }).catch(function() {})
-          );
-        })(lat, lng, key);
-      }
-      if (fetches.length >= 30) break; // Max 30 API calls
+  var peaks;
+  try {
+    var resp = await fetch(url, { headers: headers });
+    peaks = await resp.json();
+  } catch(e) { peaks = []; }
+
+  if (!peaks || peaks.length === 0) {
+    alert('Keine Gipfel über 1000m im Kartenausschnitt.');
+    return;
+  }
+
+  // Query snow at each peak location (batch, max 20)
+  this._snowMarkers = [];
+  var markers = this._snowMarkers;
+  var queried = 0;
+  for (var i = 0; i < peaks.length && queried < 20; i++) {
+    var p = peaks[i];
+    var cacheKey = p.lat.toFixed(3) + ',' + p.lng.toFixed(3);
+    var snowCm = this._snowOverlayCache[cacheKey];
+    if (snowCm === undefined) {
+      try {
+        var snowResp = await PeakflowWeather.rateLimitedFetch(
+          PeakflowWeather.BASE_URL + '/forecast?latitude=' + p.lat.toFixed(4) + '&longitude=' + p.lng.toFixed(4) + '&hourly=snow_depth&forecast_days=1&timezone=auto'
+        );
+        var snowData = await snowResp.json();
+        var snow = snowData.hourly?.snow_depth?.[new Date().getHours()] || 0;
+        snowCm = Math.round(snow * 100);
+        this._snowOverlayCache[cacheKey] = snowCm;
+        queried++;
+      } catch(e) { snowCm = 0; }
     }
-    if (fetches.length >= 30) break;
+
+    // Create marker for peaks with snow
+    if (snowCm > 0) {
+      var color = snowCm > 100 ? '#ffffff' : snowCm > 50 ? '#dbeafe' : snowCm > 20 ? '#93c5fd' : '#bfdbfe';
+      var border = snowCm > 100 ? '#94a3b8' : '#60a5fa';
+      var size = snowCm > 100 ? 36 : snowCm > 50 ? 30 : 24;
+      var el = document.createElement('div');
+      el.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#1e3a5f;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer;z-index:3;';
+      el.textContent = snowCm + '';
+      el.title = (p.name || 'Gipfel') + ' (' + p.elevation + 'm): ' + snowCm + 'cm Schnee';
+      var marker = new maplibregl.Marker({ element: el })
+        .setLngLat([p.lng, p.lat])
+        .addTo(map);
+      markers.push(marker);
+    }
   }
 
-  if (fetches.length > 0) await Promise.all(fetches);
-
-  var geojson = { type: 'FeatureCollection', features: features };
-  if (map.getSource('snow-grid')) {
-    map.getSource('snow-grid').setData(geojson);
-  } else {
-    map.addSource('snow-grid', { type: 'geojson', data: geojson });
-    map.addLayer({
-      id: 'snow-grid',
-      type: 'fill',
-      source: 'snow-grid',
-      paint: {
-        'fill-color': ['get', 'color'],
-        'fill-opacity': 0.55
-      }
-    }); // Snow grid layer (below route if exists)
-  }
   this._snowOverlayVisible = true;
-};
-
-Peakflow._createSnowFeature = function(lat, lng, step, snowCm) {
-  // Only snow cells rendered (snowCm > 0), no green "snow-free" cells
-  var color = '#dbeafe'; // light blue = light snow
-  if (snowCm > 100) color = '#ffffff'; // deep white = heavy snow
-  else if (snowCm > 50) color = '#e0e7ff'; // blue-white
-  else if (snowCm > 20) color = '#bfdbfe'; // medium blue
-  return {
-    type: 'Feature',
-    properties: { snowCm: snowCm, color: color },
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[
-        [lng, lat], [lng + step, lat], [lng + step, lat + step], [lng, lat + step], [lng, lat]
-      ]]
-    }
-  };
+  if (markers.length === 0) {
+    alert('Kein Schnee auf den Gipfeln im Kartenausschnitt! ☀️');
+    this._snowOverlayVisible = false;
+  }
 };
 
 // ─── EVENT LISTENERS FOR NEW FEATURES ──────────────────────────────────
