@@ -898,6 +898,21 @@ const PeakflowRoutes = {
               };
               return closestDist(a.coords) <= closestDist(b.coords) ? a : b;
             });
+          // Proximity check: reject if route doesn't pass within 300m of BOTH waypoints
+          // This prevents BRouter from routing far from where the user clicked
+          var closestToFrom = Infinity, closestToTarget = Infinity;
+          for (var ci = 0; ci < best.coords.length; ci++) {
+            var cdFrom = PeakflowUtils.haversineDistance(best.coords[ci][1], best.coords[ci][0], from.lat, from.lng);
+            var cdTo = PeakflowUtils.haversineDistance(best.coords[ci][1], best.coords[ci][0], to.lat, to.lng);
+            if (cdFrom < closestToFrom) closestToFrom = cdFrom;
+            if (cdTo < closestToTarget) closestToTarget = cdTo;
+          }
+          var maxProximity = Math.max(closestToFrom, closestToTarget);
+          if (maxProximity > 0.3) { // >300m from waypoint
+            console.warn(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: route passes ${(maxProximity*1000).toFixed(0)}m from waypoint — too far, rejecting`);
+            return null; // Will trigger red blinking marker
+          }
+
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
