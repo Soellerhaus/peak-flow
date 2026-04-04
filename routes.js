@@ -898,6 +898,16 @@ const PeakflowRoutes = {
               };
               return closestDist(a.coords) <= closestDist(b.coords) ? a : b;
             });
+          // Snap-check: if BRouter snapped waypoint >500m away, the point is off-trail
+          // Only check 'to' waypoint (start snapping is OK — user walks from road to trail)
+          var endSnap = PeakflowUtils.haversineDistance(
+            best.coords[best.coords.length-1][1], best.coords[best.coords.length-1][0], to.lat, to.lng
+          );
+          if (endSnap > 0.5) { // >500m
+            console.warn(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: endpoint snapped ${(endSnap*1000).toFixed(0)}m away — rejecting`);
+            return null;
+          }
+
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
