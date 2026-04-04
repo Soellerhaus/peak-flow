@@ -4054,8 +4054,26 @@ document.addEventListener('DOMContentLoaded', function() {
   var closeBW = document.getElementById('closeBestWindowModal');
   if (closeBW) closeBW.addEventListener('click', function() { document.getElementById('bestWindowModal').classList.add('hidden'); });
 
-  // Deep-link: ?tour=ID
+  // Deep-link: ?peak=Name&lat=X&lng=Y (von Bergkoenig)
   var urlParams = new URLSearchParams(window.location.search);
+  var peakLat = urlParams.get('lat');
+  var peakLng = urlParams.get('lng');
+  var peakName = urlParams.get('peak');
+  if (peakLat && peakLng) {
+    setTimeout(function() {
+      var lat = parseFloat(peakLat);
+      var lng = parseFloat(peakLng);
+      if (PeakflowRoutes.map) {
+        PeakflowRoutes.map.flyTo([lng, lat], 14, { duration: 1.5 });
+        // Waypoint setzen
+        setTimeout(function() {
+          PeakflowRoutes.addWaypoint([lng, lat]);
+        }, 1800);
+      }
+    }, 2000);
+  }
+
+  // Deep-link: ?tour=ID
   var tourId = urlParams.get('tour');
   if (tourId) {
     setTimeout(async function() {
