@@ -4064,10 +4064,10 @@ document.addEventListener('DOMContentLoaded', function() {
       var lat = parseFloat(peakLat);
       var lng = parseFloat(peakLng);
       if (PeakflowRoutes.map) {
-        PeakflowRoutes.map.flyTo([lng, lat], 14, { duration: 1.5 });
+        PeakflowRoutes.map.flyTo({ center: [lng, lat], zoom: 14, duration: 1.5 });
         // Waypoint setzen
         setTimeout(function() {
-          PeakflowRoutes.addWaypoint([lng, lat]);
+          PeakflowRoutes.addWaypoint({ lng: lng, lat: lat, name: peakName || 'Gipfel' });
         }, 1800);
       }
     }, 2000);
