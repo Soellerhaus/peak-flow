@@ -921,8 +921,17 @@ const PeakflowRoutes = {
         const lineChains = [[]]; // array of arrays
         for (const { i, coords: segCoords } of segResults.sort((a, b) => a.i - b.i)) {
           const currentChain = lineChains[lineChains.length - 1];
+          // Check if segment is real trail vs straight-line/near-straight from BRouter
+          // A real trail has many points (switchbacks, curves); a straight line has very few
+          var isRealTrail = false;
           if (segCoords && segCoords.length > 2) {
-            // Valid BRouter segment (>2 pts = real trail, not degenerate start+end)
+            var sDist = PeakflowUtils.routeDistance(segCoords);
+            var dDist = PeakflowUtils.haversineDistance(segCoords[0][1], segCoords[0][0], segCoords[segCoords.length-1][1], segCoords[segCoords.length-1][0]);
+            var ptDensity = segCoords.length / (sDist || 0.01); // points per km
+            // Real trails: >10 pts/km, straight lines: <10 pts/km for distances >0.3km
+            isRealTrail = dDist < 0.3 || ptDensity > 10 || segCoords.length > 20;
+          }
+          if (isRealTrail) {
             if (currentChain.length > 0) {
               currentChain.push(...segCoords.slice(1)); // append, skip duplicate start
             } else {
