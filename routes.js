@@ -898,17 +898,6 @@ const PeakflowRoutes = {
               };
               return closestDist(a.coords) <= closestDist(b.coords) ? a : b;
             });
-          // Proximity check: route START must be near 'from', route END must be near 'to'
-          // BRouter snaps to nearest trail — if snap is >150m, waypoint is too far from any trail
-          var rc = best.coords;
-          var startDist = PeakflowUtils.haversineDistance(rc[0][1], rc[0][0], from.lat, from.lng);
-          var endDist = PeakflowUtils.haversineDistance(rc[rc.length-1][1], rc[rc.length-1][0], to.lat, to.lng);
-          var maxSnap = Math.max(startDist, endDist);
-          if (maxSnap > 0.15) { // >150m snap = waypoint not on a trail
-            console.warn(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: snap distance ${(maxSnap*1000).toFixed(0)}m — waypoint too far from trail, rejecting`);
-            return null; // Will trigger red blinking marker
-          }
-
           console.log(`[Peakflow] ${from.name||'WP'}→${to.name||'WP'}: ${best.profile} ${best.dist.toFixed(1)}km`);
           this._segmentCache[cacheKey] = best.coords;
           return best.coords;
