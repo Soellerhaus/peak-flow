@@ -113,23 +113,47 @@ const PeakflowNavigation = {
     var coords = this.routeCoords;
     var elevs = this.elevations;
 
-    // 1. Direction changes (turns)
-    for (var i = 10; i < coords.length - 10; i += 5) {
-      var bearingBefore = this._bearing(coords[i - 5], coords[i]);
-      var bearingAfter = this._bearing(coords[i], coords[i + 5]);
+    // 1. Direction changes (turns + forks + junctions)
+    // Use wider sampling for more stable bearing calculation
+    var sampleDist = 8; // points before/after for bearing
+    var lastTurnIdx = -50; // prevent duplicate announcements within 50 indices
+    for (var i = sampleDist + 2; i < coords.length - sampleDist - 2; i += 3) {
+      // Average bearing over a wider window for stability
+      var bearingBefore = this._avgBearing(coords, i - sampleDist, i);
+      var bearingAfter = this._avgBearing(coords, i, i + sampleDist);
       var turn = bearingAfter - bearingBefore;
       if (turn > 180) turn -= 360;
       if (turn < -180) turn += 360;
 
-      if (Math.abs(turn) > 35) {
-        this._navPoints.push({
-          type: 'turn',
-          index: i,
-          coord: coords[i],
-          direction: turn > 0 ? 'rechts' : 'links',
-          angle: Math.abs(turn)
-        });
+      var absAngle = Math.abs(turn);
+
+      // Skip tiny curves and too-close turns
+      if (absAngle < 20 || (i - lastTurnIdx) < 30) continue;
+
+      var direction = turn > 0 ? 'rechts' : 'links';
+      var turnType;
+
+      if (absAngle >= 160) {
+        turnType = 'uturn';        // U-turn / Kehre
+      } else if (absAngle >= 100) {
+        turnType = 'sharp';        // Scharf abbiegen
+      } else if (absAngle >= 45) {
+        turnType = 'turn';         // Normal abbiegen
+      } else {
+        turnType = 'fork';         // Leicht halten = Abzweigung/Gabelung
       }
+
+      this._navPoints.push({
+        type: 'turn',
+        index: i,
+        coord: coords[i],
+        direction: direction,
+        angle: absAngle,
+        turnType: turnType,
+        announced200: false,
+        announced50: false
+      });
+      lastTurnIdx = i;
     }
 
     // 2. Elevation changes (steep sections)
@@ -276,20 +300,35 @@ const PeakflowNavigation = {
 
   _checkNavPoints(lng, lat) {
     var now = Date.now();
-    if (now - this.lastSpokenTime < 5000) return; // Min 5s between announcements
+    if (now - this.lastSpokenTime < 4000) return; // Min 4s between announcements
 
     for (var i = 0; i < this._navPoints.length; i++) {
       var np = this._navPoints[i];
       var key = np.type + '_' + i;
-      if (this.announcedPoints.has(key)) continue;
 
       var dist = this._distBetween([lng, lat], np.coord) * 1000; // meters
 
-      // Announce at different distances based on type
-      var announceDistM = np.type === 'danger' ? 200 : np.type === 'turn' ? 100 : 150;
+      // Two-stage announcements for turns: 200m preview + 50m instruction
+      if (np.type === 'turn') {
+        if (dist < 200 && dist > 60 && !np.announced200) {
+          var msg = this._getAnnouncement(np, dist, 'preview');
+          if (msg) { this._speak(msg); np.announced200 = true; }
+          continue;
+        }
+        if (dist < 60 && !np.announced50) {
+          var msg = this._getAnnouncement(np, dist, 'now');
+          if (msg) { this._speak(msg); np.announced50 = true; }
+          continue;
+        }
+        continue;
+      }
+
+      // Other nav points: single announcement
+      if (this.announcedPoints.has(key)) continue;
+      var announceDistM = np.type === 'danger' ? 200 : 150;
 
       if (dist < announceDistM) {
-        var msg = this._getAnnouncement(np, dist);
+        var msg = this._getAnnouncement(np, dist, 'single');
         if (msg) {
           this._speak(msg);
           this.announcedPoints.add(key);
@@ -298,12 +337,22 @@ const PeakflowNavigation = {
     }
   },
 
-  _getAnnouncement(np, distM) {
+  _getAnnouncement(np, distM, phase) {
+    // Build turn instruction text based on turnType
+    if (np.type === 'turn') {
+      var turnText = this._getTurnText(np);
+      if (phase === 'preview') {
+        return 'In ' + Math.round(distM) + ' Metern ' + turnText;
+      } else {
+        // 'now' phase
+        return 'Jetzt ' + turnText;
+      }
+    }
+
+    // Other nav point types
     var distText = distM < 30 ? '' : 'In ' + Math.round(distM) + ' Metern, ';
 
     switch (np.type) {
-      case 'turn':
-        return distText + (np.angle > 70 ? 'scharf ' : '') + np.direction + ' abbiegen.';
       case 'steep':
         return distText + 'steiler Abschnitt. ' + np.slope + ' Grad Steigung.';
       case 'danger':
@@ -318,6 +367,22 @@ const PeakflowNavigation = {
         return 'Du hast dein Ziel erreicht! Tour beendet.';
       default:
         return null;
+    }
+  },
+
+  _getTurnText(np) {
+    var dir = np.direction; // 'rechts' oder 'links'
+    switch (np.turnType) {
+      case 'fork':
+        return 'an der Abzweigung ' + dir + ' halten.';
+      case 'turn':
+        return dir + ' abbiegen.';
+      case 'sharp':
+        return 'scharf ' + dir + ' abbiegen.';
+      case 'uturn':
+        return 'Kehre ' + dir + '.';
+      default:
+        return dir + ' abbiegen.';
     }
   },
 
@@ -348,6 +413,15 @@ const PeakflowNavigation = {
     if (this.announcedPoints.has(key)) return;
     this.announcedPoints.add(key);
     this._speak(text);
+  },
+
+  _avgBearing(coords, fromIdx, toIdx) {
+    // Average bearing over multiple points for more stable direction
+    var fromI = Math.max(0, fromIdx);
+    var toI = Math.min(coords.length - 1, toIdx);
+    if (fromI >= toI) return 0;
+    // Use endpoints of the range for overall direction
+    return this._bearing(coords[fromI], coords[toI]);
   },
 
   _bearing(from, to) {
@@ -399,7 +473,12 @@ const PeakflowNavigation = {
         '<span id="navTime">⏱ 0 min</span>' +
         '<span id="navAccuracy">📡 --m</span>' +
       '</div>' +
-      '<div id="navInstruction" style="margin-top:8px;font-size:15px;font-weight:500;color:#c9a84c;">Folge der Route...</div>' +
+      '<div id="navNextTurn" style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(201,168,76,0.12);border-radius:10px;border:1px solid rgba(201,168,76,0.25);">' +
+        '<div id="navTurnArrow" style="font-size:28px;min-width:36px;text-align:center;">↑</div>' +
+        '<div><div id="navTurnText" style="font-size:15px;font-weight:600;color:#c9a84c;">Geradeaus</div>' +
+        '<div id="navTurnDist" style="font-size:12px;color:rgba(240,236,226,0.6);margin-top:2px;"></div></div>' +
+      '</div>' +
+      '<div id="navInstruction" style="margin-top:8px;font-size:13px;font-weight:500;color:rgba(240,236,226,0.7);">Folge der Route...</div>' +
       '<div style="margin-top:8px;display:flex;gap:8px;">' +
         '<button id="navMuteBtn" style="padding:6px 12px;background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-size:12px;cursor:pointer;">🔊 Ton an</button>' +
         '<button id="navCenterBtn" style="padding:6px 12px;background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-size:12px;cursor:pointer;">📍 Zentrieren</button>' +
@@ -434,6 +513,58 @@ const PeakflowNavigation = {
     if (el) el.textContent = '⏱ ' + elapsed + ' min';
     el = document.getElementById('navAccuracy');
     if (el) el.textContent = '📡 ' + Math.round(accuracy) + 'm';
+
+    // Update next turn display
+    this._updateNextTurnUI();
+  },
+
+  _updateNextTurnUI() {
+    if (!this._navPoints || !this.marker) return;
+    var pos = this.marker.getLngLat();
+    var userCoord = [pos.lng, pos.lat];
+
+    // Find next unannounced turn
+    var nextTurn = null;
+    var nextDist = Infinity;
+    for (var i = 0; i < this._navPoints.length; i++) {
+      var np = this._navPoints[i];
+      if (np.type !== 'turn' || np.announced50) continue;
+      var d = this._distBetween(userCoord, np.coord) * 1000;
+      if (d < nextDist) { nextDist = d; nextTurn = np; }
+    }
+
+    var arrowEl = document.getElementById('navTurnArrow');
+    var textEl = document.getElementById('navTurnText');
+    var distEl = document.getElementById('navTurnDist');
+    if (!arrowEl || !textEl || !distEl) return;
+
+    if (!nextTurn || nextDist > 2000) {
+      arrowEl.textContent = '↑';
+      textEl.textContent = 'Geradeaus';
+      distEl.textContent = '';
+      return;
+    }
+
+    // Arrow based on turn type + direction
+    var arrow = '↑';
+    if (nextTurn.direction === 'rechts') {
+      if (nextTurn.turnType === 'fork') arrow = '↗';
+      else if (nextTurn.turnType === 'sharp' || nextTurn.turnType === 'uturn') arrow = '↩';
+      else arrow = '→';
+    } else {
+      if (nextTurn.turnType === 'fork') arrow = '↖';
+      else if (nextTurn.turnType === 'sharp' || nextTurn.turnType === 'uturn') arrow = '↪';
+      else arrow = '←';
+    }
+
+    arrowEl.textContent = arrow;
+    textEl.textContent = this._getTurnText(nextTurn).replace(/\.$/, '');
+
+    if (nextDist >= 1000) {
+      distEl.textContent = (nextDist / 1000).toFixed(1) + ' km';
+    } else {
+      distEl.textContent = Math.round(nextDist) + ' m';
+    }
   },
 
   _speak(text) {
