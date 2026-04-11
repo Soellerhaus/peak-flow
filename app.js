@@ -98,6 +98,9 @@ const Peakflow = {
 
     console.log('[Peakflow] Ready!');
 
+    // Show tutorial for first-time users (after map is ready)
+    setTimeout(() => { PeakflowTutorial.start(); }, 1200);
+
     // Auto-activate planning mode on start with first saved location as start point
     setTimeout(() => {
       if (!PeakflowRoutes.isPlanning) {
@@ -3457,6 +3460,12 @@ const Peakflow = {
 
       document.getElementById('settingsModal').classList.add('hidden');
       document.getElementById('settingsWelcome').classList.add('hidden');
+    });
+
+    // Restart tutorial from settings
+    document.getElementById('restartTutorialBtn').addEventListener('click', function() {
+      document.getElementById('settingsModal').classList.add('hidden');
+      PeakflowTutorial.start(true);
     });
 
     // Logout button in settings
