@@ -101,7 +101,7 @@ const Peakflow = {
     // Show tutorial for first-time users (after map is ready)
     setTimeout(() => { PeakflowTutorial.start(); }, 1200);
 
-    // Auto-activate planning mode on start with first saved location as start point
+    // Auto-activate planning mode — ready to place waypoints immediately
     setTimeout(() => {
       if (!PeakflowRoutes.isPlanning) {
         PeakflowRoutes.isPlanning = true;
@@ -115,12 +115,19 @@ const Peakflow = {
         if (routeTab) routeTab.classList.add('active');
         const routePanel = document.getElementById('panel-routes');
         if (routePanel) routePanel.classList.add('active');
-        // Auto-set first saved location as start point
+        // If saved locations: auto-set first as start, otherwise just show hint
         const locs = this._settingsLocations || [];
         if (locs.length > 0) {
           PeakflowRoutes.addWaypoint({ lng: locs[0].lng, lat: locs[0].lat, name: locs[0].name });
         } else {
-          PeakflowRoutes._showStartPointPicker();
+          // Show simple hint instead of full picker — user just taps the map
+          const info = document.getElementById('routeInfo');
+          if (info) {
+            info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
+              '<div style="font-size:32px;margin-bottom:8px;">📍</div>' +
+              '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
+              '<div>um deinen Startpunkt zu setzen</div></div>';
+          }
         }
       }
     }, 500);

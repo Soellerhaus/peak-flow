@@ -38,10 +38,24 @@ const PeakflowNavigation = {
     this.elevations = elevations || [];
     this.pois = pois || [];
     this.currentIndex = 0;
-    this.totalDistance = 0;
     this.startTime = Date.now();
     this.announcedPoints.clear();
     this.active = true;
+
+    // Precalculate cumulative distance for remaining-time calculation
+    this._cumDist = [0]; // cumDist[i] = distance in km from start to point i
+    for (var i = 1; i < routeCoords.length; i++) {
+      this._cumDist[i] = this._cumDist[i - 1] + this._distBetween(routeCoords[i - 1], routeCoords[i]);
+    }
+    this.totalDistance = this._cumDist[routeCoords.length - 1] || 0;
+
+    // Calculate total estimated time using route stats
+    this._totalEstMinutes = 0;
+    if (typeof PeakflowUtils !== 'undefined' && this.elevations.length > 0) {
+      var gain = PeakflowUtils.calculateElevationGain(this.elevations);
+      var est = PeakflowUtils.calculateTime(this.totalDistance, gain.ascent, gain.descent);
+      this._totalEstMinutes = est.totalMinutes || 0;
+    }
 
     // Precalculate navigation points (turns, POIs, dangers, water)
     this._buildNavPoints();
@@ -289,10 +303,29 @@ const PeakflowNavigation = {
     // Check upcoming nav points
     this._checkNavPoints(lng, lat);
 
-    // Center map on position
+    // Calculate bearing in direction of travel along route
+    var lookAhead = Math.min(this.currentIndex + 15, this.routeCoords.length - 1);
+    if (lookAhead > this.currentIndex) {
+      var newBearing = this._bearing(this.routeCoords[this.currentIndex], this.routeCoords[lookAhead]);
+      // Smooth bearing changes
+      var diff = newBearing - this._lastBearing;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      this._lastBearing += diff * 0.3; // smooth interpolation
+
+      // Rotate direction arrow on marker
+      var arrow = document.getElementById('navDirArrow');
+      if (arrow) {
+        arrow.style.transform = 'translateX(-50%) rotate(' + Math.round(this._lastBearing) + 'deg)';
+      }
+    }
+
+    // Center map on position, rotated in travel direction
     if (this.map) {
       this.map.easeTo({
         center: [lng, lat],
+        bearing: this._lastBearing || 0,
+        pitch: 45,
         duration: 1000
       });
     }
@@ -443,12 +476,19 @@ const PeakflowNavigation = {
     if (this.marker) this.marker.remove();
 
     var el = document.createElement('div');
-    el.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#3b82f6;border:3px solid white;' +
-      'box-shadow:0 0 15px rgba(59,130,246,0.6);animation:navPulse 2s ease-in-out infinite;';
+    el.style.cssText = 'width:32px;height:32px;position:relative;';
+    // Blue circle
+    el.innerHTML = '<div style="width:24px;height:24px;border-radius:50%;background:#3b82f6;border:3px solid white;' +
+      'box-shadow:0 0 15px rgba(59,130,246,0.6);animation:navPulse 2s ease-in-out infinite;position:absolute;top:4px;left:4px;"></div>' +
+      // Direction arrow (triangle pointing up, rotated via JS)
+      '<div id="navDirArrow" style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);' +
+      'width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #3b82f6;' +
+      'filter:drop-shadow(0 0 3px rgba(59,130,246,0.8));transition:transform 0.3s ease;"></div>';
 
-    this.marker = new maplibregl.Marker({ element: el })
+    this.marker = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
       .setLngLat([0, 0])
       .addTo(this.map);
+    this._lastBearing = 0;
   },
 
   _showNavUI() {
@@ -468,9 +508,10 @@ const PeakflowNavigation = {
         '<div style="font-size:18px;font-weight:700;">🧭 Navigation aktiv</div>' +
         '<button id="navStopBtn" style="padding:8px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">⏹ Beenden</button>' +
       '</div>' +
-      '<div id="navStats" style="display:flex;gap:16px;font-size:14px;">' +
+      '<div id="navStats" style="display:flex;gap:12px;font-size:13px;flex-wrap:wrap;">' +
+        '<span id="navRemaining" style="color:#c9a84c;font-weight:600;">⏱ --</span>' +
+        '<span id="navDistLeft">📏 --</span>' +
         '<span id="navProgress">📍 0%</span>' +
-        '<span id="navTime">⏱ 0 min</span>' +
         '<span id="navAccuracy">📡 --m</span>' +
       '</div>' +
       '<div id="navNextTurn" style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(201,168,76,0.12);border-radius:10px;border:1px solid rgba(201,168,76,0.25);">' +
@@ -508,11 +549,33 @@ const PeakflowNavigation = {
   _updateNavUI(progress, elapsed, accuracy) {
     var el;
     el = document.getElementById('navProgress');
-    if (el) el.textContent = '📍 ' + progress + '%';
-    el = document.getElementById('navTime');
-    if (el) el.textContent = '⏱ ' + elapsed + ' min';
+    if (el) el.textContent = '\uD83D\uDCCD ' + progress + '%';
     el = document.getElementById('navAccuracy');
-    if (el) el.textContent = '📡 ' + Math.round(accuracy) + 'm';
+    if (el) el.textContent = '\uD83D\uDCE1 ' + Math.round(accuracy) + 'm';
+
+    // Remaining distance
+    var progressFrac = this.currentIndex / this.routeCoords.length;
+    var distDone = this._cumDist ? (this._cumDist[this.currentIndex] || 0) : 0;
+    var distLeft = Math.max(0, this.totalDistance - distDone);
+    el = document.getElementById('navDistLeft');
+    if (el) {
+      el.textContent = '\uD83D\uDCCF ' + (distLeft >= 1 ? distLeft.toFixed(1) + ' km' : Math.round(distLeft * 1000) + ' m');
+    }
+
+    // Remaining time estimate
+    el = document.getElementById('navRemaining');
+    if (el) {
+      if (this._totalEstMinutes > 0) {
+        var remainMin = Math.round(this._totalEstMinutes * (1 - progressFrac));
+        if (remainMin >= 60) {
+          el.textContent = '\u23F1 noch ' + Math.floor(remainMin / 60) + ':' + String(remainMin % 60).padStart(2, '0') + ' h';
+        } else {
+          el.textContent = '\u23F1 noch ' + remainMin + ' min';
+        }
+      } else {
+        el.textContent = '\u23F1 ' + elapsed + ' min';
+      }
+    }
 
     // Update next turn display
     this._updateNextTurnUI();

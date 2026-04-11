@@ -63,9 +63,15 @@ const PeakflowRoutes = {
       document.querySelector('[data-tab="routes"]').classList.add('active');
       document.getElementById('panel-routes').classList.add('active');
 
-      // Show start point picker if no waypoints yet
+      // Show simple hint if no waypoints yet
       if (this.waypoints.length === 0) {
-        this._showStartPointPicker();
+        const info = document.getElementById('routeInfo');
+        if (info) {
+          info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
+            '<div style="font-size:32px;margin-bottom:8px;">\uD83D\uDCCD</div>' +
+            '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
+            '<div>um deinen Startpunkt zu setzen</div></div>';
+        }
       }
     } else {
       if (this.map) this.map.getCanvas().style.cursor = '';
@@ -2343,8 +2349,14 @@ const PeakflowRoutes = {
     const btn = document.getElementById('routePlanBtn');
     if (btn) btn.classList.add('active');
 
-    // Show start point picker with saved locations
-    this._showStartPointPicker();
+    // Show simple hint to tap map
+    var info = document.getElementById('routeInfo');
+    if (info) {
+      info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
+        '<div style="font-size:32px;margin-bottom:8px;">\uD83D\uDCCD</div>' +
+        '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
+        '<div>um deinen Startpunkt zu setzen</div></div>';
+    }
 
     // Hide route weather
     const weatherEl = document.getElementById('routeWeather');
