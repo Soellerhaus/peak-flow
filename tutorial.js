@@ -111,6 +111,7 @@ const PeakflowTutorial = {
     var spotlight = document.getElementById('tutorialSpotlight');
     var card = document.getElementById('tutorialCard');
 
+    // Spotlight on target element (if any)
     if (step.selector) {
       var target = document.querySelector(step.selector);
       if (target) {
@@ -122,46 +123,27 @@ const PeakflowTutorial = {
         spotlight.style.width = (rect.width + pad * 2) + 'px';
         spotlight.style.height = (rect.height + pad * 2) + 'px';
         spotlight.style.borderRadius = rect.width < 60 ? '50%' : '12px';
-
-        // Position card below or above spotlight
-        var cardH = 240;
-        if (rect.bottom + cardH + 20 < window.innerHeight) {
-          card.style.top = (rect.bottom + 16) + 'px';
-          card.style.bottom = 'auto';
-        } else {
-          card.style.top = 'auto';
-          card.style.bottom = (window.innerHeight - rect.top + 16) + 'px';
-        }
-        // Horizontal: center on target, clamped to viewport
-        var cardW = Math.min(340, window.innerWidth - 32);
-        var cx = rect.left + rect.width / 2 - cardW / 2;
-        cx = Math.max(16, Math.min(cx, window.innerWidth - cardW - 16));
-        card.style.left = cx + 'px';
-        card.style.width = cardW + 'px';
       } else {
         spotlight.style.display = 'none';
-        this._centerCard(card);
       }
     } else {
       spotlight.style.display = 'none';
-      this._centerCard(card);
     }
+
+    // Card always fixed at bottom center of screen
+    var cardW = Math.min(360, window.innerWidth - 24);
+    card.style.left = ((window.innerWidth - cardW) / 2) + 'px';
+    card.style.width = cardW + 'px';
+    card.style.bottom = '24px';
+    card.style.top = 'auto';
 
     // Animate in
     card.style.opacity = '0';
-    card.style.transform = 'translateY(12px)';
+    card.style.transform = 'translateY(20px)';
     requestAnimationFrame(function() {
       card.style.opacity = '1';
       card.style.transform = 'translateY(0)';
     });
-  },
-
-  _centerCard(card) {
-    card.style.top = '50%';
-    card.style.left = '50%';
-    card.style.transform = 'translate(-50%, -50%)';
-    card.style.width = Math.min(340, window.innerWidth - 32) + 'px';
-    card.style.bottom = 'auto';
   },
 
   _next() {
