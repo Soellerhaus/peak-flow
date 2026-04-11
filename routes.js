@@ -2349,13 +2349,11 @@ const PeakflowRoutes = {
     const btn = document.getElementById('routePlanBtn');
     if (btn) btn.classList.add('active');
 
-    // Show simple hint to tap map
-    var info = document.getElementById('routeInfo');
-    if (info) {
-      info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
-        '<div style="font-size:32px;margin-bottom:8px;">\uD83D\uDCCD</div>' +
-        '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
-        '<div>um deinen Startpunkt zu setzen</div></div>';
+    // Auto-set start from GPS or show hint
+    if (typeof Peakflow !== 'undefined' && Peakflow._autoStartFromGPS) {
+      Peakflow._autoStartFromGPS();
+    } else {
+      Peakflow._showStartHint();
     }
 
     // Hide route weather

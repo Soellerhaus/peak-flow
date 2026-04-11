@@ -115,19 +115,14 @@ const Peakflow = {
         if (routeTab) routeTab.classList.add('active');
         const routePanel = document.getElementById('panel-routes');
         if (routePanel) routePanel.classList.add('active');
-        // If saved locations: auto-set first as start, otherwise just show hint
+
+        // Auto-set start point: saved location > GPS > hint
         const locs = this._settingsLocations || [];
         if (locs.length > 0) {
           PeakflowRoutes.addWaypoint({ lng: locs[0].lng, lat: locs[0].lat, name: locs[0].name });
         } else {
-          // Show simple hint instead of full picker — user just taps the map
-          const info = document.getElementById('routeInfo');
-          if (info) {
-            info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
-              '<div style="font-size:32px;margin-bottom:8px;">📍</div>' +
-              '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
-              '<div>um deinen Startpunkt zu setzen</div></div>';
-          }
+          // Try GPS for auto start point
+          this._autoStartFromGPS();
         }
       }
     }, 500);
@@ -1775,6 +1770,47 @@ const Peakflow = {
       }
     } catch (e) {
       console.warn('[Peakflow] IP geolocation failed', e);
+    }
+  },
+
+  /**
+   * Auto-set start point from GPS, fallback to hint
+   */
+  _autoStartFromGPS() {
+    if (!navigator.geolocation) {
+      this._showStartHint();
+      return;
+    }
+    // Show loading state
+    const info = document.getElementById('routeInfo');
+    if (info) {
+      info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
+        '<div style="font-size:28px;margin-bottom:8px;animation:navPulse 1.5s infinite;">\uD83D\uDCE1</div>' +
+        '<div style="font-weight:600;color:var(--text-primary);">Standort wird ermittelt...</div></div>';
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        console.log('[Peakflow] GPS start point:', lat, lng);
+        PeakflowRoutes.addWaypoint({ lng: lng, lat: lat, name: 'Mein Standort' });
+        if (this.map) this.map.flyTo({ center: [lng, lat], zoom: 14, duration: 800 });
+      },
+      (err) => {
+        console.warn('[Peakflow] GPS failed for start point:', err.message);
+        this._showStartHint();
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+  },
+
+  _showStartHint() {
+    const info = document.getElementById('routeInfo');
+    if (info) {
+      info.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--text-secondary);font-size:14px;">' +
+        '<div style="font-size:32px;margin-bottom:8px;">\uD83D\uDCCD</div>' +
+        '<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Tippe auf die Karte</div>' +
+        '<div>um deinen Startpunkt zu setzen</div></div>';
     }
   },
 

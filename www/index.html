@@ -683,9 +683,42 @@
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
+        <!-- Sortiert nach Nutzungshäufigkeit: wichtigste oben -->
+        <button class="map-toolbar__btn active" id="routePlanBtn" title="Route planen">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none">
+            <path d="M5,3 L5,21 M5,3 L14,7 L5,11" stroke="currentColor" stroke-width="2" fill="none"/>
+            <circle cx="5" cy="21" r="2" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="locateBtn" title="Mein Standort">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="fitRouteBtn" title="Route zentrieren">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="elevationToggleBtn" title="Höhenprofil an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="2,18 6,12 10,15 14,6 18,10 22,4"/><line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="terrainToggleBtn" title="3D Terrain an/aus">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 20L9 8l5 6 3-4 5 10H2z"/><text x="12" y="7" font-size="8" font-weight="bold" fill="currentColor" stroke="none" text-anchor="middle">3D</text>
+          </svg>
+        </button>
         <button class="map-toolbar__btn active" id="peaksToggleBtn" title="Gipfel an/aus">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3L2 20h20L12 3z"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="map-toolbar__btn" id="layerBtn" title="Kartenlayer">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12,2 2,7 12,12 22,7 12,2"/>
+            <polyline points="2,17 12,22 22,17"/><polyline points="2,12 12,17 22,12"/>
           </svg>
         </button>
         <button class="map-toolbar__btn active" id="waterToggleBtn" title="Wasserquellen an/aus">
@@ -696,38 +729,6 @@
         <button class="map-toolbar__btn" id="poiFilterBtn" title="POI-Filter">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/><circle cx="4" cy="17" r="1.5" fill="currentColor"/><circle cx="20" cy="17" r="1.5" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn" id="locateBtn" title="Mein Standort">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn active" id="routePlanBtn" title="Route planen">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none">
-            <path d="M5,3 L5,21 M5,3 L14,7 L5,11" stroke="currentColor" stroke-width="2" fill="none"/>
-            <circle cx="5" cy="21" r="2" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn" id="layerBtn" title="Kartenlayer">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="12,2 2,7 12,12 22,7 12,2"/>
-            <polyline points="2,17 12,22 22,17"/><polyline points="2,12 12,17 22,12"/>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn" id="fitRouteBtn" title="Route zentrieren">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn" id="terrainToggleBtn" title="3D Terrain an/aus">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M2 20L9 8l5 6 3-4 5 10H2z"/><text x="12" y="7" font-size="8" font-weight="bold" fill="currentColor" stroke="none" text-anchor="middle">3D</text>
-          </svg>
-        </button>
-        <button class="map-toolbar__btn" id="elevationToggleBtn" title="Höhenprofil an/aus">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="2,18 6,12 10,15 14,6 18,10 22,4"/><line x1="2" y1="20" x2="22" y2="20"/>
           </svg>
         </button>
         <button class="map-toolbar__btn hidden" id="saveRouteToolbarBtn" title="Route speichern">
