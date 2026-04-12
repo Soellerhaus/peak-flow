@@ -225,7 +225,15 @@ const PeakflowI18n = {
   },
 
   init() {
-    this._lang = localStorage.getItem('peakflow_lang') || 'de';
+    var saved = localStorage.getItem('peakflow_lang');
+    if (saved) {
+      this._lang = saved;
+    } else {
+      // Auto-detect from browser language
+      var browserLang = (navigator.language || navigator.userLanguage || 'de').toLowerCase();
+      this._lang = browserLang.startsWith('de') ? 'de' : 'en';
+      localStorage.setItem('peakflow_lang', this._lang);
+    }
     this.apply();
   },
 
