@@ -6,48 +6,13 @@ const PeakflowTutorial = {
   _overlay: null,
   _stepIdx: 0,
   _steps: [
-    {
-      title: 'Willkommen bei Peak Flow!',
-      text: 'Plane deine Touren in den Alpen mit 3D-Karte, Wetter und echten Wanderwegen.',
-      selector: '#map',
-      icon: '\u26F0\uFE0F'
-    },
-    {
-      title: 'Route planen',
-      text: 'Tippe hier um den Routenplaner zu starten. Die Karte wechselt in den Planungsmodus.',
-      selector: '#routePlanBtn',
-      icon: '\uD83D\uDDFA\uFE0F'
-    },
-    {
-      title: 'Wegpunkte setzen',
-      text: 'Tippe auf die Karte um Wegpunkte zu setzen. Dein erster Punkt ist der Startpunkt.',
-      selector: '#map',
-      icon: '\uD83D\uDCCD'
-    },
-    {
-      title: 'Punkte verschieben & l\u00F6schen',
-      text: 'Ziehe Punkte um die Route anzupassen. Langer Druck auf einen Punkt l\u00F6scht ihn (am PC: Rechtsklick).',
-      selector: '#map',
-      icon: '\u270B'
-    },
-    {
-      title: 'Routen-Details',
-      text: 'Hier siehst du Distanz, H\u00F6henmeter, gesch\u00E4tzte Zeit und das H\u00F6henprofil deiner Tour.',
-      selector: '[data-tab="routes"]',
-      icon: '\uD83D\uDCCA'
-    },
-    {
-      title: 'Aktivit\u00E4tsprofil',
-      text: 'W\u00E4hle dein Tempo: Wandern, Trail Running oder Radfahren. Die Route passt sich automatisch an.',
-      selector: '#profileSelect',
-      icon: '\uD83E\uDDB6'
-    },
-    {
-      title: 'Bereit!',
-      text: 'Viel Spa\u00DF beim Planen! Du kannst diese Einf\u00FChrung jederzeit in den Einstellungen wiederholen.',
-      selector: null,
-      icon: '\uD83C\uDF1F'
-    }
+    { titleKey: 'tutWelcomeTitle', textKey: 'tutWelcomeText', selector: '#map', icon: '\u26F0\uFE0F' },
+    { titleKey: 'tutRouteTitle', textKey: 'tutRouteText', selector: '#routePlanBtn', icon: '\uD83D\uDDFA\uFE0F' },
+    { titleKey: 'tutWaypointTitle', textKey: 'tutWaypointText', selector: '#map', icon: '\uD83D\uDCCD' },
+    { titleKey: 'tutDragTitle', textKey: 'tutDragText', selector: '#map', icon: '\u270B' },
+    { titleKey: 'tutStatsTitle', textKey: 'tutStatsText', selector: '[data-tab="routes"]', icon: '\uD83D\uDCCA' },
+    { titleKey: 'tutProfileTitle', textKey: 'tutProfileText', selector: '#profileSelect', icon: '\uD83E\uDDB6' },
+    { titleKey: 'tutReadyTitle', textKey: 'tutReadyText', selector: null, icon: '\uD83C\uDF1F' }
   ],
 
   start(force) {
@@ -90,14 +55,15 @@ const PeakflowTutorial = {
     var step = this._steps[this._stepIdx];
     if (!step) { this._finish(); return; }
 
-    // Update card content
+    // Update card content (i18n-aware)
+    var t = typeof PeakflowI18n !== 'undefined' ? function(k) { return PeakflowI18n.t(k); } : function(k) { return k; };
     document.getElementById('tutorialIcon').textContent = step.icon;
-    document.getElementById('tutorialTitle').textContent = step.title;
-    document.getElementById('tutorialText').textContent = step.text;
+    document.getElementById('tutorialTitle').textContent = t(step.titleKey);
+    document.getElementById('tutorialText').textContent = t(step.textKey);
 
     // Update button text
     var btn = document.getElementById('tutorialBtn');
-    btn.textContent = this._stepIdx === this._steps.length - 1 ? 'Los geht\u2019s!' : 'Weiter';
+    btn.textContent = this._stepIdx === this._steps.length - 1 ? t('tutGo') : t('tutNext');
 
     // Build dots
     var dotsEl = document.getElementById('tutorialDots');

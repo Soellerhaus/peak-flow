@@ -71,6 +71,9 @@ const Peakflow = {
       await this.detectLocationByIP();
     }
 
+    // Init i18n (language)
+    PeakflowI18n.init();
+
     // Init Supabase
     PeakflowData.init();
 
@@ -3504,6 +3507,15 @@ const Peakflow = {
       document.getElementById('settingsModal').classList.add('hidden');
       document.getElementById('settingsWelcome').classList.add('hidden');
     });
+
+    // Language selector
+    var langSelect = document.getElementById('settingsLang');
+    if (langSelect) {
+      langSelect.value = PeakflowI18n._lang || 'de';
+      langSelect.addEventListener('change', function() {
+        PeakflowI18n.setLang(this.value);
+      });
+    }
 
     // Restart tutorial from settings
     document.getElementById('restartTutorialBtn').addEventListener('click', function() {

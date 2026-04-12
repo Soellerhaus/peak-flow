@@ -2786,6 +2786,31 @@ a:hover { text-decoration: underline; }
 }
 
 /* ============================================
+   PASSWORD EYE TOGGLE
+   ============================================ */
+.pw-eye-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary, #6b6560);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast, 150ms ease);
+}
+.pw-eye-btn:hover {
+  color: var(--text-primary, #f0ece2);
+}
+.pw-eye-btn.active {
+  color: var(--color-primary, #c9a84c);
+}
+
+/* ============================================
    TUTORIAL OVERLAY
    ============================================ */
 #tutorialOverlay {
