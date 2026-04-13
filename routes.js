@@ -1110,24 +1110,43 @@ const PeakflowRoutes = {
     if (waterNodes.length === 0) return;
 
     try {
-      // Filter to sources within ~200m of route
-      const threshold = 0.002;
+      // Filter to sources within ~300m of route
+      // Sample every 10th point for speed, but cover entire route
+      const threshold = 0.003; // ~300m
       const thresholdSq = threshold * threshold;
       const sources = [];
+      const sampleStep = Math.max(1, Math.floor(coords.length / 500)); // max 500 samples
+
+      // Pre-compute cumulative distance at sample points
+      const sampleIndices = [];
+      const sampleDists = [];
+      let cumDist = 0;
+      sampleIndices.push(0);
+      sampleDists.push(0);
+      for (let i = 1; i < coords.length; i++) {
+        cumDist += PeakflowUtils.haversineDistance(coords[i-1][1], coords[i-1][0], coords[i][1], coords[i][0]);
+        if (i % sampleStep === 0 || i === coords.length - 1) {
+          sampleIndices.push(i);
+          sampleDists.push(cumDist);
+        }
+      }
 
       for (const node of waterNodes) {
-        for (let ci = 0; ci < coords.length; ci += 3) {
+        let minDistSq = Infinity;
+        let bestSampleIdx = -1;
+        for (let si = 0; si < sampleIndices.length; si++) {
+          const ci = sampleIndices[si];
           const dLat = coords[ci][1] - node.lat;
           const dLng = coords[ci][0] - node.lng;
-          if (dLat * dLat + dLng * dLng < thresholdSq) {
-            let distKm = 0;
-            for (let j = 1; j <= ci && j < coords.length; j++) {
-              distKm += PeakflowUtils.haversineDistance(coords[j-1][1], coords[j-1][0], coords[j][1], coords[j][0]);
-            }
-            const type = node.type === 'spring' ? 'Quelle' : node.type === 'water_well' ? 'Brunnen' : 'Trinkwasser';
-            sources.push({ lat: node.lat, lng: node.lng, name: node.name || type, type: type, distKm: distKm });
-            break;
+          const distSq = dLat * dLat + dLng * dLng;
+          if (distSq < minDistSq) {
+            minDistSq = distSq;
+            bestSampleIdx = si;
           }
+        }
+        if (minDistSq < thresholdSq && bestSampleIdx >= 0) {
+          const type = node.type === 'spring' ? 'Quelle' : node.type === 'water_well' ? 'Brunnen' : 'Trinkwasser';
+          sources.push({ lat: node.lat, lng: node.lng, name: node.name || type, type: type, distKm: sampleDists[bestSampleIdx] });
         }
       }
 
