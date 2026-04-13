@@ -2168,21 +2168,30 @@ const PeakflowRoutes = {
     if (!this.map || !coords || coords.length < 10 || !elevations || elevations.length < 10) return;
     if (!this._dangerMarkers) this._dangerMarkers = [];
 
-    const step = 8; // Check every 8 points (~100-150m) - more sensitive
+    // Use wider window for stable slope calculation (20 points ~ 200-400m)
+    const step = 20;
     const allSlopes = [];
 
     for (let i = step; i < coords.length - step; i += step) {
       const dist = PeakflowUtils.haversineDistance(
         coords[i - step][1], coords[i - step][0], coords[i][1], coords[i][0]
       );
-      if (dist < 0.003) continue;
-      const elevDiff = Math.abs(elevations[i] - elevations[i - step]);
+      if (dist < 0.01) continue; // Skip degenerate segments
+      const elevDiff = Math.abs(elevations[Math.min(i, elevations.length - 1)] - elevations[Math.min(i - step, elevations.length - 1)]);
       const slope = Math.atan2(elevDiff, dist * 1000) * 180 / Math.PI;
-      allSlopes.push({ coord: [coords[i][0], coords[i][1]], slope, idx: i });
+      if (slope > 15) { // Collect all steep-ish sections
+        allSlopes.push({ coord: [coords[i][0], coords[i][1]], slope, idx: i });
+      }
     }
 
-    // Only mark T4+ danger zones (>30° = alpine hiking / exposed)
-    let steepPoints = allSlopes.filter(pt => pt.slope > 30);
+    // Mark sections based on SAC level:
+    // T3+ (>20°) gets orange markers, T4+ (>30°) gets red markers
+    let steepPoints = allSlopes.filter(pt => pt.slope > 20);
+
+    // Fallback: if no >20° found but route IS rated T4+, lower threshold
+    if (steepPoints.length === 0 && allSlopes.length > 0) {
+      steepPoints = allSlopes.filter(pt => pt.slope > 15);
+    }
 
     if (steepPoints.length === 0) {
       console.log('[Peakflow] No steep sections found for markers');
@@ -2196,12 +2205,13 @@ const PeakflowRoutes = {
       steepPoints = steepPoints.filter((_, i) => i % step2 === 0);
     }
 
-    console.log('[Peakflow] Placing ' + steepPoints.length + ' steep-section markers');
+    console.log('[Peakflow] Steep analysis: ' + allSlopes.length + ' slopes found, ' + steepPoints.length + ' markers to place. Max slope: ' + (allSlopes.length > 0 ? Math.round(Math.max(...allSlopes.map(s => s.slope))) + '\u00b0' : 'none'));
 
     steepPoints.forEach(pt => {
-      const color = pt.slope > 40 ? '#8b0000' : '#e74c3c';
-      const label = pt.slope > 40 ? '⚠ T5+ Sehr steil (' + Math.round(pt.slope) + '\u00b0)' :
-                    '⚠ T4 Steil (' + Math.round(pt.slope) + '\u00b0)';
+      const color = pt.slope > 35 ? '#8b0000' : pt.slope > 25 ? '#e74c3c' : '#e67e22';
+      const label = pt.slope > 35 ? '\u26A0 T5+ Sehr steil (' + Math.round(pt.slope) + '\u00b0)' :
+                    pt.slope > 25 ? '\u26A0 T4 Steil (' + Math.round(pt.slope) + '\u00b0)' :
+                    '\u26A0 T3 Steil (' + Math.round(pt.slope) + '\u00b0)';
 
       const el = document.createElement('div');
       el.innerHTML = '\u26A0';
