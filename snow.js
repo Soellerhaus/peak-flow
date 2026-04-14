@@ -73,22 +73,21 @@ const PeakflowSnow = {
     const parts = [];
     const snow = analysis.maxSnowDepth;
 
-    // CRITICAL: Tour too dangerous with this much snow
-    if (snow > 80) {
-      parts.push(`⛔ WARNUNG: Bis zu ${snow}cm Schnee auf der Route!`);
-      parts.push('Peakflow rät von dieser Tour ab! Bei dieser Schneelage ist sicheres Wandern nicht möglich.');
-      parts.push('Lawinengefahr, Wegfindung unmöglich, Einbruchgefahr.');
-      if (analysis.hasSnowfall) parts.push('Zusätzlich Neuschnee erwartet!');
+    // CRITICAL: Snow danger levels for hiking
+    if (snow >= 40) {
+      parts.push(`\u26D4 WARNUNG: ${snow}cm Schnee auf der Route!`);
+      parts.push('Kein Durchkommen mit normalen Wanderschuhen! Tour nur mit Schneeschuhen/Tourenski m\u00f6glich.');
+      parts.push('Lawinengefahr, Wegfindung unm\u00f6glich, Einbruchgefahr.');
+      if (analysis.hasSnowfall) parts.push('Zus\u00e4tzlich Neuschnee erwartet!');
       if (analysis.minFreezingLevel < 3000) parts.push(`Nullgradgrenze bei ${analysis.minFreezingLevel}m.`);
       return parts.join(' ');
     }
 
-    if (snow > 50) {
-      parts.push(`🔴 Bis zu ${snow}cm Schnee auf der Route! Tour nur mit Schneeschuhen/Tourenski möglich.`);
-    } else if (snow > 20) {
-      parts.push(`🟠 Teilweise ${snow}cm Schnee. Grödel/Gamaschen empfohlen.`);
+    if (snow >= 10) {
+      parts.push(`\uD83D\uDD34 ${snow}cm Schnee auf der Route! Trail nicht begehbar \u2014 zu gef\u00e4hrlich f\u00fcr Wanderung.`);
+      parts.push('Altschneefelder, rutschig, Wegfindung schwierig. Gr\u00f6del + Gamaschen Pflicht.');
     } else if (snow > 0) {
-      parts.push(`Vereinzelt Schneereste (bis ${snow}cm).`);
+      parts.push(`\uD83D\uDFE0 Vereinzelt Schneereste (bis ${snow}cm). Vorsicht bei Altschneefeldern.`);
     }
 
     if (analysis.hasSnowfall) {
