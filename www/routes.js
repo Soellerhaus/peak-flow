@@ -1022,6 +1022,7 @@ const PeakflowRoutes = {
     } else {
       // Clear SAC markers and accordion for bike mode
       if (this._dangerMarkers) { this._dangerMarkers.forEach(m => m.remove()); this._dangerMarkers = []; }
+      if (this._closureMarkers) { this._closureMarkers.forEach(m => m.remove()); this._closureMarkers = []; }
       const sacTitle = document.getElementById('sacAccordionTitle');
       if (sacTitle) sacTitle.innerHTML = '';
       const sacBody = document.getElementById('sacAccordionBody');
@@ -1029,6 +1030,7 @@ const PeakflowRoutes = {
     }
     this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e));
     this._loadSurfaceData(coords).catch(e => console.warn('[Peakflow] Surface:', e));
+    this._loadTrailClosures(coords).catch(e => console.warn('[Peakflow] Closures:', e));
     // Weather/Snow/Sun delayed 2s (only fires for the final route, not intermediate)
     this._secondaryDataTimer = setTimeout(() => {
       Promise.all([
@@ -1040,6 +1042,137 @@ const PeakflowRoutes = {
 
     // Auto-cache tiles along route for offline use (logged-in users only)
     this._autoCacheRouteTiles(coords);
+  },
+
+  /**
+   * Load trail closures from Swiss API + Supabase user reports
+   */
+  async _loadTrailClosures(coords) {
+    if (!coords || coords.length < 2 || !this.map) return;
+
+    // Remove old closure markers
+    if (this._closureMarkers) { this._closureMarkers.forEach(m => m.remove()); }
+    this._closureMarkers = [];
+
+    const lngs = coords.map(c => c[0]);
+    const lats = coords.map(c => c[1]);
+    const pad = 0.01;
+    const south = Math.min(...lats) - pad, west = Math.min(...lngs) - pad;
+    const north = Math.max(...lats) + pad, east = Math.max(...lngs) + pad;
+
+    const closures = [];
+
+    // 1. Swiss official trail closures (geo.admin.ch API)
+    try {
+      const swissUrl = 'https://api3.geo.admin.ch/rest/services/api/MapServer/identify' +
+        '?geometryType=esriGeometryEnvelope&geometry=' + west + ',' + south + ',' + east + ',' + north +
+        '&layers=all:ch.astra.wanderland-sperrungen_umleitungen' +
+        '&tolerance=0&mapExtent=' + west + ',' + south + ',' + east + ',' + north +
+        '&imageDisplay=1,1,1&sr=4326&returnGeometry=true&lang=de';
+
+      const resp = await fetch(swissUrl);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.results) {
+          data.results.forEach(function(r) {
+            var attrs = r.attributes || {};
+            var geom = r.geometry;
+            if (geom && (geom.x || (geom.paths && geom.paths[0]))) {
+              var lat = geom.y || (geom.paths ? geom.paths[0][0][1] : 0);
+              var lng = geom.x || (geom.paths ? geom.paths[0][0][0] : 0);
+              closures.push({
+                lat: lat, lng: lng,
+                reason: attrs.sperrung_text || attrs.beschreibung || 'Gesperrt',
+                source: 'swiss',
+                date: attrs.datum_von || ''
+              });
+            }
+          });
+          console.log('[Peakflow] Swiss closures: ' + closures.length);
+        }
+      }
+    } catch(e) { console.warn('[Peakflow] Swiss closure API failed:', e.message); }
+
+    // 2. User-reported closures from Supabase
+    try {
+      if (PeakflowData.authClient) {
+        const { data } = await PeakflowData.authClient
+          .from('trail_closures')
+          .select('*')
+          .gte('lat', south).lte('lat', north)
+          .gte('lng', west).lte('lng', east);
+        if (data && data.length > 0) {
+          data.forEach(function(c) {
+            // Skip expired closures
+            if (c.expires_at && new Date(c.expires_at) < new Date()) return;
+            closures.push({
+              lat: c.lat, lng: c.lng,
+              reason: c.reason || 'Wegsperre (gemeldet)',
+              source: 'user',
+              date: c.created_at ? c.created_at.split('T')[0] : ''
+            });
+          });
+          console.log('[Peakflow] User-reported closures: ' + data.length);
+        }
+      }
+    } catch(e) { console.warn('[Peakflow] Supabase closures failed:', e.message); }
+
+    if (closures.length === 0) return;
+
+    // Check if closures are near route (within ~500m)
+    var nearRoute = [];
+    var threshold = 0.005; // ~500m
+    var thresholdSq = threshold * threshold;
+    var self = this;
+
+    closures.forEach(function(cl) {
+      for (var ci = 0; ci < coords.length; ci += 10) {
+        var dLat = coords[ci][1] - cl.lat;
+        var dLng = coords[ci][0] - cl.lng;
+        if (dLat * dLat + dLng * dLng < thresholdSq) {
+          nearRoute.push(cl);
+          break;
+        }
+      }
+    });
+
+    if (nearRoute.length === 0) return;
+
+    console.log('[Peakflow] ' + nearRoute.length + ' closures near route!');
+
+    // Place closure markers
+    nearRoute.forEach(function(cl) {
+      var el = document.createElement('div');
+      el.innerHTML = '\uD83D\uDEA7';
+      el.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#dc2626;border:2px solid white;' +
+        'box-shadow:0 0 12px rgba(220,38,38,0.6);display:flex;align-items:center;justify-content:center;' +
+        'font-size:14px;cursor:pointer;z-index:10;animation:dangerBlink 2s infinite;';
+      el.title = '\u26A0\uFE0F ' + cl.reason;
+
+      var marker = new maplibregl.Marker({ element: el })
+        .setLngLat([cl.lng, cl.lat])
+        .addTo(self.map);
+
+      var sourceLabel = cl.source === 'swiss' ? '\uD83C\uDDE8\uD83C\uDDED Offizielle Meldung' : '\uD83D\uDC64 Nutzer-Meldung';
+      var popup = new maplibregl.Popup({ offset: 15 })
+        .setHTML('<div style="padding:6px;max-width:220px;">' +
+          '<div style="font-weight:700;color:#dc2626;margin-bottom:4px;">\uD83D\uDEA7 Wegsperrung</div>' +
+          '<div style="font-size:13px;margin-bottom:4px;">' + cl.reason + '</div>' +
+          '<div style="font-size:11px;color:#888;">' + sourceLabel +
+          (cl.date ? ' \u2022 ' + cl.date : '') + '</div></div>');
+      marker.setPopup(popup);
+
+      self._closureMarkers.push(marker);
+    });
+
+    // Show warning in sidebar
+    var sacBody = document.getElementById('sacAccordionBody');
+    if (sacBody) {
+      sacBody.innerHTML += '<div style="margin-top:8px;padding:6px 8px;background:rgba(220,38,38,0.12);border-radius:6px;border:1px solid rgba(220,38,38,0.3);">' +
+        '<span style="color:#dc2626;font-weight:600;">\uD83D\uDEA7 ' + nearRoute.length + ' Wegsperrung' + (nearRoute.length > 1 ? 'en' : '') + ' auf der Route!</span>' +
+        '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">' +
+        nearRoute.map(function(c) { return c.reason; }).join(', ') + '</div></div>';
+    }
   },
 
   /**

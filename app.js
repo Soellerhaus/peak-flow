@@ -2774,6 +2774,44 @@ const Peakflow = {
     });
 
     // Voice navigation
+    // Report trail closure
+    document.getElementById('reportClosureBtn').addEventListener('click', () => {
+      if (!PeakflowData.currentUser) {
+        alert('Bitte zuerst anmelden um Sperrungen zu melden.');
+        var m = document.getElementById('authModal');
+        if (m) m.classList.remove('hidden');
+        return;
+      }
+      // Get map center as default location
+      var center = this.map ? this.map.getCenter() : null;
+      var reason = prompt('\uD83D\uDEA7 Wegsperrung melden\n\nGrund der Sperrung (z.B. Erdrutsch, Bauarbeiten, Schnee):');
+      if (!reason || !reason.trim()) return;
+
+      var lat = center ? center.lat : 0;
+      var lng = center ? center.lng : 0;
+
+      // If route exists, use middle of route as location
+      var coords = PeakflowRoutes.routeCoords;
+      if (coords && coords.length > 2) {
+        var mid = coords[Math.floor(coords.length / 2)];
+        lng = mid[0]; lat = mid[1];
+      }
+
+      PeakflowData.authClient.from('trail_closures').insert({
+        lat: lat, lng: lng,
+        reason: reason.trim(),
+        source: 'user',
+        reported_by: PeakflowData.currentUser.id
+      }).then(function(res) {
+        if (res.error) {
+          console.warn('[Peakflow] Closure report failed:', res.error);
+          alert('Fehler beim Melden. Bitte später nochmal versuchen.');
+        } else {
+          alert('\u2705 Sperrung gemeldet! Danke für deinen Beitrag.');
+        }
+      });
+    });
+
     document.getElementById('navStartBtn').addEventListener('click', () => {
       PeakflowNavigation.start(
         PeakflowRoutes.routeCoords,
