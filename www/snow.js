@@ -73,6 +73,44 @@ const PeakflowSnow = {
   _stationCacheTime: 0,
 
   /**
+   * Fetch snow from Südtirol/South Tyrol OpenDataHub
+   */
+  async _fetchSuedtirolSnow() {
+    if (this._suedtirolCache && Date.now() - this._suedtirolCacheTime < 30 * 60 * 1000) {
+      return this._suedtirolCache;
+    }
+    try {
+      var resp = await fetch('https://tourism.api.opendatahub.com/v1/Weather/Measuringpoint?pagesize=200');
+      if (!resp.ok) return [];
+      var data = await resp.json();
+      var items = Array.isArray(data) ? data : (data.Items || data.data || []);
+      var result = [];
+      items.forEach(function(i) {
+        var snow = i.SnowHeight;
+        if (snow === null || snow === undefined || snow === '' || snow === 0) return;
+        var gps = i.GpsPoints && i.GpsPoints.position ? i.GpsPoints.position : (i.GpsInfo && i.GpsInfo[0] ? i.GpsInfo[0] : null);
+        if (!gps || !gps.Latitude || !gps.Longitude) return;
+        result.push({
+          name: i.Shortname || '?',
+          lat: gps.Latitude,
+          lng: gps.Longitude,
+          elev: gps.Altitude || 0,
+          snow: typeof snow === 'number' ? snow : parseInt(snow) || 0
+        });
+      });
+      this._suedtirolCache = result;
+      this._suedtirolCacheTime = Date.now();
+      console.log('[Snow] S\u00fcdtirol stations loaded:', result.length, 'with snow data');
+      return result;
+    } catch(e) {
+      console.warn('[Snow] S\u00fcdtirol fetch failed:', e.message);
+      return [];
+    }
+  },
+  _suedtirolCache: null,
+  _suedtirolCacheTime: 0,
+
+  /**
    * Fetch real snow depths from GeoSphere Austria TAWES stations
    */
   async _fetchStationSnow() {
@@ -141,8 +179,9 @@ const PeakflowSnow = {
       samples.push(routeCoords[i]);
     }
 
-    // 1. Try real GeoSphere station data first
+    // 1. Fetch real station data (GeoSphere AT + Südtirol IT)
     var stationData = await this._fetchStationSnow();
+    var suedtirolData = await this._fetchSuedtirolSnow();
 
     // 2. Also fetch Open-Meteo data
     try {
@@ -150,13 +189,30 @@ const PeakflowSnow = {
       for (const coord of samples) {
         const d = await PeakflowWeather.getSnowData(coord[1], coord[0], coord[2] || 0);
 
-        // Override with real station data if available
+        // Override with real station data if available (Austria GeoSphere)
         if (stationData) {
           var nearest = this._getNearestStationSnow(coord[1], coord[0], coord[2] || 0, stationData);
           if (nearest && nearest.snow > d.snowDepth) {
             d.snowDepth = nearest.snow;
             d.stationName = nearest.station.name;
             d.stationElev = nearest.station.elev;
+          }
+        }
+
+        // Also check Südtirol stations
+        if (suedtirolData && suedtirolData.length > 0) {
+          var bestDist = 0.5; // max ~80km
+          var bestST = null;
+          for (var si = 0; si < suedtirolData.length; si++) {
+            var st = suedtirolData[si];
+            if (Math.abs(st.elev - (coord[2] || 0)) > 700) continue;
+            var dd = Math.pow(st.lat - coord[1], 2) + Math.pow(st.lng - coord[0], 2);
+            if (dd < bestDist) { bestDist = dd; bestST = st; }
+          }
+          if (bestST && bestST.snow > d.snowDepth) {
+            d.snowDepth = bestST.snow;
+            d.stationName = bestST.name;
+            d.stationElev = bestST.elev;
           }
         }
 
