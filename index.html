@@ -556,15 +556,10 @@
             <div class="hidden" id="snowWarning"><span id="snowWarningText"></span></div>
             <div class="hidden" id="packingList"></div>
 
-            <!-- Compact temperature line (always visible) -->
-            <div class="hidden" id="weatherCompact" style="padding:8px 10px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;cursor:pointer;margin-top:4px;" onclick="document.getElementById('weatherAccordion').classList.add('open');">
-              <span id="weatherCompactText">&#127777;&#65039; --</span>
-            </div>
-
-            <!-- Weather as accordion -->
+            <!-- Weather accordion with temp in header -->
             <div class="route-accordion hidden" id="weatherAccordion">
               <button class="route-accordion__header" onclick="this.parentElement.classList.toggle('open')">
-                <span class="route-accordion__title" id="weatherAccordionTitle">&#127780;&#65039; Wetter</span>
+                <span class="route-accordion__title" id="weatherAccordionTitle">&#127777;&#65039; <span id="weatherCompactText">Wetter</span></span>
                 <span class="route-accordion__arrow">&#9660;</span>
               </button>
               <div class="route-accordion__body" id="routeWeather" style="padding:8px 0;font-size:13px;"></div>

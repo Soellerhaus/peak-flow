@@ -2061,11 +2061,9 @@ const PeakflowRoutes = {
     const lat = coords[maxIdx][1];
     const lng = coords[maxIdx][0];
 
-    // Show weather accordion + compact line
+    // Show weather accordion
     var weatherAccordion = document.getElementById('weatherAccordion');
-    var weatherCompact = document.getElementById('weatherCompact');
     if (weatherAccordion) weatherAccordion.classList.remove('hidden');
-    if (weatherCompact) weatherCompact.classList.remove('hidden');
     weatherEl.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;">Wetter wird geladen...</div>';
 
     try {
@@ -2759,8 +2757,6 @@ const PeakflowRoutes = {
     if (weatherEl) weatherEl.innerHTML = '';
     var weatherAcc = document.getElementById('weatherAccordion');
     if (weatherAcc) { weatherAcc.classList.add('hidden'); weatherAcc.classList.remove('open'); }
-    var weatherComp = document.getElementById('weatherCompact');
-    if (weatherComp) weatherComp.classList.add('hidden');
   },
 
   /**
