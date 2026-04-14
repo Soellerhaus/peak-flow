@@ -2444,9 +2444,12 @@ const Peakflow = {
     });
 
     // GPX Import
-    document.getElementById('importGpxBtn').addEventListener('click', () => {
-      document.getElementById('gpxFileInput').click();
-    });
+    var importGpxBtn = document.getElementById('importGpxBtn');
+    if (importGpxBtn) {
+      importGpxBtn.addEventListener('click', () => {
+        document.getElementById('gpxFileInput').click();
+      });
+    }
     document.getElementById('gpxFileInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -2520,6 +2523,28 @@ const Peakflow = {
       document.getElementById('authSwitchText').textContent = isLoginMode ? 'Noch kein Konto?' : 'Bereits registriert?';
       document.getElementById('authSwitchBtn').textContent = isLoginMode ? 'Registrieren' : 'Anmelden';
       document.getElementById('authError').classList.add('hidden');
+    });
+
+    // Forgot password
+    document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
+      const email = document.getElementById('authEmail').value;
+      if (!email || !email.includes('@')) {
+        alert('Bitte zuerst deine E-Mail-Adresse eingeben.');
+        document.getElementById('authEmail').focus();
+        return;
+      }
+      try {
+        const { error } = await PeakflowData.authClient.auth.resetPasswordForEmail(email, {
+          redirectTo: 'https://www.peak-flow.app/'
+        });
+        if (error) {
+          alert('Fehler: ' + error.message);
+        } else {
+          alert('\u2709\uFE0F Reset-Link wurde an ' + email + ' gesendet! Pr\u00fcfe deinen Posteingang.');
+        }
+      } catch(e) {
+        alert('Fehler beim Senden. Bitte sp\u00e4ter versuchen.');
+      }
     });
 
     // Auth form submit

@@ -1268,9 +1268,7 @@ const PeakflowRoutes = {
 
       console.log('[Peakflow] Surface: ' + pctPaved + '% paved, ' + pctGravel + '% gravel, ' + pctTrail + '% trail');
 
-      // Draw colored surface overlay on route
-      this._drawSurfaceOverlay(coords, surfaceSegments);
-
+      // Surface info only in sidebar accordion (not on map — keeps map clean)
       // Show surface legend in sidebar
       this._showSurfaceLegend(pctPaved, pctGravel, pctTrail);
 
