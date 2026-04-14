@@ -2070,15 +2070,12 @@ const PeakflowRoutes = {
       const weather = await PeakflowWeather.getCurrentWeather(lat, lng);
       const forecast = await PeakflowWeather.getDetailedForecast(lat, lng);
 
-      // Update compact temperature line
-      var compactEl = document.getElementById('weatherCompactText');
-      if (compactEl && weather) {
-        compactEl.textContent = '\uD83C\uDF21\uFE0F ' + Math.round(weather.temperature || 0) + '\u00b0C \u00b7 ' +
+      // Update accordion header with compact temperature
+      var wAccTitle = document.getElementById('weatherAccordionTitle');
+      if (wAccTitle && weather) {
+        wAccTitle.innerHTML = '\uD83C\uDF21\uFE0F ' + Math.round(weather.temperature || 0) + '\u00b0C \u00b7 ' +
           (weather.description || '') + ' \u00b7 \uD83D\uDCA8 ' + Math.round(weather.windSpeed || 0) + 'km/h';
       }
-      // Update accordion title
-      var wAccTitle = document.getElementById('weatherAccordionTitle');
-      if (wAccTitle) wAccTitle.textContent = '\u2600\uFE0F Wetter (' + Math.round(maxElev) + 'm)';
 
       let html = '<h4 style="font-size:13px;font-weight:700;margin-bottom:6px;">\u2600\uFE0F Wetter am h\u00f6chsten Punkt (' + Math.round(maxElev) + 'm)</h4>';
       html += PeakflowWeather.renderWeatherHTML(weather);
@@ -2437,8 +2434,25 @@ const PeakflowRoutes = {
         const levelEmoji = maxSac.level === 'T6' ? '⛔' : maxSac.level === 'T5' ? '🔴' : '🟠';
         var diffLabel = this._currentDifficulty ? this._currentDifficulty.label : '';
         sacTitle.innerHTML = '<span style="color:' + (maxSac.color || '#e67e22') + ';">⚠ ' + diffLabel + ' • SAC ' + maxSac.level + ' ' + maxSac.label + ' • ' + dangerCount + ' Gefahrenstellen</span>';
+        // Show danger sections with KM positions
+        var dangerKmList = '';
+        if (dangerPoints && dangerPoints.length > 0 && this.routeCoords && this.routeCoords.length > 1) {
+          var cumDist = 0;
+          var routeC = this.routeCoords;
+          var distAtIdx = [0];
+          for (var di = 1; di < routeC.length; di++) {
+            cumDist += PeakflowUtils.haversineDistance(routeC[di-1][1], routeC[di-1][0], routeC[di][1], routeC[di][0]);
+            distAtIdx.push(cumDist);
+          }
+          dangerKmList = '<div style="margin-top:4px;">';
+          dangerPoints.slice(0, 5).forEach(function(dp) {
+            var km = distAtIdx[Math.min(dp.idx, distAtIdx.length - 1)] || 0;
+            dangerKmList += '<div style="font-size:11px;padding:2px 0;">' + levelEmoji + ' km ' + km.toFixed(1) + ' — SAC ' + dp.sacInfo.level + ' ' + dp.sacInfo.label + (dp.name ? ' (' + dp.name + ')' : '') + '</div>';
+          });
+          dangerKmList += '</div>';
+        }
         sacBody.innerHTML += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);font-size:12px;">' +
-          levelEmoji + ' <strong>' + dangerCount + '</strong> gefährliche Abschnitte (SAC-bestätigt).</div>';
+          levelEmoji + ' <strong>' + dangerCount + '</strong> gef\u00e4hrliche Abschnitte (SAC-best\u00e4tigt).' + dangerKmList + '</div>';
         sacAccordion.classList.remove('hidden');
       }
     }
