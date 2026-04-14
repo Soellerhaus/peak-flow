@@ -37,12 +37,34 @@ const PeakflowSnow = {
       return null;
     }
 
-    // Analyze results
+    // Analyze results — combine API snow with Altschnee estimate
+    const month = new Date().getMonth(); // 0=Jan, 3=Apr, 5=Jun
+    const maxElev = Math.max(...samples.map(s => s[2] || 0));
+
+    // Altschnee-Sch\u00e4tzung basierend auf H\u00f6he + Monat (Alpen-typisch)
+    // Schneegrenze im Fr\u00fchjahr: ~1400m (M\u00e4rz), ~1800m (April), ~2200m (Mai), ~2600m (Juni)
+    const snowlineByMonth = [800, 900, 1100, 1400, 1800, 2200, 2600, 2800, 2600, 2000, 1400, 1000];
+    const snowline = snowlineByMonth[month] || 1800;
+
+    this.snowData.forEach(function(d, i) {
+      var elev = samples[i] ? (samples[i][2] || 0) : 0;
+      if (elev > snowline && d.snowDepth === 0) {
+        // Estimate Altschnee: ~10cm per 100m above snowline
+        var altschnee = Math.round((elev - snowline) / 100 * 10);
+        altschnee = Math.min(altschnee, 150); // cap at 150cm
+        if (altschnee > d.snowDepth) {
+          d.snowDepth = altschnee;
+          d.isEstimate = true;
+        }
+      }
+    });
+
     const maxSnow = Math.max(...this.snowData.map(d => d.snowDepth));
     const avgSnow = this.snowData.reduce((s, d) => s + d.snowDepth, 0) / this.snowData.length;
     const freezingLevels = this.snowData.map(d => d.freezingLevel);
     const minFreezing = Math.min(...freezingLevels);
     const hasSnowfall = this.snowData.some(d => d.snowfall > 0);
+    const isEstimate = this.snowData.some(d => d.isEstimate);
 
     // Determine snow segments for coloring
     const segments = this.snowData.map((data, i) => ({
@@ -60,7 +82,9 @@ const PeakflowSnow = {
       minFreezingLevel: minFreezing,
       hasSnowfall,
       segments,
-      hasSnow: maxSnow > 0
+      hasSnow: maxSnow > 0,
+      isEstimate: isEstimate || false,
+      snowline: snowline
     };
   },
 
@@ -96,6 +120,10 @@ const PeakflowSnow = {
 
     if (analysis.minFreezingLevel < 3000) {
       parts.push(`Nullgradgrenze bei ${analysis.minFreezingLevel}m.`);
+    }
+
+    if (analysis.isEstimate) {
+      parts.push(`(Altschnee-Sch\u00e4tzung, Schneegrenze ~${analysis.snowline}m)`);
     }
 
     return parts.join(' ');
