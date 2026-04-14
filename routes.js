@@ -2061,10 +2061,12 @@ const PeakflowRoutes = {
     const lat = coords[maxIdx][1];
     const lng = coords[maxIdx][0];
 
-    // Show weather accordion
+    // Show weather accordion with loading state
     var weatherAccordion = document.getElementById('weatherAccordion');
     if (weatherAccordion) weatherAccordion.classList.remove('hidden');
-    weatherEl.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;">Wetter wird geladen...</div>';
+    var wAccTitleInit = document.getElementById('weatherAccordionTitle');
+    if (wAccTitleInit) wAccTitleInit.textContent = '\uD83C\uDF21\uFE0F Wetter wird geladen...';
+    weatherEl.innerHTML = '';
 
     try {
       const weather = await PeakflowWeather.getCurrentWeather(lat, lng);
@@ -2077,8 +2079,7 @@ const PeakflowRoutes = {
           (weather.description || '') + ' \u00b7 \uD83D\uDCA8 ' + Math.round(weather.windSpeed || 0) + 'km/h';
       }
 
-      let html = '<h4 style="font-size:13px;font-weight:700;margin-bottom:6px;">\u2600\uFE0F Wetter am h\u00f6chsten Punkt (' + Math.round(maxElev) + 'm)</h4>';
-      html += PeakflowWeather.renderWeatherHTML(weather);
+      let html = PeakflowWeather.renderWeatherHTML(weather);
 
       // Tomorrow
       if (forecast) {
