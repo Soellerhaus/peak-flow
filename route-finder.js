@@ -487,56 +487,42 @@ const PeakflowRouteFinder = {
     document.getElementById('routeFinderPanel')?.classList.add('hidden');
     document.getElementById('routeFinderToggle')?.classList.remove('active');
 
-    // IMPORTANT: Clear old route, then DISABLE planning so addWaypoint doesn't trigger BRouter
     var R = PeakflowRoutes;
     R.clearRoute();
-    R.isPlanning = false; // Prevent updateRoute from being called
 
-    // Set the pre-calculated ORS route data directly
-    R.routeCoords = route.coords;
-    R.elevations = route.elevations;
+    // Sample ~6-8 key waypoints from the suggested route
+    // This makes the route EDITABLE — user can drag/delete points
+    var coords = route.coords;
+    var numWaypoints = Math.min(8, Math.max(3, Math.round(route.distance / 2))); // 1 waypoint per ~2km
+    var step = Math.floor(coords.length / numWaypoints);
 
-    // Add waypoint markers manually (without triggering updateRoute)
-    var startCoord = route.coords[0];
-    var startMarker = new maplibregl.Marker({ color: '#22c55e' })
-      .setLngLat([startCoord[0], startCoord[1]])
-      .addTo(R.map);
-    R.markers.push(startMarker);
-    R.waypoints.push({ lng: startCoord[0], lat: startCoord[1], name: 'Start' });
-
-    // Find furthest point for turnaround marker
-    var maxDist = 0, furthestIdx = 0;
-    for (var i = 0; i < route.coords.length; i++) {
-      var d = Math.pow(route.coords[i][0] - startCoord[0], 2) + Math.pow(route.coords[i][1] - startCoord[1], 2);
-      if (d > maxDist) { maxDist = d; furthestIdx = i; }
-    }
-    var furthest = route.coords[furthestIdx];
-    var turnMarker = new maplibregl.Marker({ color: '#e63946' })
-      .setLngLat([furthest[0], furthest[1]])
-      .addTo(R.map);
-    R.markers.push(turnMarker);
-    R.waypoints.push({ lng: furthest[0], lat: furthest[1], name: route.name });
-
-    // Update display
-    R.updateWaypointList();
-    R.drawRouteLine(route.coords);
-    R.updateStats();
-
-    // Elevation profile
-    var elevEl = document.getElementById('elevationProfile');
-    if (elevEl) elevEl.classList.remove('hidden');
-    setTimeout(function() { R.drawElevationProfile(); }, 150);
-
-    // Re-enable planning for further edits
+    // Enable planning mode for addWaypoint to work
     R.isPlanning = true;
     if (R.map) R.map.getCanvas().style.cursor = 'crosshair';
 
-    // Load additional data in background
-    R.loadSACDataForRoute(route.coords).catch(function() {});
-    R.analyzeSnowOnRoute().catch(function() {});
-    R.loadRouteWeather(route.coords).catch(function() {});
-    R.loadWaterSources(route.coords).catch(function() {});
-    R.loadSunAnalysis(route.coords, route.elevations);
+    // Add waypoints sequentially — BRouter will re-route between them
+    var waypointsToAdd = [];
+    for (var i = 0; i < numWaypoints; i++) {
+      var idx = i === numWaypoints - 1 ? coords.length - 1 : i * step;
+      waypointsToAdd.push({ lng: coords[idx][0], lat: coords[idx][1] });
+    }
+
+    // Add first waypoint with name
+    R.addWaypoint({ lng: waypointsToAdd[0].lng, lat: waypointsToAdd[0].lat, name: 'Start' });
+
+    // Add remaining waypoints with slight delay so BRouter can process
+    var addIdx = 1;
+    var addNextWP = function() {
+      if (addIdx >= waypointsToAdd.length) return;
+      var wp = waypointsToAdd[addIdx];
+      var name = addIdx === waypointsToAdd.length - 1 ? (route.name || 'Ziel') : '';
+      R.addWaypoint({ lng: wp.lng, lat: wp.lat, name: name });
+      addIdx++;
+      if (addIdx < waypointsToAdd.length) {
+        setTimeout(addNextWP, 200);
+      }
+    };
+    setTimeout(addNextWP, 300);
 
     // Collapse sidebar on mobile
     var sidebar = document.querySelector('.sidebar');
@@ -545,6 +531,6 @@ const PeakflowRouteFinder = {
       sidebar.classList.add('collapsed');
     }
 
-    console.log('[RouteFinder] Route loaded: ' + route.name + ' (' + route.distance.toFixed(1) + 'km, ' + Math.round(route.ascent) + 'Hm, ' + route.coords.length + ' pts)');
+    console.log('[RouteFinder] Route selected with ' + numWaypoints + ' editable waypoints: ' + route.name);
   }
 };

@@ -395,13 +395,20 @@ const PeakflowRoutes = {
     const container = document.getElementById('waypointList');
     if (!container) return;
 
+    // Show/hide waypoint accordion
+    var wpAccordion = document.getElementById('waypointAccordion');
     if (this.waypoints.length === 0) {
-      container.classList.add('hidden');
       container.innerHTML = '';
+      if (wpAccordion) wpAccordion.classList.add('hidden');
       return;
     }
 
-    container.classList.remove('hidden');
+    if (wpAccordion) {
+      wpAccordion.classList.remove('hidden');
+      // Update accordion title with count
+      var titleEl = document.getElementById('waypointAccordionTitle');
+      if (titleEl) titleEl.textContent = '\uD83D\uDCCD ' + this.waypoints.length + ' Wegpunkte';
+    }
     const MAX_VISIBLE = 5;
     const collapsed = this.waypoints.length > MAX_VISIBLE && !this._wpExpanded;
     let html = '';
@@ -1799,17 +1806,29 @@ const PeakflowRoutes = {
     const statsEl = document.getElementById('routeStats');
     const actionsEl = document.getElementById('routeActions');
     const infoEl = document.getElementById('routeInfo');
+    const headerEl = document.getElementById('routeHeader');
+    const headerCompact = document.getElementById('routeHeaderCompact');
 
     if (this.waypoints.length < 2) {
       statsEl.classList.add('hidden');
       actionsEl.classList.add('hidden');
       infoEl.classList.remove('hidden');
+      // Show full header when no route
+      if (headerEl) headerEl.classList.remove('hidden');
+      if (headerCompact) headerCompact.style.display = 'none';
       return;
     }
 
     infoEl.classList.add('hidden');
     statsEl.classList.remove('hidden');
     actionsEl.classList.remove('hidden');
+
+    // Hide full header, show compact restart
+    if (headerEl) headerEl.classList.add('hidden');
+    if (headerCompact) headerCompact.style.display = 'flex';
+
+    // Auto-open user's preferred accordion sections
+    this._applyAutoOpenSections();
 
     // Calculate distance from full route coords
     const distance = PeakflowUtils.routeDistance(this.routeCoords);
@@ -1833,7 +1852,7 @@ const PeakflowRoutes = {
       elevDur.textContent = `${ascent}m ↑  ${descent}m ↓  ${PeakflowUtils.formatDuration(time.hours, time.minutes)}`;
     }
 
-    // Store for nutrition calculator
+    // Store for nutrition calculator + difficulty
     this._currentDifficulty = difficulty;
     this._lastDurationH = time.hours + time.minutes / 60;
     const badge = document.getElementById('difficultyBadge');
@@ -2044,12 +2063,26 @@ const PeakflowRoutes = {
     const lat = coords[maxIdx][1];
     const lng = coords[maxIdx][0];
 
-    weatherEl.classList.remove('hidden');
+    // Show weather accordion + compact line
+    var weatherAccordion = document.getElementById('weatherAccordion');
+    var weatherCompact = document.getElementById('weatherCompact');
+    if (weatherAccordion) weatherAccordion.classList.remove('hidden');
+    if (weatherCompact) weatherCompact.classList.remove('hidden');
     weatherEl.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;">Wetter wird geladen...</div>';
 
     try {
       const weather = await PeakflowWeather.getCurrentWeather(lat, lng);
       const forecast = await PeakflowWeather.getDetailedForecast(lat, lng);
+
+      // Update compact temperature line
+      var compactEl = document.getElementById('weatherCompactText');
+      if (compactEl && weather) {
+        compactEl.textContent = '\uD83C\uDF21\uFE0F ' + Math.round(weather.temperature || 0) + '\u00b0C \u00b7 ' +
+          (weather.description || '') + ' \u00b7 \uD83D\uDCA8 ' + Math.round(weather.windSpeed || 0) + 'km/h';
+      }
+      // Update accordion title
+      var wAccTitle = document.getElementById('weatherAccordionTitle');
+      if (wAccTitle) wAccTitle.textContent = '\u2600\uFE0F Wetter (' + Math.round(maxElev) + 'm)';
 
       let html = '<h4 style="font-size:13px;font-weight:700;margin-bottom:6px;">\u2600\uFE0F Wetter am h\u00f6chsten Punkt (' + Math.round(maxElev) + 'm)</h4>';
       html += PeakflowWeather.renderWeatherHTML(weather);
@@ -2572,6 +2605,24 @@ const PeakflowRoutes = {
 
       this._dangerMarkers.push(marker);
     });
+  },
+
+  _applyAutoOpenSections() {
+    var prefs = [];
+    try { prefs = JSON.parse(localStorage.getItem('peakflow_auto_open') || '[]'); } catch(e) {}
+    var map = {
+      'waypoints': 'waypointAccordion',
+      'weather': 'weatherAccordion',
+      'packing': 'packAccordion',
+      'water': 'waterAccordion',
+      'sun': 'sunAccordion'
+    };
+    for (var key in map) {
+      var el = document.getElementById(map[key]);
+      if (el && prefs.indexOf(key) >= 0) {
+        el.classList.add('open');
+      }
+    }
   },
 
   _getMaxSlope(coords, elevations) {

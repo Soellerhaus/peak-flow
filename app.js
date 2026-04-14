@@ -3589,6 +3589,26 @@ const Peakflow = {
         } catch(e) { infoEl.textContent = 'Nicht verfügbar'; }
       }
     })();
+    // Auto-open section checkboxes
+    var autoOpen = [];
+    try { autoOpen = JSON.parse(localStorage.getItem('peakflow_auto_open') || '[]'); } catch(e) {}
+    document.querySelectorAll('.auto-open-chk').forEach(function(chk) {
+      chk.checked = autoOpen.indexOf(chk.value) >= 0;
+      chk.addEventListener('change', function() {
+        var current = [];
+        document.querySelectorAll('.auto-open-chk:checked').forEach(function(c) { current.push(c.value); });
+        localStorage.setItem('peakflow_auto_open', JSON.stringify(current));
+      });
+    });
+
+    // Compact restart button
+    var compactClear = document.getElementById('clearRouteBtnCompact');
+    if (compactClear) {
+      compactClear.addEventListener('click', function() {
+        PeakflowRoutes.clearRoute();
+      });
+    }
+
     document.getElementById('clearOfflineCacheBtn').addEventListener('click', async function() {
       if (confirm('Alle offline gespeicherten Karten löschen?')) {
         await caches.delete('peakflow-tiles-v1');
