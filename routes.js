@@ -1814,12 +1814,19 @@ const PeakflowRoutes = {
       // Show full header when no route
       if (headerEl) headerEl.classList.remove('hidden');
       if (headerCompact) headerCompact.style.display = 'none';
+      // Hide map finish button
+      var mapFinBtn = document.getElementById('mapFinishBtn');
+      if (mapFinBtn) mapFinBtn.classList.add('hidden');
       return;
     }
 
     infoEl.classList.add('hidden');
     statsEl.classList.remove('hidden');
     actionsEl.classList.remove('hidden');
+
+    // Show floating "Route fertig" button on map
+    var mapFinBtn = document.getElementById('mapFinishBtn');
+    if (mapFinBtn) mapFinBtn.classList.remove('hidden');
 
     // Hide full header, show compact restart
     if (headerEl) headerEl.classList.add('hidden');

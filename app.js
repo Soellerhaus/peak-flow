@@ -2377,6 +2377,10 @@ const Peakflow = {
         PeakflowRoutes.togglePlanning();
       }
 
+      // Hide map finish button
+      var mfb = document.getElementById('mapFinishBtn');
+      if (mfb) mfb.classList.add('hidden');
+
       // Calculate stats
       const coords = PeakflowRoutes.routeCoords;
       const elevs = PeakflowRoutes.elevations;
