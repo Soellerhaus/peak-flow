@@ -1028,6 +1028,7 @@ const PeakflowRoutes = {
       if (sacBody) sacBody.innerHTML = '';
     }
     this.loadWaterSources(coords).catch(e => console.warn('[Peakflow] Water:', e));
+    this._loadSurfaceData(coords).catch(e => console.warn('[Peakflow] Surface:', e));
     // Weather/Snow/Sun delayed 2s (only fires for the final route, not intermediate)
     this._secondaryDataTimer = setTimeout(() => {
       Promise.all([
@@ -1039,6 +1040,192 @@ const PeakflowRoutes = {
 
     // Auto-cache tiles along route for offline use (logged-in users only)
     this._autoCacheRouteTiles(coords);
+  },
+
+  /**
+   * Load surface/way type data from Overpass and color-code route segments
+   */
+  async _loadSurfaceData(coords) {
+    if (!coords || coords.length < 10 || !this.map) return;
+
+    // Sample route points for Overpass query (max 8 sample points to keep query small)
+    const step = Math.max(1, Math.floor(coords.length / 8));
+    const samplePts = [];
+    for (let i = 0; i < coords.length; i += step) {
+      samplePts.push(coords[i]);
+    }
+
+    // Build bounding box
+    const lngs = coords.map(c => c[0]);
+    const lats = coords.map(c => c[1]);
+    const pad = 0.002;
+    const bbox = [Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad].join(',');
+
+    // Overpass query for ways with surface tags around route
+    const query = '[out:json][timeout:10];(' +
+      'way["highway"]["surface"](' + bbox + ');' +
+      'way["highway"]["tracktype"](' + bbox + ');' +
+      ');out geom;';
+
+    try {
+      console.log('[Peakflow] Loading surface data from Overpass...');
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+      if (!resp.ok) { console.warn('[Peakflow] Overpass failed:', resp.status); return; }
+      const data = await resp.json();
+
+      if (!data.elements || data.elements.length === 0) return;
+
+      // Build surface lookup: for each route point, find nearest way and its surface
+      const surfaceSegments = [];
+      const segStep = Math.max(1, Math.floor(coords.length / 200)); // max 200 segments
+
+      for (let ci = 0; ci < coords.length - segStep; ci += segStep) {
+        const pt = coords[ci];
+        let bestDist = Infinity;
+        let bestSurface = 'unknown';
+
+        for (const el of data.elements) {
+          if (!el.geometry) continue;
+          for (const gp of el.geometry) {
+            const d = Math.pow(gp.lon - pt[0], 2) + Math.pow(gp.lat - pt[1], 2);
+            if (d < bestDist && d < 0.000004) { // ~200m threshold
+              bestDist = d;
+              const sf = el.tags.surface || '';
+              const tt = el.tags.tracktype || '';
+              if (['asphalt', 'paved', 'concrete', 'sett', 'paving_stones'].some(s => sf.includes(s))) {
+                bestSurface = 'paved';
+              } else if (['gravel', 'compacted', 'fine_gravel', 'pebblestone'].some(s => sf.includes(s)) || tt === 'grade1' || tt === 'grade2') {
+                bestSurface = 'gravel';
+              } else if (sf || tt) {
+                bestSurface = 'trail'; // ground, dirt, grass, sand, mud, etc.
+              }
+            }
+          }
+        }
+        surfaceSegments.push({
+          from: ci,
+          to: Math.min(ci + segStep, coords.length - 1),
+          surface: bestSurface
+        });
+      }
+
+      // Calculate percentages
+      let paved = 0, gravel = 0, trail = 0, unknown = 0;
+      surfaceSegments.forEach(s => {
+        if (s.surface === 'paved') paved++;
+        else if (s.surface === 'gravel') gravel++;
+        else if (s.surface === 'trail') trail++;
+        else unknown++;
+      });
+      const total = surfaceSegments.length || 1;
+      const pctPaved = Math.round(paved / total * 100);
+      const pctGravel = Math.round(gravel / total * 100);
+      const pctTrail = Math.round(trail / total * 100);
+
+      console.log('[Peakflow] Surface: ' + pctPaved + '% paved, ' + pctGravel + '% gravel, ' + pctTrail + '% trail');
+
+      // Draw colored surface overlay on route
+      this._drawSurfaceOverlay(coords, surfaceSegments);
+
+      // Show surface legend in sidebar
+      this._showSurfaceLegend(pctPaved, pctGravel, pctTrail);
+
+    } catch(e) {
+      console.warn('[Peakflow] Surface data failed:', e.message);
+    }
+  },
+
+  _drawSurfaceOverlay(coords, segments) {
+    // Remove existing surface layers
+    ['surface-paved', 'surface-gravel', 'surface-trail'].forEach(id => {
+      if (this.map.getLayer(id)) this.map.removeLayer(id);
+      if (this.map.getSource(id)) this.map.removeSource(id);
+    });
+
+    const colorMap = {
+      paved: '#94a3b8',   // Grey (slate)
+      gravel: '#d97706',  // Amber/Brown
+      trail: '#16a34a'    // Green
+    };
+
+    // Group consecutive segments by surface type into LineStrings
+    ['paved', 'gravel', 'trail'].forEach(surfaceType => {
+      const lines = [];
+      let currentLine = [];
+
+      segments.forEach(seg => {
+        if (seg.surface === surfaceType) {
+          if (currentLine.length === 0) {
+            currentLine.push(coords[seg.from]);
+          }
+          currentLine.push(coords[seg.to]);
+        } else {
+          if (currentLine.length >= 2) {
+            lines.push(currentLine);
+          }
+          currentLine = [];
+        }
+      });
+      if (currentLine.length >= 2) lines.push(currentLine);
+
+      if (lines.length === 0) return;
+
+      this.map.addSource('surface-' + surfaceType, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'MultiLineString', coordinates: lines }
+        }
+      });
+
+      this.map.addLayer({
+        id: 'surface-' + surfaceType,
+        type: 'line',
+        source: 'surface-' + surfaceType,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': colorMap[surfaceType],
+          'line-width': 8,
+          'line-opacity': 0.45
+        }
+      }, 'route-outline'); // Draw below the route line
+    });
+  },
+
+  _showSurfaceLegend(pctPaved, pctGravel, pctTrail) {
+    // Find or create surface info area in sidebar
+    let el = document.getElementById('surfaceInfo');
+    if (!el) {
+      const routeInfo = document.getElementById('routeInfo');
+      if (!routeInfo) return;
+      el = document.createElement('div');
+      el.id = 'surfaceInfo';
+      // Insert after stats section
+      const statsEl = routeInfo.querySelector('.route-stats') || routeInfo.firstChild;
+      if (statsEl && statsEl.nextSibling) {
+        routeInfo.insertBefore(el, statsEl.nextSibling);
+      } else {
+        routeInfo.appendChild(el);
+      }
+    }
+
+    el.style.cssText = 'margin-top:8px;padding:8px 10px;background:var(--bg-tertiary,#2e2e2e);border-radius:8px;font-size:12px;';
+    el.innerHTML =
+      '<div style="font-weight:600;margin-bottom:6px;color:var(--text-primary);">\uD83E\uDDF1 Untergrund</div>' +
+      '<div style="display:flex;gap:4px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:6px;">' +
+        (pctTrail > 0 ? '<div style="width:' + pctTrail + '%;background:#16a34a;" title="Trail"></div>' : '') +
+        (pctGravel > 0 ? '<div style="width:' + pctGravel + '%;background:#d97706;" title="Schotter"></div>' : '') +
+        (pctPaved > 0 ? '<div style="width:' + pctPaved + '%;background:#94a3b8;" title="Asphalt"></div>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:10px;color:var(--text-secondary);">' +
+        (pctTrail > 0 ? '<span>\uD83C\uDF3F ' + pctTrail + '% Trail</span>' : '') +
+        (pctGravel > 0 ? '<span>\uD83E\uDEA8 ' + pctGravel + '% Schotter</span>' : '') +
+        (pctPaved > 0 ? '<span>\u2B1B ' + pctPaved + '% Asphalt</span>' : '') +
+      '</div>';
   },
 
   /**
