@@ -3339,19 +3339,24 @@ const Peakflow = {
     const modal = document.getElementById('settingsModal');
     const welcome = document.getElementById('settingsWelcome');
 
+    // Show modal FIRST so it's never stuck closed
+    modal.classList.remove('hidden');
+
     if (onboarding) {
       welcome.classList.remove('hidden');
     } else {
       welcome.classList.add('hidden');
     }
 
-    // Load profile from Supabase
-    let profile = await PeakflowData.getProfile();
-    if (!profile && PeakflowData.currentUser) {
-      // No profile yet, create one
-      const result = await PeakflowData.createProfile();
-      profile = result.data;
-    }
+    // Load profile from Supabase (with error protection)
+    let profile = null;
+    try {
+      profile = await PeakflowData.getProfile();
+      if (!profile && PeakflowData.currentUser) {
+        const result = await PeakflowData.createProfile();
+        profile = result.data;
+      }
+    } catch(e) { console.warn('[Settings] Profile load failed:', e); }
     this._settingsProfile = profile;
 
     // Populate fields
@@ -3395,8 +3400,6 @@ const Peakflow = {
 
     // Clear password field
     document.getElementById('settingsNewPassword').value = '';
-
-    modal.classList.remove('hidden');
   },
 
   /**

@@ -2754,9 +2754,13 @@ const PeakflowRoutes = {
       Peakflow._showStartHint();
     }
 
-    // Hide route weather
+    // Hide route weather + accordion + compact
     const weatherEl = document.getElementById('routeWeather');
-    if (weatherEl) weatherEl.classList.add('hidden');
+    if (weatherEl) weatherEl.innerHTML = '';
+    var weatherAcc = document.getElementById('weatherAccordion');
+    if (weatherAcc) { weatherAcc.classList.add('hidden'); weatherAcc.classList.remove('open'); }
+    var weatherComp = document.getElementById('weatherCompact');
+    if (weatherComp) weatherComp.classList.add('hidden');
   },
 
   /**
