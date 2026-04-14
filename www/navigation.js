@@ -60,6 +60,9 @@ const PeakflowNavigation = {
     // Precalculate navigation points (turns, POIs, dangers, water)
     this._buildNavPoints();
 
+    // Keep screen on during navigation (Wake Lock API)
+    this._requestWakeLock();
+
     // Create position marker
     this._createMarker();
 
@@ -91,6 +94,9 @@ const PeakflowNavigation = {
 
   stop() {
     this.active = false;
+
+    // Release wake lock
+    this._releaseWakeLock();
 
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
@@ -446,6 +452,40 @@ const PeakflowNavigation = {
     if (this.announcedPoints.has(key)) return;
     this.announcedPoints.add(key);
     this._speak(text);
+  },
+
+  _wakeLock: null,
+
+  async _requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        this._wakeLock = await navigator.wakeLock.request('screen');
+        console.log('[Nav] Wake Lock active — screen stays on');
+        // Re-acquire if page becomes visible again (e.g. after tab switch)
+        var self = this;
+        document.addEventListener('visibilitychange', function onVisChange() {
+          if (document.visibilityState === 'visible' && self.active) {
+            navigator.wakeLock.request('screen').then(function(wl) {
+              self._wakeLock = wl;
+              console.log('[Nav] Wake Lock re-acquired');
+            }).catch(function() {});
+          }
+          if (!self.active) document.removeEventListener('visibilitychange', onVisChange);
+        });
+      } else {
+        console.log('[Nav] Wake Lock API not supported');
+      }
+    } catch(e) {
+      console.warn('[Nav] Wake Lock failed:', e.message);
+    }
+  },
+
+  _releaseWakeLock() {
+    if (this._wakeLock) {
+      this._wakeLock.release().catch(function() {});
+      this._wakeLock = null;
+      console.log('[Nav] Wake Lock released');
+    }
   },
 
   _avgBearing(coords, fromIdx, toIdx) {
