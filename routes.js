@@ -1062,7 +1062,7 @@ const PeakflowRoutes = {
       };
 
       const tileUrls = [];
-      for (var z = 12; z <= 15; z++) {
+      for (var z = 12; z <= 16; z++) {
         var minX = Math.floor((bounds.minLng + 180) / 360 * Math.pow(2, z));
         var maxX = Math.floor((bounds.maxLng + 180) / 360 * Math.pow(2, z));
         var minY = Math.floor((1 - Math.log(Math.tan(bounds.maxLat * Math.PI / 180) + 1 / Math.cos(bounds.maxLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));

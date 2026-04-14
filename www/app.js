@@ -2688,18 +2688,23 @@ const Peakflow = {
     }
 
     // Offline save - cache map tiles for current route area
-    document.getElementById('offlineSaveBtn').addEventListener('click', () => {
+    document.getElementById('offlineSaveBtn').addEventListener('click', async () => {
       const coords = PeakflowRoutes.routeCoords;
       if (!coords || coords.length < 2) {
-        alert('Bitte zuerst eine Route planen!');
+        alert(PeakflowI18n.t('tapMap'));
         return;
       }
 
       const btn = document.getElementById('offlineSaveBtn');
       btn.disabled = true;
-      btn.innerHTML = '⏳ Wird gespeichert...';
 
-      // Calculate tile URLs for zoom levels 12-16 around the route
+      // Show progress UI
+      btn.innerHTML = '<div style="width:100%;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+        '<span>\uD83D\uDCE5 Karte wird gespeichert...</span><span id="offlineProgress">0%</span></div>' +
+        '<div style="width:100%;height:6px;background:var(--bg-tertiary,#2e2e2e);border-radius:3px;overflow:hidden;">' +
+        '<div id="offlineBar" style="width:0%;height:100%;background:var(--color-primary,#c9a84c);border-radius:3px;transition:width 0.3s;"></div></div></div>';
+
+      // Calculate tile URLs for zoom levels 12-16 (z16 for detail navigation)
       const lngs = coords.map(c => c[0]);
       const lats = coords.map(c => c[1]);
       const pad = 0.01;
@@ -2709,12 +2714,11 @@ const Peakflow = {
       };
 
       const tileUrls = [];
-      for (let z = 12; z <= 15; z++) {
+      for (let z = 12; z <= 16; z++) {
         const minX = Math.floor((bounds.minLng + 180) / 360 * Math.pow(2, z));
         const maxX = Math.floor((bounds.maxLng + 180) / 360 * Math.pow(2, z));
         const minY = Math.floor((1 - Math.log(Math.tan(bounds.maxLat * Math.PI / 180) + 1 / Math.cos(bounds.maxLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
         const maxY = Math.floor((1 - Math.log(Math.tan(bounds.minLat * Math.PI / 180) + 1 / Math.cos(bounds.minLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
-
         for (let x = minX; x <= maxX; x++) {
           for (let y = minY; y <= maxY; y++) {
             tileUrls.push('https://tile.opentopomap.org/' + z + '/' + x + '/' + y + '.png');
@@ -2722,24 +2726,50 @@ const Peakflow = {
         }
       }
 
-      console.log('[Peakflow] Caching ' + tileUrls.length + ' tiles for offline use');
+      // Also cache terrain DEM tiles for 3D (z12-14)
+      for (let z = 12; z <= 14; z++) {
+        const minX = Math.floor((bounds.minLng + 180) / 360 * Math.pow(2, z));
+        const maxX = Math.floor((bounds.maxLng + 180) / 360 * Math.pow(2, z));
+        const minY = Math.floor((1 - Math.log(Math.tan(bounds.maxLat * Math.PI / 180) + 1 / Math.cos(bounds.maxLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        const maxY = Math.floor((1 - Math.log(Math.tan(bounds.minLat * Math.PI / 180) + 1 / Math.cos(bounds.minLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        for (let x = minX; x <= maxX; x++) {
+          for (let y = minY; y <= maxY; y++) {
+            tileUrls.push('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/' + z + '/' + x + '/' + y + '.png');
+          }
+        }
+      }
+
+      const totalTiles = tileUrls.length;
+      const sizeMB = Math.round(totalTiles * 0.05 * 10) / 10; // ~50KB per tile
+      console.log('[Peakflow] Caching ' + totalTiles + ' tiles (~' + sizeMB + 'MB) for offline use');
 
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'CACHE_TILES',
-          urls: tileUrls
-        });
+        // Cache tiles in batches with progress updates
+        const batchSize = 20;
+        let cached = 0;
+        for (let i = 0; i < tileUrls.length; i += batchSize) {
+          const batch = tileUrls.slice(i, i + batchSize);
+          navigator.serviceWorker.controller.postMessage({ type: 'CACHE_TILES', urls: batch });
+          cached += batch.length;
+          const pct = Math.round(cached / totalTiles * 100);
+          const bar = document.getElementById('offlineBar');
+          const prog = document.getElementById('offlineProgress');
+          if (bar) bar.style.width = pct + '%';
+          if (prog) prog.textContent = pct + '%';
+          // Small delay between batches to avoid overwhelming the browser
+          if (i + batchSize < tileUrls.length) {
+            await new Promise(r => setTimeout(r, 100));
+          }
+        }
 
+        btn.innerHTML = '\u2705 Offline gespeichert! ' + totalTiles + ' Tiles (~' + sizeMB + ' MB)';
+        btn.disabled = false;
         setTimeout(() => {
-          btn.disabled = false;
-          btn.innerHTML = '✅ Offline gespeichert (' + tileUrls.length + ' Tiles)';
-          setTimeout(() => {
-            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v14m0 0l-4-4m4 4l4-4M4 18h16"/></svg> Offline speichern';
-          }, 3000);
-        }, Math.min(tileUrls.length * 50, 5000));
+          btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v14m0 0l-4-4m4 4l4-4M4 18h16"/></svg> Offline speichern';
+        }, 5000);
       } else {
         btn.disabled = false;
-        btn.innerHTML = 'Offline nicht verfügbar (nur HTTPS)';
+        btn.innerHTML = '\u26A0 Offline nicht verf\u00fcgbar (nur HTTPS)';
       }
     });
 
@@ -3506,6 +3536,27 @@ const Peakflow = {
 
       document.getElementById('settingsModal').classList.add('hidden');
       document.getElementById('settingsWelcome').classList.add('hidden');
+    });
+
+    // Offline cache info
+    (async function() {
+      var infoEl = document.getElementById('offlineCacheInfo');
+      if (infoEl && 'caches' in window) {
+        try {
+          var cache = await caches.open('peakflow-tiles-v1');
+          var keys = await cache.keys();
+          var count = keys.length;
+          var sizeMB = Math.round(count * 0.05 * 10) / 10;
+          infoEl.textContent = count + ' Tiles (~' + sizeMB + ' MB)';
+        } catch(e) { infoEl.textContent = 'Nicht verfügbar'; }
+      }
+    })();
+    document.getElementById('clearOfflineCacheBtn').addEventListener('click', async function() {
+      if (confirm('Alle offline gespeicherten Karten löschen?')) {
+        await caches.delete('peakflow-tiles-v1');
+        document.getElementById('offlineCacheInfo').textContent = '0 Tiles (0 MB)';
+        this.textContent = '✓ Gelöscht';
+      }
     });
 
     // Language selector

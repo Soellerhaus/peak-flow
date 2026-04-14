@@ -1,6 +1,6 @@
 const CACHE_NAME = 'peakflow-v15';
 const TILE_CACHE = 'peakflow-tiles-v1';
-const MAX_TILE_CACHE_SIZE = 2000; // Max 2000 tiles (~100MB)
+const MAX_TILE_CACHE_SIZE = 5000; // Max 5000 tiles (~250MB) for offline maps
 
 // Force immediate activation (no waiting for old tabs to close)
 self.addEventListener('install', e => self.skipWaiting());
