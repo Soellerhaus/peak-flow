@@ -110,6 +110,89 @@ const PeakflowSnow = {
   _suedtirolCache: null,
   _suedtirolCacheTime: 0,
 
+  // MeteoSwiss stations with snow measurement (>1000m, 48 stations across Swiss Alps)
+  SWISS_STATIONS: [
+    { id: 'WFJ', name: 'Weissfluhjoch', lat: 46.833, lng: 9.806, elev: 2691 },
+    { id: 'SAE', name: 'Saentis', lat: 47.249, lng: 9.343, elev: 2501 },
+    { id: 'GUE', name: 'Guetsch/Andermatt', lat: 46.652, lng: 8.616, elev: 2286 },
+    { id: 'GRH', name: 'Grimsel Hospiz', lat: 46.572, lng: 8.333, elev: 1980 },
+    { id: 'MLS', name: 'Le Moleson', lat: 46.546, lng: 7.018, elev: 1974 },
+    { id: 'BUF', name: 'Buffalora', lat: 46.648, lng: 10.267, elev: 1971 },
+    { id: 'ARO', name: 'Arosa', lat: 46.793, lng: 9.679, elev: 1878 },
+    { id: 'BIV', name: 'Bivio', lat: 46.462, lng: 9.669, elev: 1856 },
+    { id: 'SIA', name: 'Segl-Maria', lat: 46.432, lng: 9.762, elev: 1804 },
+    { id: 'SAM', name: 'Samedan', lat: 46.526, lng: 9.879, elev: 1709 },
+    { id: 'DOL', name: 'La Dole', lat: 46.425, lng: 6.099, elev: 1670 },
+    { id: 'SBE', name: 'S.Bernardino', lat: 46.464, lng: 9.185, elev: 1639 },
+    { id: 'ZER', name: 'Zermatt', lat: 46.029, lng: 7.752, elev: 1638 },
+    { id: 'GRC', name: 'Graechen', lat: 46.195, lng: 7.837, elev: 1605 },
+    { id: 'DAV', name: 'Davos', lat: 46.813, lng: 9.844, elev: 1594 },
+    { id: 'FIO', name: 'Fionnay', lat: 46.031, lng: 7.309, elev: 1500 },
+    { id: 'SIM', name: 'Simplon-Dorf', lat: 46.197, lng: 8.056, elev: 1465 },
+    { id: 'ANT', name: 'Andermatt', lat: 46.631, lng: 8.581, elev: 1435 },
+    { id: 'MVE', name: 'Montana', lat: 46.299, lng: 7.461, elev: 1423 },
+    { id: 'ABO', name: 'Adelboden', lat: 46.492, lng: 7.561, elev: 1321 },
+    { id: 'SCU', name: 'Scuol', lat: 46.793, lng: 10.283, elev: 1304 },
+    { id: 'ENG', name: 'Engelberg', lat: 46.822, lng: 8.411, elev: 1036 }
+  ],
+  _swissCache: null,
+  _swissCacheTime: 0,
+
+  /**
+   * Fetch snow from MeteoSwiss VQHA80 CSV (Swiss stations)
+   */
+  async _fetchSwissSnow() {
+    if (this._swissCache && Date.now() - this._swissCacheTime < 30 * 60 * 1000) {
+      return this._swissCache;
+    }
+    try {
+      var resp = await fetch('https://data.geo.admin.ch/ch.meteoschweiz.messwerte-aktuell/VQHA80.csv');
+      if (!resp.ok) return {};
+      var text = await resp.text();
+      var lines = text.trim().split('\n');
+      var header = lines[0].split(';');
+      var snowIdx = header.indexOf('sre000z0');
+      if (snowIdx < 0) return {};
+      var result = {};
+      for (var li = 1; li < lines.length; li++) {
+        var parts = lines[li].split(';');
+        var stationId = parts[0];
+        var snowVal = parseFloat(parts[snowIdx]);
+        if (!isNaN(snowVal) && snowVal >= 0) {
+          result[stationId] = snowVal;
+        }
+      }
+      this._swissCache = result;
+      this._swissCacheTime = Date.now();
+      console.log('[Snow] Swiss MeteoSwiss loaded:', Object.keys(result).length, 'stations');
+      return result;
+    } catch(e) {
+      console.warn('[Snow] MeteoSwiss fetch failed:', e.message);
+      return {};
+    }
+  },
+
+  /**
+   * Find nearest Swiss station snow depth
+   */
+  _getNearestSwissSnow(lat, lng, elev, swissData) {
+    if (!swissData) return null;
+    var bestDist = 0.3; // max ~60km
+    var bestSnow = null;
+    var bestStation = null;
+    for (var i = 0; i < this.SWISS_STATIONS.length; i++) {
+      var s = this.SWISS_STATIONS[i];
+      if (Math.abs(s.elev - elev) > 700) continue;
+      var d = Math.pow(s.lat - lat, 2) + Math.pow(s.lng - lng, 2);
+      if (d < bestDist && swissData[s.id] !== undefined) {
+        bestDist = d;
+        bestSnow = swissData[s.id];
+        bestStation = s;
+      }
+    }
+    return bestStation && bestSnow !== null ? { snow: bestSnow, station: bestStation } : null;
+  },
+
   /**
    * Fetch real snow depths from GeoSphere Austria TAWES stations
    */
@@ -179,9 +262,10 @@ const PeakflowSnow = {
       samples.push(routeCoords[i]);
     }
 
-    // 1. Fetch real station data (GeoSphere AT + Südtirol IT)
+    // 1. Fetch real station data (GeoSphere AT + Südtirol IT + MeteoSwiss CH)
     var stationData = await this._fetchStationSnow();
     var suedtirolData = await this._fetchSuedtirolSnow();
+    var swissData = await this._fetchSwissSnow();
 
     // 2. Also fetch Open-Meteo data
     try {
@@ -196,6 +280,16 @@ const PeakflowSnow = {
             d.snowDepth = nearest.snow;
             d.stationName = nearest.station.name;
             d.stationElev = nearest.station.elev;
+          }
+        }
+
+        // Check Swiss stations
+        if (swissData) {
+          var nearestCH = this._getNearestSwissSnow(coord[1], coord[0], coord[2] || 0, swissData);
+          if (nearestCH && nearestCH.snow > d.snowDepth) {
+            d.snowDepth = nearestCH.snow;
+            d.stationName = nearestCH.station.name + ' (CH)';
+            d.stationElev = nearestCH.station.elev;
           }
         }
 
