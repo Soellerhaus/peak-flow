@@ -2199,20 +2199,22 @@ const PeakflowRoutes = {
       return;
     }
 
-    if (analysis && analysis.hasSnow) {
+    if (analysis && analysis.maxSnowDepth > 0) {
       const text = PeakflowSnow.getWarningText(analysis);
 
-      // Show snow accordion
+      // Show snow accordion — always when any snow detected
       const snowAccordion = document.getElementById('snowAccordion');
       const snowTitle = document.getElementById('snowAccordionTitle');
       const snowBody = document.getElementById('snowAccordionBody');
-      if (text && snowAccordion) {
-        const isDangerous = analysis.maxSnowDepth > 80;
-        const color = isDangerous ? '#dc2626' : analysis.maxSnowDepth > 50 ? '#ea580c' : '#d97706';
+      if (snowAccordion) {
+        const snow = analysis.maxSnowDepth;
+        const color = snow >= 40 ? '#dc2626' : snow >= 10 ? '#ea580c' : '#d97706';
         snowTitle.innerHTML = '<span style="color:' + color + ';">\u2744\uFE0F ' + Math.round(analysis.maxSnowDepth) + 'cm Schnee</span>';
         snowBody.innerHTML = '<div style="color:' + color + ';">' + text + '</div>';
         snowAccordion.classList.remove('hidden');
         snowAccordion.querySelector('.route-accordion__header').style.borderColor = color + '40';
+        // Auto-open if dangerous (10cm+)
+        if (snow >= 10) snowAccordion.classList.add('open');
       }
 
       // Also update hidden compat element

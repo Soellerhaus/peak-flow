@@ -28,7 +28,7 @@ const PeakflowSnow = {
     try {
       this.snowData = [];
       for (const coord of samples) {
-        const d = await PeakflowWeather.getSnowData(coord[1], coord[0]);
+        const d = await PeakflowWeather.getSnowData(coord[1], coord[0], coord[2] || 0);
         this.snowData.push(d);
       }
     } catch (e) {

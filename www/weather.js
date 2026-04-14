@@ -122,7 +122,7 @@ const PeakflowWeather = {
   /**
    * Get snow data for a location
    */
-  async getSnowData(lat, lng) {
+  async getSnowData(lat, lng, elevation) {
     try {
       const params = new URLSearchParams({
         latitude: lat,
@@ -131,6 +131,10 @@ const PeakflowWeather = {
         forecast_days: 1,
         timezone: 'auto'
       });
+      // Pass elevation for accurate snow data at altitude
+      if (elevation && elevation > 500) {
+        params.set('elevation', Math.round(elevation));
+      }
       const url = `${this.BASE_URL}/forecast?${params}`;
       const data = await this.rateLimitedFetch(url);
       const hourly = data.hourly;
