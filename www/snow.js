@@ -12,6 +12,88 @@ const PeakflowSnow = {
    * @param {Array} routeCoords - Array of [lng, lat, elevation] coords
    * @returns {Object} Snow analysis
    */
+  // GeoSphere Austria TAWES stations with snow measurement (>1000m)
+  SNOW_STATIONS: [
+    { id: '11318', name: 'Brunnenkogel', lat: 46.913, lng: 10.862, elev: 3437 },
+    { id: '11343', name: 'Sonnblick', lat: 47.054, lng: 12.957, elev: 3109 },
+    { id: '11316', name: 'Pitztaler Gletscher', lat: 46.927, lng: 10.879, elev: 2864 },
+    { id: '11124', name: 'Valluga', lat: 47.157, lng: 10.213, elev: 2805 },
+    { id: '11138', name: 'Rudolfsh\u00fctte', lat: 47.135, lng: 12.626, elev: 2317 },
+    { id: '11126', name: 'Patscherkofel', lat: 47.209, lng: 11.462, elev: 2251 },
+    { id: '11110', name: 'Galzig', lat: 47.130, lng: 10.230, elev: 2079 },
+    { id: '11340', name: 'Schmitten', lat: 47.329, lng: 12.738, elev: 1956 },
+    { id: '11127', name: 'Obergurgl', lat: 46.867, lng: 11.024, elev: 1941 },
+    { id: '11135', name: 'Hahnenkamm', lat: 47.418, lng: 12.359, elev: 1794 },
+    { id: '11149', name: 'Obertauern', lat: 47.249, lng: 13.560, elev: 1772 },
+    { id: '11344', name: 'Kolm-Saigurn', lat: 47.069, lng: 12.985, elev: 1626 },
+    { id: '11312', name: 'Galt\u00fcr', lat: 46.968, lng: 10.186, elev: 1587 },
+    { id: '11308', name: 'Warth', lat: 47.256, lng: 10.186, elev: 1478 },
+    { id: '11326', name: 'Schmirn', lat: 47.087, lng: 11.580, elev: 1464 },
+    { id: '11129', name: 'Brenner', lat: 47.007, lng: 11.511, elev: 1412 },
+    { id: '11311', name: 'St.Anton', lat: 47.131, lng: 10.267, elev: 1304 },
+    { id: '11306', name: 'Schr\u00f6cken', lat: 47.262, lng: 10.086, elev: 1244 },
+    { id: '11307', name: 'Langen/Arlberg', lat: 47.132, lng: 10.123, elev: 1221 }
+  ],
+  _stationCache: null,
+  _stationCacheTime: 0,
+
+  /**
+   * Fetch real snow depths from GeoSphere Austria TAWES stations
+   */
+  async _fetchStationSnow() {
+    // Cache for 30 minutes
+    if (this._stationCache && Date.now() - this._stationCacheTime < 30 * 60 * 1000) {
+      return this._stationCache;
+    }
+    try {
+      var ids = this.SNOW_STATIONS.map(function(s) { return s.id; }).join(',');
+      var url = 'https://dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min?parameters=SCHNEE&station_ids=' + ids;
+      var resp = await fetch(url);
+      if (!resp.ok) return null;
+      var data = await resp.json();
+      var result = {};
+      (data.features || []).forEach(function(f) {
+        var sid = f.properties ? f.properties.station : '';
+        var snowData = (f.properties && f.properties.parameters && f.properties.parameters.SCHNEE) ? f.properties.parameters.SCHNEE.data : [];
+        var snow = snowData.length > 0 ? snowData[snowData.length - 1] : null;
+        if (sid && snow !== null && snow !== undefined) {
+          result[sid] = snow;
+        }
+      });
+      this._stationCache = result;
+      this._stationCacheTime = Date.now();
+      console.log('[Snow] GeoSphere stations loaded:', Object.keys(result).length, 'with data');
+      return result;
+    } catch(e) {
+      console.warn('[Snow] GeoSphere station fetch failed:', e.message);
+      return null;
+    }
+  },
+
+  /**
+   * Find nearest station snow depth for a given coordinate
+   */
+  _getNearestStationSnow(lat, lng, elev, stationData) {
+    if (!stationData) return null;
+    var bestDist = Infinity;
+    var bestSnow = null;
+    var bestStation = null;
+    for (var i = 0; i < this.SNOW_STATIONS.length; i++) {
+      var s = this.SNOW_STATIONS[i];
+      // Only use stations within similar elevation range (±500m)
+      if (Math.abs(s.elev - elev) > 700) continue;
+      var d = Math.pow(s.lat - lat, 2) + Math.pow(s.lng - lng, 2);
+      if (d < bestDist && stationData[s.id] !== undefined) {
+        bestDist = d;
+        bestSnow = stationData[s.id];
+        bestStation = s;
+      }
+    }
+    // Only use if station is within ~80km
+    if (bestDist > 0.5) return null; // ~80km
+    return bestSnow !== null ? { snow: bestSnow, station: bestStation } : null;
+  },
+
   async analyzeRoute(routeCoords) {
     if (!routeCoords || routeCoords.length < 2) return null;
 
@@ -24,11 +106,25 @@ const PeakflowSnow = {
       samples.push(routeCoords[i]);
     }
 
-    // Fetch snow data sequentially via rate-limited queue (not parallel!)
+    // 1. Try real GeoSphere station data first
+    var stationData = await this._fetchStationSnow();
+
+    // 2. Also fetch Open-Meteo data
     try {
       this.snowData = [];
       for (const coord of samples) {
         const d = await PeakflowWeather.getSnowData(coord[1], coord[0], coord[2] || 0);
+
+        // Override with real station data if available
+        if (stationData) {
+          var nearest = this._getNearestStationSnow(coord[1], coord[0], coord[2] || 0, stationData);
+          if (nearest && nearest.snow > d.snowDepth) {
+            d.snowDepth = nearest.snow;
+            d.stationName = nearest.station.name;
+            d.stationElev = nearest.station.elev;
+          }
+        }
+
         this.snowData.push(d);
       }
     } catch (e) {
@@ -76,6 +172,12 @@ const PeakflowSnow = {
       snowfall: data.snowfall
     }));
 
+    // Check if data came from real station
+    var stationName = null, stationElev = null;
+    this.snowData.forEach(function(d) {
+      if (d.stationName) { stationName = d.stationName; stationElev = d.stationElev; }
+    });
+
     return {
       maxSnowDepth: Math.round(maxSnow),
       avgSnowDepth: Math.round(avgSnow),
@@ -84,7 +186,9 @@ const PeakflowSnow = {
       segments,
       hasSnow: maxSnow > 0,
       isEstimate: isEstimate || false,
-      snowline: snowline
+      snowline: snowline,
+      stationName: stationName,
+      stationElev: stationElev
     };
   },
 
@@ -122,7 +226,9 @@ const PeakflowSnow = {
       parts.push(`Nullgradgrenze bei ${analysis.minFreezingLevel}m.`);
     }
 
-    if (analysis.isEstimate) {
+    if (analysis.stationName) {
+      parts.push(`(Messwert: Station ${analysis.stationName}, ${analysis.stationElev}m)`);
+    } else if (analysis.isEstimate) {
       parts.push(`(Altschnee-Sch\u00e4tzung, Schneegrenze ~${analysis.snowline}m)`);
     }
 
