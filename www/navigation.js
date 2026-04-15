@@ -87,7 +87,7 @@ const PeakflowNavigation = {
     this._showNavUI();
 
     // Welcome announcement
-    this._speak('Navigation gestartet. Folge der Route.');
+    this._speak('Los gehts! Navigation gestartet. Viel Spa\u00df auf deiner Tour!');
 
     console.log('[Nav] Started with ' + routeCoords.length + ' points, ' + this._navPoints.length + ' nav points');
   },
@@ -362,6 +362,12 @@ const PeakflowNavigation = {
         continue;
       }
 
+      // Finish: only announce when at least 70% of route completed (prevents false "Ziel erreicht" on round trips)
+      if (np.type === 'finish') {
+        var progress = this.currentIndex / this.routeCoords.length;
+        if (progress < 0.7) continue; // Not far enough yet
+      }
+
       // Other nav points: single announcement
       if (this.announcedPoints.has(key)) continue;
       var announceDistM = np.type === 'danger' ? 200 : 150;
@@ -393,17 +399,17 @@ const PeakflowNavigation = {
 
     switch (np.type) {
       case 'steep':
-        return distText + 'steiler Abschnitt. ' + np.slope + ' Grad Steigung.';
+        return distText + 'Achtung, steiler Abschnitt! ' + np.slope + ' Grad Steigung. Tempo anpassen!';
       case 'danger':
-        return 'Vorsicht! Gefährlicher Abschnitt. ' + (np.label || 'Trittsicherheit erforderlich.');
+        return 'Hey, Vorsicht! Gef\u00e4hrlicher Abschnitt voraus. ' + (np.label || 'Trittsicherheit erforderlich!');
       case 'water':
-        return distText + 'Wasserquelle. ' + (np.name || '');
+        return distText + 'Super, eine Wasserquelle! ' + (np.name || 'Perfekt zum Auff\u00fcllen.');
       case 'poi':
-        return distText + (np.name || 'Sehenswürdigkeit') + (np.elevation ? ', ' + np.elevation + ' Meter.' : '.');
+        return distText + (np.name || 'Sehenswürdigkeit') + (np.elevation ? ' auf ' + np.elevation + ' Metern!' : '.');
       case 'summit':
-        return 'Gipfel erreicht! ' + np.elevation + ' Meter über dem Meer. Herzlichen Glückwunsch!';
+        return 'Yesss, Gipfel erreicht! ' + np.elevation + ' Meter! Du bist der Bergk\u00f6nig! Herzlichen Gl\u00fcckwunsch!';
       case 'finish':
-        return 'Du hast dein Ziel erreicht! Tour beendet.';
+        return 'Geschafft! Du hast dein Ziel erreicht! Starke Leistung, Tour beendet!';
       default:
         return null;
     }
@@ -432,14 +438,26 @@ const PeakflowNavigation = {
     speechSynthesis.cancel();
     var utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = this._voiceLang;
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
+    utterance.rate = 1.0;   // Natural speed
+    utterance.pitch = 1.15; // Slightly higher = more energetic
     utterance.volume = 1.0;
 
-    // Try to use a German voice
+    // Try to find the best German voice (prefer female voices — sound friendlier)
     var voices = speechSynthesis.getVoices();
-    var germanVoice = voices.find(function(v) { return v.lang.startsWith('de'); });
-    if (germanVoice) utterance.voice = germanVoice;
+    var bestVoice = null;
+    // Priority: Google DE female > any DE female > any DE voice
+    for (var vi = 0; vi < voices.length; vi++) {
+      var v = voices[vi];
+      if (!v.lang.startsWith('de')) continue;
+      if (!bestVoice) bestVoice = v;
+      if (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('anna') ||
+          v.name.toLowerCase().includes('petra') || v.name.toLowerCase().includes('marlene')) {
+        bestVoice = v;
+        break;
+      }
+      if (v.name.includes('Google')) bestVoice = v;
+    }
+    if (bestVoice) utterance.voice = bestVoice;
 
     speechSynthesis.speak(utterance);
     this.lastSpoken = text;

@@ -2412,14 +2412,25 @@ const Peakflow = {
           '<div><div style="font-size:28px;font-weight:800;color:#22c55e;">' + ascent + '</div><div style="font-size:11px;color:#94a3b8;">m ↑</div></div>' +
           '<div><div style="font-size:28px;font-weight:800;color:#ef4444;">' + descent + '</div><div style="font-size:11px;color:#94a3b8;">m ↓</div></div>' +
         '</div>' +
-        '<div style="font-size:12px;color:#64748b;margin-top:8px;">Tippe auf die Karte um fortzufahren</div>';
+        '<div style="display:flex;gap:8px;margin-top:16px;justify-content:center;">' +
+          '<button id="summaryNavBtn" style="padding:10px 18px;background:#3b82f6;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">\uD83E\uDDED Navigieren</button>' +
+          '<button id="summaryGpxBtn" style="padding:10px 18px;background:var(--bg-tertiary,#2e2e2e);color:var(--text-primary,#f0ece2);border:1px solid var(--border-color,#3a3632);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">\u2B07 GPX</button>' +
+          '<button id="summarySaveBtn" style="padding:10px 18px;background:var(--color-primary,#c9a84c);color:#1a1a1a;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">\uD83D\uDCBE Speichern</button>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#64748b;margin-top:10px;">Tippe daneben um zu schlie\u00dfen</div>';
 
       this.map.getContainer().appendChild(overlay);
 
-      // Confetti burst 🎊
+      // DISABLE planning mode — no more waypoints after finishing
+      PeakflowRoutes.isPlanning = false;
+      if (this.map) this.map.getCanvas().style.cursor = '';
+      var planBtn = document.getElementById('routePlanBtn');
+      if (planBtn) planBtn.classList.remove('active');
+
+      // Confetti burst
       this._fireConfetti();
 
-      // Remove overlay on click
+      // Remove overlay function
       var removeOverlay = () => {
         if (overlay.parentNode) {
           overlay.style.opacity = '0';
@@ -2432,8 +2443,25 @@ const Peakflow = {
         this.map.getContainer().addEventListener('click', removeOverlay);
       }, 500);
 
-      // Auto-remove after 8s
-      setTimeout(removeOverlay, 8000);
+      // Wire up summary buttons
+      document.getElementById('summaryNavBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeOverlay();
+        document.getElementById('navStartBtn').click();
+      });
+      document.getElementById('summaryGpxBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeOverlay();
+        document.getElementById('exportGpxBtn').click();
+      });
+      document.getElementById('summarySaveBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeOverlay();
+        document.getElementById('saveRouteBtn').click();
+      });
+
+      // Auto-remove after 15s
+      setTimeout(removeOverlay, 15000);
     });
 
     // GPX Export - requires login
