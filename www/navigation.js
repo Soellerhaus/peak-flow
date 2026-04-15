@@ -1,7 +1,12 @@
 /**
  * Peakflow Voice Navigation
  * Turn-by-turn navigation with voice announcements for hazards, POIs, water, weather
+ * Supports: Web (PWA) + Native (Capacitor Android) with background GPS + TTS
  */
+
+// Detect if running as native Capacitor app
+var _isNativeApp = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+
 const PeakflowNavigation = {
   map: null,
   active: false,
@@ -63,25 +68,34 @@ const PeakflowNavigation = {
     // Keep screen on during navigation (Wake Lock API)
     this._requestWakeLock();
 
+    // Start foreground service for background navigation (native app only)
+    if (_isNativeApp) {
+      this._startForegroundService();
+    }
+
     // Create position marker
     this._createMarker();
 
-    // Start GPS tracking
-    this.watchId = navigator.geolocation.watchPosition(
-      (pos) => this._onPosition(pos),
-      (err) => {
-        console.warn('[Nav] GPS error:', err.message);
-        if (err.code === 1) {
-          alert('GPS-Zugriff wurde verweigert. Bitte erlaube den Standortzugriff.');
-          this.stop();
+    // Start GPS tracking (native or web)
+    if (_isNativeApp) {
+      this._startNativeGPS();
+    } else {
+      this.watchId = navigator.geolocation.watchPosition(
+        (pos) => this._onPosition(pos),
+        (err) => {
+          console.warn('[Nav] GPS error:', err.message);
+          if (err.code === 1) {
+            alert('GPS-Zugriff wurde verweigert. Bitte erlaube den Standortzugriff.');
+            this.stop();
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 3000,
+          timeout: 10000
         }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 3000,
-        timeout: 10000
-      }
-    );
+      );
+    }
 
     // Show navigation UI
     this._showNavUI();
@@ -97,6 +111,12 @@ const PeakflowNavigation = {
 
     // Release wake lock
     this._releaseWakeLock();
+
+    // Stop foreground service (native)
+    if (_isNativeApp) {
+      this._stopForegroundService();
+      this._stopNativeGPS();
+    }
 
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
@@ -433,6 +453,33 @@ const PeakflowNavigation = {
 
   _speak(text) {
     if (!text || text === this.lastSpoken) return;
+
+    // Native TTS (works in background!)
+    if (_isNativeApp && typeof Capacitor !== 'undefined') {
+      try {
+        var tts = Capacitor.Plugins.TextToSpeech;
+        if (tts) {
+          tts.speak({
+            text: text,
+            lang: this._voiceLang || 'de-DE',
+            rate: 1.0,
+            pitch: 1.1,
+            volume: 1.0
+          }).catch(function(e) { console.warn('[Nav] Native TTS failed:', e); });
+
+          // Update instruction display
+          var instrEl = document.getElementById('navInstruction');
+          if (instrEl) instrEl.textContent = text;
+
+          this.lastSpoken = text;
+          this.lastSpokenTime = Date.now();
+          console.log('[Nav] \uD83D\uDD0A (native) ' + text);
+          return;
+        }
+      } catch(e) { console.warn('[Nav] Native TTS not available:', e); }
+    }
+
+    // Web Speech API fallback
     if (!('speechSynthesis' in window)) return;
 
     speechSynthesis.cancel();
@@ -470,6 +517,96 @@ const PeakflowNavigation = {
     if (this.announcedPoints.has(key)) return;
     this.announcedPoints.add(key);
     this._speak(text);
+  },
+
+  // === NATIVE CAPACITOR FUNCTIONS ===
+
+  async _startForegroundService() {
+    try {
+      var ForegroundService = Capacitor.Plugins.ForegroundService;
+      if (!ForegroundService) { console.log('[Nav] ForegroundService plugin not available'); return; }
+      await ForegroundService.startForegroundService({
+        id: 1,
+        title: 'Peak Flow Navigation',
+        body: 'Navigation aktiv \u2014 GPS l\u00e4uft im Hintergrund',
+        smallIcon: 'ic_stat_navigation',
+        buttons: [{ title: 'Stopp', id: 'stop' }]
+      });
+      console.log('[Nav] Foreground Service started');
+
+      // Listen for stop button in notification
+      var self = this;
+      ForegroundService.addListener('buttonClicked', function(ev) {
+        if (ev.buttonId === 'stop') { self.stop(); }
+      });
+    } catch(e) {
+      console.warn('[Nav] Foreground Service failed:', e.message);
+    }
+  },
+
+  async _stopForegroundService() {
+    try {
+      var ForegroundService = Capacitor.Plugins.ForegroundService;
+      if (ForegroundService) {
+        await ForegroundService.stopForegroundService();
+        console.log('[Nav] Foreground Service stopped');
+      }
+    } catch(e) { console.warn('[Nav] Foreground Service stop failed:', e); }
+  },
+
+  _nativeWatchId: null,
+
+  async _startNativeGPS() {
+    try {
+      var Geolocation = Capacitor.Plugins.Geolocation;
+      if (!Geolocation) { console.log('[Nav] Native Geolocation not available, falling back to web'); this._startWebGPS(); return; }
+
+      // Request permission first
+      var perm = await Geolocation.requestPermissions();
+      console.log('[Nav] GPS permission:', perm.location);
+
+      var self = this;
+      this._nativeWatchId = await Geolocation.watchPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 3000
+      }, function(position, err) {
+        if (err) { console.warn('[Nav] Native GPS error:', err); return; }
+        if (position && position.coords) {
+          self._onPosition(position);
+        }
+      });
+      console.log('[Nav] Native GPS watch started, ID:', this._nativeWatchId);
+    } catch(e) {
+      console.warn('[Nav] Native GPS failed, falling back to web:', e.message);
+      this._startWebGPS();
+    }
+  },
+
+  _startWebGPS() {
+    var self = this;
+    this.watchId = navigator.geolocation.watchPosition(
+      function(pos) { self._onPosition(pos); },
+      function(err) {
+        console.warn('[Nav] GPS error:', err.message);
+        if (err.code === 1) {
+          alert('GPS-Zugriff wurde verweigert.');
+          self.stop();
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+  },
+
+  async _stopNativeGPS() {
+    try {
+      var Geolocation = Capacitor.Plugins.Geolocation;
+      if (Geolocation && this._nativeWatchId !== null) {
+        await Geolocation.clearWatch({ id: this._nativeWatchId });
+        this._nativeWatchId = null;
+        console.log('[Nav] Native GPS watch stopped');
+      }
+    } catch(e) { console.warn('[Nav] Native GPS stop failed:', e); }
   },
 
   _wakeLock: null,

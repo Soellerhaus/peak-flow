@@ -9,6 +9,13 @@
     "SplashScreen": {
       "launchShowDuration": 2000,
       "backgroundColor": "#1a1a1a"
+    },
+    "Geolocation": {
+      "enableHighAccuracy": true
+    },
+    "ForegroundService": {
+      "channelName": "Peak Flow Navigation",
+      "channelDescription": "GPS Navigation im Hintergrund"
     }
   }
 }
