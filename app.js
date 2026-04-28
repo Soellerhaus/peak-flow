@@ -17,13 +17,27 @@ const Peakflow = {
       sources: {
         'osm-tiles': {
           type: 'raster',
-          tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+          // 3 Subdomains (a/b/c) für parallele Downloads = 3x schneller
+          tiles: [
+            'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+            'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
+            'https://c.tile.opentopomap.org/{z}/{x}/{y}.png'
+          ],
           tileSize: 256,
           maxzoom: 17,
           attribution: '© OpenTopoMap, © OpenStreetMap contributors'
         }
       },
-      layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm-tiles' }]
+      layers: [{
+        id: 'osm-tiles',
+        type: 'raster',
+        source: 'osm-tiles',
+        paint: {
+          // Sanfter Übergang: alte Tiles bleiben sichtbar bis neue da sind
+          'raster-fade-duration': 200,
+          'raster-resampling': 'linear'
+        }
+      }]
     },
     satellite: {
       version: 8,
@@ -35,19 +49,40 @@ const Peakflow = {
           attribution: '© Esri'
         }
       },
-      layers: [{ id: 'satellite-tiles', type: 'raster', source: 'satellite-tiles' }]
+      layers: [{
+        id: 'satellite-tiles',
+        type: 'raster',
+        source: 'satellite-tiles',
+        paint: {
+          'raster-fade-duration': 200,
+          'raster-resampling': 'linear'
+        }
+      }]
     },
     standard: {
       version: 8,
       sources: {
         'osm-standard': {
           type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          // 3 Subdomains für parallele Downloads
+          tiles: [
+            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+          ],
           tileSize: 256,
           attribution: '© OpenStreetMap contributors'
         }
       },
-      layers: [{ id: 'osm-standard', type: 'raster', source: 'osm-standard' }]
+      layers: [{
+        id: 'osm-standard',
+        type: 'raster',
+        source: 'osm-standard',
+        paint: {
+          'raster-fade-duration': 200,
+          'raster-resampling': 'linear'
+        }
+      }]
     }
   },
 
@@ -148,7 +183,15 @@ const Peakflow = {
       pitch: 0,
       bearing: 0,
       maxPitch: 85,
-      antialias: true
+      antialias: true,
+      // Tile-Cache: mehr Tiles im RAM = schnelleres Zoomen
+      maxTileCacheSize: 500,
+      // Keine unnötigen Re-Fetches abgelaufener Tiles
+      refreshExpiredTiles: false,
+      // Tiles vorab laden auch außerhalb Viewport (für smooth Pan)
+      fadeDuration: 200,
+      // Crossfade zwischen Zoom-Stufen
+      crossSourceCollisions: false
     });
 
     // Navigation controls removed - using custom toolbar buttons instead

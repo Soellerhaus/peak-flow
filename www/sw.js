@@ -1,4 +1,4 @@
-const CACHE_NAME = 'peakflow-v16';
+const CACHE_NAME = 'peakflow-v17';
 const TILE_CACHE = 'peakflow-tiles-v1';
 const MAX_TILE_CACHE_SIZE = 5000; // Max 5000 tiles (~250MB) for offline maps
 
